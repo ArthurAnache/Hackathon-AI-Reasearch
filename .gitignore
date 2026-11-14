@@ -5,24 +5,27 @@
 *.pem
 .modal.toml
 
-# python
+# python / tooling
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
 .DS_Store
+# Maestri canvas role folders (local only)
+.maestri/
 
-# WS1 selection cache
+# WS1 cache
 selection/.cache/
 
-# autoresearch outputs: never committed (see program.md)
+# WS2 autoresearch outputs: never committed (see program.md)
 experiments.jsonl
+experiments_*.jsonl
 run.log
 solutions/
 reports/
 
-# local run output (commit selected logs explicitly with git add -f)
-runs/
+# WS4 local state: spend counters, query cache, disabled keys, local memory
+.cache/
 
-# Maestri canvas role folders (local only)
-.maestri/
+# old prototype output (local only)
+runs/
