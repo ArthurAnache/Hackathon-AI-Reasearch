@@ -1,0 +1,17 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+.modal.toml
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# local run output (commit selected logs explicitly with git add -f)
+runs/
+
+# Maestri canvas role folders (local only)
+.maestri/
