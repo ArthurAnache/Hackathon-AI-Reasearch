@@ -46,6 +46,9 @@ cp .env.example .env                          # fill EXA_API_KEY; EINSTEIN_ARENA
 .venv/bin/python selection/literature_check.py ring-loading-15 third-autocorrelation-inequality   # Exa check
 .venv/bin/python selection/thread_digest.py           # forum threads -> selection/digests/<slug>.md (~1 min)
 .venv/bin/python integrations/submit.py SLUG SOLUTION.json --expected-score X   # gated dry run (no --confirm)
+.venv/bin/python selection/freeze_problems.py         # stage 4: freeze the chosen problems (refuses to overwrite)
+.venv/bin/python -m unittest discover -s tests -p "test_ws1_*.py"                # frozen-problem tests (~9 s)
+.venv/bin/python selection/verify_claim.py SLUG CANDIDATE.json                  # arbitrate a claim (never submits)
 ```
 
 Pinned sources:
@@ -77,7 +80,15 @@ Pinned sources:
 | `selection/arena_log.jsonl` | Log of every EinsteinArena call (endpoint, params, status, result count, ids; no bodies, no key) |
 | `selection/thread_digest.py` | Fetches top + recent threads and replies, writes `selection/digests/<slug>.md` |
 | `selection/digests/` | Per-problem forum digests: curated summary (cited) + generated thread index |
-| `selection/independent_verifiers.py` | Second, independent scorers (ring-loading-15, circles-rectangle, second-autocorrelation) |
+| `selection/independent_verifiers.py` | Relay to the independent verifiers in `problems/<slug>/independent.py` (used by `submit.py`) |
+| `selection/decision.md` | Stage 4: weighted rule, scores, tie-break, decision (main / backup / record bet) |
+| `selection/freeze_problems.py` | Freezes a chosen problem into `problems/<slug>/`; `--manifest` rewrites `problems/MANIFEST.json` |
+| `problems/` | Frozen catalog: `catalog.py`, `_frozen.py`, one directory per problem (pinned verifier, certificate, meta, independent verifier, API) |
+| `tests/test_ws1_frozen_problems.py` | Freeze rule, certificates, independent agreement, circles exploits, schema limits (unittest, ~9 s) |
+| `selection/verify_claim.py` | WS1 arbiter: pinned + independent verifier + live #1 → verdict in `selection/claims.jsonl` |
+| `selection/claims.jsonl` | Every arbitrated claim (WS1 self-tests so far) |
+| `docs/ws1_handoff.md` | Handoff to WS2/WS3: problems, records, δ, interface, limits, forum knowledge base |
+| `docs/ws1_knowledge.jsonl` | The same knowledge, one fact per line, `author: ws1-selection` (ready for past.dev) |
 | `integrations/arena_register.py` | One-time agent registration (challenge + proof of work), run only with Arthur's approval |
 | `integrations/submit.py` | Gated single-shot submission and `--status` check |
 | `selection/submissions.jsonl` | Every submission attempt (sent / blocked / error) and status check, with reasons |
@@ -383,7 +394,8 @@ handlers of the pinned commit (`web/src/app/api/**/route.ts`), read to get the e
     score equals the expected score (relative 1e-12).
   - **(b)** The independent scorer in `selection/independent_verifiers.py` agrees within a tolerance fixed in
     advance (ring 0, circles 1e-13, second-autocorrelation 1e-10). A problem without an independent scorer is never
-    sent.
+    sent. *Update after stage 4:* (a) and (b) now use the frozen copies in `problems/<slug>/`, and the
+    second-autocorrelation check is exact rational (tolerance 1e-12, §11).
   - **(c)** The leaderboard is re-read right before the send. The gain over #1 must be ≥ max(δ live, δ registry),
     strictly > 0 (the server rejects ties) and > the tolerance of (b), for both scorers. For an exact problem, it is
     computed in `Fraction`s.
@@ -419,33 +431,124 @@ handlers of the pinned commit (`web/src/app/api/**/route.ts`), read to get the e
 | ~11:45 | Stage 3 priority: ring-loading, second-autoc., circles-rectangle, erdos, first/third-autoc., the 5 added problems, then plateaus; ring-loading in exact fractions | Arthur |
 | ~12:05 | Exa is the literature tool; every value must be cited with its URL | Arthur |
 | ~13:00 | EinsteinArena API: read the forum now; submission code ready but gated (a)–(e), nothing sent without Arthur's `--confirm`; registration only after Arthur picks the agent name; no forum posting for now | Arthur |
+| 13:23 | Agent `Revolutionaries` registered; key kept in `~/.config/einsteinarena/credentials.json` and `.env` only | Arthur |
+| ~14:25 | Stage 4: main = second-autocorrelation, backup = circles-rectangle, ring-loading-15 = record bet left to the agent (`selection/decision.md`). WS1 does not optimize: it freezes, hands over and arbitrates | Arthur |
 
 ---
 
-## 11. Current shortlist and next steps
+## 11. Stage 4 — decision, freeze and arbitration (2026-11-14)
 
-**Shortlist going into stage 4** (still to confirm with the weighted scoring):
+### 11.1 Decision (`selection/decision.md`)
 
-1. **second-autocorrelation:** the highest improvement rate in the probe, an active #1 (changed today), cheap
-   evaluation (0.15 s) and a δ of 1e-5 that is reachable in principle.
-2. **first-autocorrelation:** the best gain/δ in the probe, with δ = 1e-8.
-3. **ring-loading-15:** exact verifier, δ = 0, and a record (9/8) that already beats the literature. Any strict
-   exact improvement would be a new lower bound on a classical constant. It needs a faster exact evaluator and a
-   structured search.
-4. **Backup:** circles-rectangle (evaluation under 1 ms, δ = 1e-10).
+- **Rule:** the weights fixed before the results were applied (margin 30 %, cost 20 %, verifier 15 %, baseline 15 %,
+  code 10 %, activity 10 %). The 0–5 rating rules were defined in `decision.md` and applied mechanically to the
+  stage 2/3 data. They were **not** written before the results, and `decision.md` says so.
+- **Result:**
+  - circles-rectangle 3.589 and second-autocorrelation 3.585, tied;
+  - first-autocorrelation 3.21;
+  - all others ≤ 2.95;
+  - ring-loading-15 2.50.
+- **Tie-break:**
+  - Sustained progress at a submittable resolution: 681 improvements in 10 min for second-autocorrelation against
+    137 for circles-rectangle, most of them in a final burst.
+  - The digests: circles-rectangle is a certified KKT point and every published escape failed. second-autocorrelation
+    keeps moving through new constructions, and an untested full-support 2M route is documented.
+- **Decision (Arthur):**
+  - main = **second-autocorrelation-inequality**;
+  - backup = **circles-rectangle**;
+  - **ring-loading-15** = record bet left to the agent.
 
-**Open items:**
-- Run the stage 4 weighted scoring and pick the main problem and the backup.
-- Curate the literature check for the 12 remaining live problems.
-- Freeze the verifier for the chosen problem behind `problem.verify` / `problem.score`, with an independent second
-  implementation (exact or rational where possible).
-- Add Tao's constants that are missing from EinsteinArena (1c, 3b, 3c, 49, 89) to the registry.
-- Third-autocorrelation: try to obtain MILO's construction, or treat 1.44889 as the bar.
-- Register the EinsteinArena agent (name and approval from Arthur), then paste the key into `.env`.
-- second-autocorrelation: analyse MLAI_YONSEI's new #1 (solution 2782), which no thread covers yet.
-- Write independent scorers for any other problem we might submit (submit.py refuses problems without one).
+### 11.2 Frozen problems (`problems/`)
 
-**Known limitations of WS1 so far:**
-- `selection/verifiers/` from stage 1 uses a simplified unescaping. The verifiers that are actually run are the
-  faithful extractions in `selection/.cache/stage2/<slug>/verifier_pinned.py`.
-- The cache, including the record solutions (~13 MB), is git-ignored. Re-running stage 2 rebuilds it.
+- **Freeze:** `selection/freeze_problems.py` builds `problems/<slug>/` from the stage 2 cache. Before writing, it
+  checks three things:
+  - the pinned verifier sha256 matches the registry;
+  - the pinned verifier is byte-identical to the live one;
+  - the live #1 is still the cached record.
+
+  It refuses to overwrite a frozen problem.
+- **Frozen on 2026-11-14:**
+
+  | Problem | Verifier sha256 | Certificate sha256 | #1 at freeze |
+  |---|---|---|---|
+  | second-autocorrelation-inequality | `dc5ccffa…` | `ae37b4fc…` (6.8 MB JSON, 1.9 MB gzip) | 0.963638667992813 |
+  | circles-rectangle | `77cf0c63…` | `6de2c843…` | 2.3658323759098576 |
+  | ring-loading-15 | `a91b09ba…` | `013531d4…` | 9/8 |
+
+- **API:** `problems.catalog.load(slug)` gives `verify -> bool`, `score -> float`, `why_invalid`,
+  `independent_score`, `best_known_score` (live leaderboard, 300 s cache, snapshot fallback), `target`,
+  `beats_record`, `certificate` and `submission_path`.
+  - `verify` also enforces the server's zod schema (e.g. ≤ 2,000,000 values).
+  - `ws2_module(slug)` adapts a problem to WS2's catalog contract (`verify -> float`).
+- **Layout choice.** There is no `problems/__init__.py`: WS2's branch has its own `problems/__init__.py`, which is
+  hash-locked, and the directories use EinsteinArena slugs with dashes. They are loaded by path, so the two catalogs
+  can be merged without a conflict.
+- **Independent verifiers** (no shared code with the pinned ones):
+  - **second-autocorrelation, exact rational:**
+    - float64 values → integers over a common power of two;
+    - exact autoconvolution by Kronecker substitution, squared with the standard-library `decimal` (libmpdec, exact
+      integer arithmetic), with self-checks;
+    - closed-form integrals of the piecewise-linear f∗f.
+    - Cost: 4.5 s and ~1 GB for 2M values.
+    - The exact value of the #1 is 0.9636386679928135 as a float (*verified*).
+  - **circles-rectangle:** every constraint in exact `Fraction`s, overlap tested with squared distances.
+  - **ring-loading-15:** integer enumeration over a common denominator.
+- **Tests** (`tests/test_ws1_frozen_problems.py`, unittest, 17 tests, ~9 s, all pass; the live test is opt-in with
+  `WS1_LIVE_TESTS=1` and also passes):
+  - frozen hashes (verifier, certificate, every file via `problems/MANIFEST.json`);
+  - each certificate reproduces the displayed score;
+  - independent agreement;
+  - 9/8 exact;
+  - schema limits;
+  - the circles-rectangle exploits: overlap slack of 2^-31, perimeter excess of 2^-31, and 21 circles of radius 1/8
+    at 2^50 + 1, where a float width + height computation gives 2.0 and the sum of radii is 2.625. All three are
+    rejected by the pinned and the independent verifier.
+
+  A tampering check (one byte appended to a pinned verifier) makes the suite fail: the problem refuses to load with
+  `FrozenFileChanged`.
+- **Limitation:** the server's numpy/scipy versions (E2B sandbox) are not pinned. For second-autocorrelation, the
+  local pinned score of the certificate is 0.9636386679928137, against 0.963638667992813 displayed (7.8e-16). The
+  test therefore checks relative 1e-12 for this problem and exact equality for the other two.
+
+### 11.3 Arbiter (`selection/verify_claim.py`)
+
+- **What it does:**
+  - checks that the frozen verifier is intact and still identical to the live one;
+  - runs the pinned verifier in a clean process and the independent verifier;
+  - re-reads the live #1 and δ;
+  - logs a verdict to `selection/claims.jsonl`: `invalid`, `verifier_disagreement`, `valid_below_record` or
+    `beats_record`.
+- **Fields logged:** `beats_record_by` (pinned, independent and exact gain), `verifier_gap`, the live #1 and the
+  target.
+- **It never submits.**
+- **Tested:**
+  - the certificates give `valid_below_record` (gain 7.8e-16 and 0);
+  - an infeasible ring pair gives `invalid`;
+  - mocked runs (log in a scratch dir) cover `beats_record` (gain 1.1e-10 ≥ δ against a lower fake #1) and
+    `verifier_disagreement` (gap 1e-9 > 1e-13).
+
+### 11.4 Handoff (`docs/ws1_handoff.md`, `docs/ws1_knowledge.jsonl`)
+
+- For WS2/WS3: the problems, records (value, source, date), δ, targets, interface with code, rules (never modify
+  `problems/`, claims through the arbiter, only Arthur submits) and limits.
+- A knowledge base from the digests: dead ends, what worked, useful facts and untested ideas, each with its thread
+  id. These are data for the agent, not WS1 tasks.
+- The same 37 facts are in `docs/ws1_knowledge.jsonl` (`author: ws1-selection`).
+- **past.dev: not written.** The adapter exists only on `origin/ws4-sponsor-integrations` and `PAST_API_KEY` is not
+  set. To do with WS4.
+
+## 12. Next steps and limitations
+
+**Open items for WS1** (arbitration and data only, no optimization):
+- Arbitrate every claim from WS2/WS3 with `verify_claim.py`. Arthur decides on submission.
+- With WS4: ingest `docs/ws1_knowledge.jsonl` into past.dev.
+- With WS2: register `ws2_module(...)` in their catalog, and use `beats_record` (δ) rather than `RECORD_RTOL`.
+- Curate the literature check for the remaining live problems, and add Tao's constants (1c, 3b, 3c, 49, 89).
+- Third-autocorrelation: obtain MILO's construction, or treat 1.44889 as the bar.
+
+**Known limitations:**
+- `selection/verifiers/` from stage 1 uses a simplified unescaping. The verifiers actually run are the frozen ones
+  in `problems/<slug>/verifier_pinned.py`, which are byte-identical to the pinned commit and to the live API.
+- The stage 2 cache (~13 MB) is git-ignored. Only the three frozen certificates are committed.
+- If the live #1 moves, `best_known_score()` and the arbiter follow it. The frozen certificate stays the #1 at
+  freeze time.

@@ -200,6 +200,59 @@ Results:
   - If confirmed, the record to beat is 1.44889, not 1.4491.
   - Tao's 1d (1.4578–1.4631) is a different constant, so it can't be compared.
 
+**Stage 4 — done (2026-11-14). The problem is chosen** (`selection/decision.md`, Arthur):
+
+| Role | Problem | Live #1 at freeze | δ |
+|---|---|---|---|
+| Main | `second-autocorrelation-inequality` | 0.963638667992813 (MLAI_YONSEI) | 1e-5 |
+| Backup | `circles-rectangle` | 2.3658323759098576 (ExoMind-TTS) | 1e-10 |
+| Record bet, left to the agent | `ring-loading-15` | 9/8 (JSAgent-Ring15) | 0 (strict) |
+
+How the decision was reached:
+- The pre-registered weights put circles-rectangle and second-autocorrelation in a tie (3.589 vs 3.585).
+- The tie was broken by the stage 3 improvement rate and by the digests (circles-rectangle is a certified KKT
+  point).
+- The 0–5 rating rules were defined at decision time, and `decision.md` says so.
+
+### WS1 role from stage 4 on: freeze, hand over, arbitrate (no optimization)
+
+WS1 does **not** improve solutions; that is WS2 (agent) and WS3 (optimizers). WS1 owns these:
+
+- **`problems/` — frozen catalog. Agents never modify it.**
+  - `problems.catalog.load(slug)` gives `verify -> bool`, `score -> float` (pinned verifier, raises
+    `InvalidSolution`), `best_known_score()` (live leaderboard, 300 s cache), `target()` (live #1 + δ),
+    `beats_record()`, `independent_score()`, `certificate()` and `submission_path()`.
+  - `ws2_module(slug)` adapts a problem to WS2's catalog contract.
+  - Each `problems/<slug>/` holds:
+    - `verifier_pinned.py` (commit `5baf636`, sha256 in `meta.json`);
+    - `certificate.json.gz` (the #1 solution, sha256 in `meta.json`);
+    - `independent.py` (second-autocorrelation: exact rational, no float FFT; circles-rectangle: exact `Fraction`s;
+      ring-loading-15: integer enumeration);
+    - `problem.py` (the API, plus the server's zod schema).
+- **Freeze rule:**
+  - `tests/test_ws1_frozen_problems.py` (`.venv/bin/python -m unittest discover -s tests -p "test_ws1_*.py"`) fails
+    if a verifier, a certificate or any file listed in `problems/MANIFEST.json` changes.
+  - A problem that fails its hash check refuses to load.
+  - Only WS1 re-freezes, with Arthur's approval: `selection/freeze_problems.py --refreeze`, then `--manifest`, and
+    the test constants are updated in the same commit.
+- **Arbiter:** `.venv/bin/python selection/verify_claim.py <slug> <candidate.json>`.
+  - It runs the pinned verifier (clean process) and the independent verifier, and re-reads the live #1 and δ.
+  - Verdicts: `invalid`, `verifier_disagreement`, `valid_below_record` or `beats_record`. Each is logged to
+    `selection/claims.jsonl` with `beats_record_by` and the gap between the two verifiers.
+  - Only `beats_record` counts.
+  - It never submits. `integrations/submit.py` stays separate and needs Arthur's `--confirm`.
+- **Handoff:** `docs/ws1_handoff.md`, for WS2/WS3: records, δ, interface, limits, and the forum knowledge base with
+  thread ids. The same 37 facts are in `docs/ws1_knowledge.jsonl` (`author: ws1-selection`). These are data for the
+  agent, not WS1 tasks.
+  - past.dev ingestion is still to do with WS4: the adapter lives on `origin/ws4-sponsor-integrations` and
+    `PAST_API_KEY` is not set.
+- **Known limitation:** the server's numpy/scipy versions are not pinned. For second-autocorrelation, the local
+  pinned score differs from the displayed one by 7.8e-16. The tests use relative 1e-12 for that problem and exact
+  equality for the other two.
+- **Agent registered:** `Revolutionaries` (2026-11-14 13:23 PT).
+  - The key is in `~/.config/einsteinarena/credentials.json` (0600).
+  - `submit.py` reads it from `.env` only (`EINSTEIN_ARENA_API_KEY`).
+
 ## Exa integration (for the Exa challenge)
 
 - Adapter: `integrations/exa_client.py`, function `search(query, since, n, *, decision)`. It uses the official
