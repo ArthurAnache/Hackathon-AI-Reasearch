@@ -9,7 +9,7 @@ keeps or rejects it via git, and logs every decision.
 The problem is a placeholder for now (12 points in a unit square, maximise the
 smallest pairwise distance, best known ≈ 0.388730). Swap in a real record
 (EinsteinArena, Tao optimisation constants, AlphaEvolve) by replacing
-`problem/problem.py`; see INTERFACES.md.
+`problem/problem.py`; see INTERFACES.md. For the design (how this maps onto karpathy/autoresearch, contracts, invariants), read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quick start
 
