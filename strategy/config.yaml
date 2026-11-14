@@ -1,3 +1,0 @@
-method: hill_climb
-n_samples: 10000
-step_size: 0.05

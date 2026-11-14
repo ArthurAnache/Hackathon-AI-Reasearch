@@ -1,7 +1,10 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-.env
 .venv/
-runs/
 .DS_Store
+# autoresearch outputs: never committed (see program.md)
+experiments.jsonl
+run.log
+solutions/
+reports/
