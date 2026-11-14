@@ -1,0 +1,4 @@
+pyyaml>=6
+pytest>=8
+# optional, only for the Claude agent:
+anthropic

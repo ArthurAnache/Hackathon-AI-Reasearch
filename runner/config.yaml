@@ -1,0 +1,13 @@
+# FROZEN (hash-checked). Experiment protocol: every experiment uses the SAME
+# seeds and the SAME time budget, so scores are comparable across history.
+seeds: [0, 1, 2]
+budget_s: 10            # wall-clock seconds per seed (hard kill at budget_s + 5)
+aggregate: mean         # how per-seed scores combine into the experiment score
+min_improvement: 1.0e-6 # keep only if new score beats best-so-far by more than this
+history_window: 20      # how many past experiments the agent sees
+agent: auto             # auto | claude | heuristic  (auto = claude if ANTHROPIC_API_KEY set)
+model: claude-opus-5-5
+effort: high
+editable_paths:         # the ONLY files the agent may write
+  - strategy/search.py
+  - strategy/config.yaml
