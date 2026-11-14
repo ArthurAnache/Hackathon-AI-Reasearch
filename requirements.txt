@@ -1,0 +1,7 @@
+numpy
+scipy
+mpmath
+sympy
+requests
+exa-py
+python-dotenv
