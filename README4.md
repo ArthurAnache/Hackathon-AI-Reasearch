@@ -68,6 +68,35 @@ python -m integrations.sponsor_metrics --store experiments_b.jsonl
 
 Without `--exa` and `--pastdev`, `run_loop` behaves exactly like `python loop.py`.
 
+### Fair comparisons: sponsors off, memory scopes, recorded switches
+
+We regularly need to run **without** the sponsors, to measure whether each one actually helps. Two
+mechanisms keep those comparisons honest:
+
+1. **Every experiment records its switches.** `TaggedStore` adds an `integrations` field to each
+   record: `{"exa": bool, "pastdev": bool, "memory_scope", "memory_since", "agent_id", "memory_backend"}`.
+   "Tool off" is never confused with "tool on, found nothing". `sponsor_metrics` groups results by
+   these switches ("no sponsors", "exa", "pastdev", "exa+pastdev").
+2. **Memory scopes stop old runs from leaking into a new comparison.** The past.dev memory keeps
+   everything, so without isolation a "with past.dev" run would read facts from every earlier run.
+   With `--memory-scope NAME`:
+   - every fact is tagged with the scope, and only facts with the same tag are read (this separates
+     runs that happen at the same time);
+   - the scope's start time is recorded on first use, and past.dev is asked only for facts written
+     after it (`occurredFrom`, filtered server-side, so older facts never come back). Use
+     `--memory-since` to share a scope started on another machine, e.g. Modal workers.
+
+```bash
+S=ab-$(date +%H%M)
+python -m integrations.run_loop --problem 1a -n 10 --budget 30 --agent-id base   --store exp_base.jsonl                       # no sponsors
+python -m integrations.run_loop --problem 1a -n 10 --budget 30 --agent-id mem    --store exp_mem.jsonl --pastdev --memory-scope $S-mem
+python -m integrations.run_loop --problem 1a -n 10 --budget 30 --agent-id exa    --store exp_exa.jsonl --exa                   # Exa only
+```
+
+Without a scope, agents read the accumulated memory of every run. That is the right mode for the
+"learning from the past" metric (does tomorrow's run start faster from today's facts?), and the wrong
+one for an A/B comparison.
+
 Logs (no secrets):
 
 | File | Content |
@@ -100,12 +129,20 @@ decision that improved its score.
 - **Limitation:** Exa results were not yet turned into config hints. They inform the rationale and the
   shared memory, but the agent only acts directly on structured `{"config": ...}` hints.
 
+### Verified: memory scopes, live (2026-11-14)
+
+Agents A and B shared scope `ab-145842-1`, and C used `ab-145842-2`, all with real past.dev. B received
+A's two experiment facts as evidence. C received **none**, neither from A and B nor from any earlier run,
+whereas before scopes existed every agent saw all past facts. past.dev accepted `occurredFrom` with no
+error. A no-sponsor run D was stamped `{"exa": false, "pastdev": false, ...}`.
+
 ### Verified: tests
 
-- `tests/test_integrations.py`: 7 offline tests (fake server): key failover, spend per key name,
+- `tests/test_integrations.py`: 9 offline tests (fake server): key failover, spend per key name,
   cache, stop loss, missing key, past.dev same-project guard, mirror store with a cross-agent hint,
-  Exa trigger logic (audit once, ideas once per plateau), no secret in any log.
-- On the combined checkout (WS2 branch plus this branch): **94 passed, 3 skipped**, WS2's own tests
+  Exa trigger logic (audit once, ideas once per plateau), memory-scope isolation (tag + `occurredFrom`),
+  switch stamping, no secret in any log.
+- On the combined checkout (WS2 branch plus this branch): **96 passed, 3 skipped**, WS2's own tests
   included, frozen files intact.
 
 ## 5. Why each sponsor tool, and how we measure it
@@ -150,6 +187,7 @@ Ablation table to fill from the logs:
 | `.env.example`, no credentials committed | ✅ | `.gitignore`, secret scan before each push |
 | Adapter interfaces behind clean fallbacks | ✅ | the loop runs with no key (tests) |
 | Visible provenance trace | ✅ | the logs in §3 and the `evidence` field of every experiment |
+| Runs with sponsors off, fair comparisons | ✅ verified | `integrations` field on every record, `--memory-scope`, §3 and §4 |
 | Retries, failover, budget caps | ✅ | `integrations/_common.py`, `exa_client.py` |
 | Coding-agent permissions and review workflow | 🟡 | rules in `CLAUDE.md` (frozen verifier, no push without Arthur's approval); Devin not configured |
 | Dashboard / deployed logs | ⬜ | `python analysis.py --json` (WS2) is the starting point |

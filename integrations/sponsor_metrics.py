@@ -6,6 +6,8 @@ Exa       calls, cached calls, blocked calls, USD spent (total and per key label
           experiments whose evidence cited Exa, and how many of those were kept.
 past.dev  writes and reads per agent, experiments informed by a fact written by
           ANOTHER agent (the sponsor requirement), and how many of those were kept.
+By configuration: experiments grouped by the integration switches recorded in
+          each record ("integrations" field): count, kept, best score.
 """
 from __future__ import annotations
 
@@ -69,7 +71,42 @@ def compute(store_path: Path) -> dict:
                           "status": r.get("status")} for r, o in cross[:5]],
         },
         "experiments_total": len(exps),
+        "by_configuration": _by_configuration(exps),
     }
+
+
+def _config_label(r) -> str:
+    t = r.get("integrations")
+    if not isinstance(t, dict):
+        return "untagged"
+    on = [k for k in ("exa", "pastdev") if t.get(k)]
+    label = "+".join(on) if on else "no sponsors"
+    return label + (" [scope %s]" % t["memory_scope"] if t.get("memory_scope") else "")
+
+
+def _direction(problem_id):
+    """'minimize' / 'maximize' from the frozen WS1 problem definition, None if unavailable."""
+    try:
+        import interfaces
+        return interfaces.get_problem(problem_id).direction
+    except Exception:
+        return None
+
+
+def _by_configuration(exps) -> dict:
+    groups = {}
+    for r in exps:
+        groups.setdefault(_config_label(r), []).append(r)
+    out = {}
+    for label, rows in groups.items():
+        scores = [r["score"] for r in rows if r.get("valid") and r.get("score") is not None]
+        direction = _direction(rows[0].get("problem"))
+        best = None
+        if scores and direction:
+            best = min(scores) if direction == "minimize" else max(scores)
+        out[label] = {"experiments": len(rows), "kept": sum(r.get("status") == "keep" for r in rows),
+                      "best_score": best}
+    return out
 
 
 def main(argv=None) -> int:
@@ -91,6 +128,9 @@ def main(argv=None) -> int:
           % (p["experiments_using_another_agents_fact"], p["of_which_kept"]))
     for ex in p["examples"]:
         print("          - %(experiment_id)s by %(agent)s used %(used_fact)s from %(fact_author)s -> %(status)s" % ex)
+    print("By configuration:")
+    for label, g in m["by_configuration"].items():
+        print("          %-28s %d experiments, %d kept, best %s" % (label, g["experiments"], g["kept"], g["best_score"]))
     return 0
 
 

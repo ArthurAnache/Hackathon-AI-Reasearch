@@ -13,6 +13,12 @@ PastDevEvidence   what other agents learned, recalled from past.dev. A config
 CombinedEvidence  several sources; one failing never stops the loop.
 PastDevMirrorStore the local JSONL store stays the source of truth; every
                   experiment is also mirrored to shared memory as a fact.
+TaggedStore       stamps every experiment record with the integration switches
+                  in force ({"exa": bool, "pastdev": bool, "memory_scope", ...}),
+                  so "tool off" is never confused with "tool on, found nothing".
+
+memory_scope / since isolate a comparison run from facts of earlier runs (see
+pastdev_client); without a scope, agents read the accumulated memory.
 
 Every Evidence carries source, citation (URL or memory fact id) and author, and
 run_experiment() stores it in the experiment record, so each decision can be
@@ -44,8 +50,9 @@ class ExaEvidence:
     name = "exa"
 
     def __init__(self, memory: Optional[Memory] = None, plateau: int = 3, n: int = 3,
-                 author: str = "exa-scout"):
+                 author: str = "exa-scout", scope: Optional[str] = None):
         self.memory, self.plateau, self.n, self.author = memory, plateau, n, author
+        self.scope = scope
         self._fired = set()
 
     def _trigger(self, problem, history):
@@ -90,7 +97,7 @@ class ExaEvidence:
                     + " | ".join("%s <%s>" % (h.get("title"), h.get("url")) for h in hits),
                     author=self.author, kind="literature", label="%s %s" % (problem.id, trig[0]),
                     metadata={"problem": problem.id, "trigger": trig[0], "query": query,
-                              "urls": [h.get("url") for h in hits]}, wait=False)
+                              "urls": [h.get("url") for h in hits]}, wait=False, scope=self.scope)
             except Exception:
                 pass
         return out
@@ -99,15 +106,17 @@ class ExaEvidence:
 class PastDevEvidence:
     name = "past.dev"
 
-    def __init__(self, memory: Optional[Memory] = None, reader: str = "agent", limit: int = 8):
+    def __init__(self, memory: Optional[Memory] = None, reader: str = "agent", limit: int = 8,
+                 scope: Optional[str] = None, since: Optional[str] = None):
         self.memory = memory or get_memory()
-        self.reader, self.limit = reader, limit
+        self.reader, self.limit, self.scope, self.since = reader, limit, scope, since
 
     def gather(self, problem, history) -> list:
         query = "problem %s %s: kept experiments, failed ideas, literature" % (problem.id, problem.name)
         t0 = time.perf_counter()
         try:
-            facts = self.memory.read(query, reader=self.reader, limit=self.limit)
+            facts = self.memory.read(query, reader=self.reader, limit=self.limit,
+                                     scope=self.scope, since=self.since)
         except Exception:
             return []
         latency = round(time.perf_counter() - t0, 3)
@@ -149,11 +158,12 @@ class CombinedEvidence:
 class PastDevMirrorStore:
     """ExperimentStore: local JSONL (source of truth) + a fact per experiment."""
 
-    def __init__(self, path, memory: Optional[Memory] = None, author: str = "agent"):
+    def __init__(self, path, memory: Optional[Memory] = None, author: str = "agent",
+                 scope: Optional[str] = None):
         from interfaces import JsonlStore
         self.inner = JsonlStore(path)
         self.memory = memory or get_memory()
-        self.author = author
+        self.author, self.scope = author, scope
 
     def append(self, result: dict) -> None:
         self.inner.append(result)
@@ -170,7 +180,7 @@ class PastDevMirrorStore:
                                         "experiment_id": result.get("experiment_id"),
                                         "status": result.get("status"), "score": result.get("score"),
                                         "beats_record": result.get("beats_record"), "config": cfg},
-                              wait=False)
+                              wait=False, scope=self.scope)
         except Exception:
             pass                                     # mirroring must never break the loop
 
@@ -178,7 +188,24 @@ class PastDevMirrorStore:
         return self.inner.read()
 
 
-def from_flags(agent_id: str, use_exa: bool, use_pastdev: bool) -> CombinedEvidence:
-    memory = get_memory() if use_pastdev else None
-    return CombinedEvidence(ExaEvidence(memory=memory) if use_exa else None,
-                            PastDevEvidence(memory, reader=agent_id) if use_pastdev else None)
+class TaggedStore:
+    """ExperimentStore wrapper: adds an "integrations" field to every record.
+    Extra fields are allowed by interfaces.JsonlStore (it only checks missing ones)."""
+
+    def __init__(self, inner, tags: dict):
+        self.inner, self.tags = inner, dict(tags)
+
+    def append(self, result: dict) -> None:
+        self.inner.append({**result, "integrations": self.tags})
+
+    def read(self) -> list:
+        return self.inner.read()
+
+
+def from_flags(agent_id: str, use_exa: bool, use_pastdev: bool, memory: Optional[Memory] = None,
+               scope: Optional[str] = None, since: Optional[str] = None) -> CombinedEvidence:
+    if use_pastdev and memory is None:
+        memory = get_memory()
+    return CombinedEvidence(
+        ExaEvidence(memory=memory if use_pastdev else None, scope=scope) if use_exa else None,
+        PastDevEvidence(memory, reader=agent_id, scope=scope, since=since) if use_pastdev else None)

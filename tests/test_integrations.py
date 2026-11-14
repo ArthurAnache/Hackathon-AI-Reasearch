@@ -85,6 +85,7 @@ class Fake(BaseHTTPRequestHandler):
             return self._send(202, {"projectId": KEYS[key], "status": "queued", "ingestionId": "i1",
                                     "sourceId": body.get("id")})
         if self.path.endswith("/recall"):
+            Fake.last_recall = body
             return self._send(200, {"results": [{"content": f["content"], "sources": [
                 {"sourceId": f["id"], "excerpts": [f["content"]], "metadata": f.get("metadata")}]}
                 for f in Fake.facts]})
@@ -95,6 +96,7 @@ class Fake(BaseHTTPRequestHandler):
 
 
 Fake.facts = []
+Fake.last_recall = {}
 _srv = HTTPServer(("127.0.0.1", 0), Fake)
 threading.Thread(target=_srv.serve_forever, daemon=True).start()
 BASE = "http://127.0.0.1:%d" % _srv.server_port
@@ -199,6 +201,41 @@ def test_exa_evidence_triggers_only_on_audit_and_plateau():
     assert ev and ev[0].source == "exa" and ev[0].citation == "https://example.org/r"
     assert src.gather(P, hist) == []                                         # once per plateau
     os.environ.pop("EXA_API_KEYS")
+
+
+def test_memory_scope_isolates_comparison_runs():
+    _reset_state()
+    # local memory: scope tag + since filter
+    mem = pastdev_client.LocalMemory()
+    mem.write("old run: LR 0.5 helped", author="old", metadata={"problem": "1a"})
+    mem.write("run A1: LR 0.02 helped", author="a", metadata={"problem": "1a"}, scope="ab-1")
+    mem.write("run B1: LR 0.9 helped", author="b", metadata={"problem": "1a"}, scope="ab-2")
+    got = mem.read("LR helped", reader="x", scope="ab-1")
+    assert [f["author"] for f in got] == ["a"], got
+    assert len(mem.read("LR helped", reader="x")) == 3                 # no scope: accumulated memory
+    assert mem.read("LR helped", reader="x", since="2999-01-01T00:00:00Z") == []
+    # past.dev: scope tag filtered client-side, since sent as occurredFrom
+    Fake.facts.clear()
+    os.environ["PAST_API_KEYS"] = "murilo:ok1"
+    pm = pastdev_client.get_memory()
+    pm.write("A fact", author="a", metadata={"problem": "1a"}, scope="ab-1", wait=False)
+    pm.write("B fact", author="b", metadata={"problem": "1a"}, scope="ab-2", wait=False)
+    got = pm.read("fact", reader="x", scope="ab-1", since="2026-11-14T00:00:00Z")
+    assert [f["author"] for f in got] == ["a"], got
+    assert Fake.last_recall.get("occurredFrom") == "2026-11-14T00:00:00Z"
+    ev = evidence.PastDevEvidence(pm, reader="x", scope="ab-2").gather(P, [])
+    assert [e.author for e in ev] == ["b"]
+    os.environ.pop("PAST_API_KEYS")
+
+
+def test_tagged_store_records_switches():
+    path = os.path.join(_TMP, "tagged.jsonl")
+    inner = sys.modules["interfaces"].JsonlStore(path)
+    store = evidence.TaggedStore(inner, {"exa": False, "pastdev": True, "memory_scope": "ab-1"})
+    fields = getattr(sys.modules["interfaces"], "RECORD_FIELDS", ())
+    store.append(dict({k: None for k in fields}, experiment_id="t1", problem="1a"))
+    row = store.read()[-1]
+    assert row["integrations"] == {"exa": False, "pastdev": True, "memory_scope": "ab-1"}
 
 
 def test_no_keys_means_local_fallbacks_and_no_secret_in_logs():
