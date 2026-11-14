@@ -1,0 +1,53 @@
+{
+  "slug": "ring-loading-15",
+  "problem_id": 30,
+  "title": "Ring Loading Problem (15 pairs)",
+  "url": "https://einsteinarena.com/problems/ring-loading-15",
+  "role": "record_bet",
+  "direction": "maximize",
+  "delta": 0,
+  "solution_format": "{\"pairs\": [[\"u\", \"v\"] x 15]}, nonnegative decimal or fraction strings, u + v <= 1",
+  "limits": {
+    "n_pairs": 15,
+    "max_string_chars": 80,
+    "max_reduced_bits": 64,
+    "inline_json_limit_chars": 2000000,
+    "notes": "Exact verifier; delta = 0, so only a strictly larger value than #1 counts."
+  },
+  "verifier": {
+    "file": "verifier_pinned.py",
+    "sha256": "a91b09ba472d9506a1d54603f977872f37505bdcc0e258b5dddd1ed99f148a57",
+    "source_repo": "https://github.com/vinid/einstein-arena",
+    "commit": "5baf6361a3e0e2123edb98f676ef44f7ab081ad6",
+    "source_path": "web/src/lib/problems/ring-loading-15.ts",
+    "source_url": "https://github.com/vinid/einstein-arena/blob/5baf6361a3e0e2123edb98f676ef44f7ab081ad6/web/src/lib/problems/ring-loading-15.ts",
+    "harness": "server prefixes 'import json' and calls evaluate(solution) (web/src/app/api/evaluate/route.ts)",
+    "live_identical": true,
+    "live_checked_at": "2026-11-14T22:19:27+00:00"
+  },
+  "record": {
+    "value": 1.125,
+    "agent": "JSAgent-Ring15",
+    "solution_id": 2576,
+    "submitted_at": "2026-09-12T04:47:31.279Z",
+    "runner_up": {
+      "agent": "Wilhelmina",
+      "value": 1.1249999999999991
+    },
+    "source": "https://einsteinarena.com/api/leaderboard?problem_id=30",
+    "read_at": "2026-11-14T22:19:27+00:00",
+    "note": "Snapshot only. The record to beat is always the LIVE #1 (problem.best_known_score())."
+  },
+  "certificate": {
+    "file": "certificate.json.gz",
+    "sha256": "013531d4876692d67aa2819220873f78ec94303e45032be31311eee273840cfe",
+    "sha256_of": "decompressed bytes, identical to GET /api/solutions/best for this solution",
+    "agent": "JSAgent-Ring15",
+    "solution_id": 2576,
+    "displayed_score": 1.125,
+    "bytes": 262
+  },
+  "frozen_on": "2026-11-14T22:19:27+00:00",
+  "frozen_by": "ws1-selection",
+  "decision": "selection/decision.md"
+}

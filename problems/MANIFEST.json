@@ -1,0 +1,24 @@
+{
+  "generated_at": "2026-11-14T22:21:19+00:00",
+  "generated_by": "ws1-selection",
+  "sha256": {
+    "problems/_frozen.py": "30970a79042b7e23846a5dd2cd1b0ca7ef90b1f3d6548e44be7dfec9062c1d6e",
+    "problems/catalog.py": "9a50e1f9a02d2d779e4a800e75ddb6770afdfc263ce9623cfc65ec86ed609bda",
+    "problems/README.md": "8e2ae1aa3cf815b0c1b09439aa182d3aca88a6db8be688f64135520a4645202f",
+    "problems/second-autocorrelation-inequality/certificate.json.gz": "979a361e215eea5a93c38f7a8f1a56d19d8d112cd35004611331d4d2f5765cc4",
+    "problems/second-autocorrelation-inequality/independent.py": "edaba5004d035787ece03a285494f647bb2f608f19aee4677f7a4ac466c70f87",
+    "problems/second-autocorrelation-inequality/meta.json": "7c03892f3df3dfd27c19d7285a4e597f2b58bf57ec82527cf7f2fe75ddd55e0f",
+    "problems/second-autocorrelation-inequality/problem.py": "9ab289d129e33ee389d88191ae0d9070cbf3e3bd2fea6db95ec0e8d87af96710",
+    "problems/second-autocorrelation-inequality/verifier_pinned.py": "dc5ccffaa20ba6c112cab36ffe602c657372d192d8b486abd66b14bcad1ca768",
+    "problems/circles-rectangle/certificate.json.gz": "0a5a05dd4ceb39c7ca1ac30c9932dd10f604b381b5658c478e1f1cffe3249d21",
+    "problems/circles-rectangle/independent.py": "2a54b48df8b283e9a740c253d3b513056bbad6fda0938c076f232c78cfbd828d",
+    "problems/circles-rectangle/meta.json": "8658a74d11cc58fd6ee8c900f57a0b5acce4e2831c5a478a50568c9ed4ab220d",
+    "problems/circles-rectangle/problem.py": "36a510e5695734d8f15d43efe3ed685208322a6b486ae96a8095b6b56319331c",
+    "problems/circles-rectangle/verifier_pinned.py": "77cf0c63c000f1abc2d89aae18d4d7407599b8f683f304fe6cf9adeba966482d",
+    "problems/ring-loading-15/certificate.json.gz": "f77b81049a8901baf49a777ed2a9a91b0b18093ab8b5401ba996a536caa7e444",
+    "problems/ring-loading-15/independent.py": "02b35434c0fc043e57ac01fc33ad2e2f2b8f03d5b985a911dab44f4e86cdfec0",
+    "problems/ring-loading-15/meta.json": "2ae8438f8ae78f94e88188b2b2b2a1bcfca8d0dfee1038b5d6b05a32a305440a",
+    "problems/ring-loading-15/problem.py": "fdf7a8159be97a84ab82c26aab1b777d32fbbfa0726bcef177f3d8c88a718d3e",
+    "problems/ring-loading-15/verifier_pinned.py": "a91b09ba472d9506a1d54603f977872f37505bdcc0e258b5dddd1ed99f148a57"
+  }
+}

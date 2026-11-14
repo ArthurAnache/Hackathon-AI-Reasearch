@@ -7,10 +7,10 @@
 SOLUTION.json holds the `solution` object exactly as it would be submitted (e.g. {"pairs": [...]}).
 
 A solution is sent only if ALL gates pass:
-  (a) the pinned verifier (selection/.cache/stage2/<slug>/verifier_pinned.py, sha256-checked against
+  (a) the frozen pinned verifier (problems/<slug>/verifier_pinned.py, sha256-checked against
       registry_stage2.jsonl and byte-identical to the live verifier) gives the expected score (relative 1e-12);
-  (b) the independent implementation (selection/independent_verifiers.py) confirms the pinned score within its
-      a-priori tolerance;
+  (b) the independent implementation (problems/<slug>/independent.py, via selection/independent_verifiers.py)
+      confirms the pinned score within its a-priori tolerance;
   (c) the leaderboard, re-read just before sending, shows a gain over the current #1 that is >= delta, > 0 (the
       server rejects ties) and > the numerical tolerance of (b); for exact problems the gain is computed in Fractions;
   (d) size: <= 2,000,000 values; a compact JSON body above 1.9 MB goes through the upload-url blob path; above the
@@ -47,7 +47,7 @@ import independent_verifiers  # noqa: E402
 SELECTION = REPO_ROOT / "selection"
 LOG = SELECTION / "submissions.jsonl"
 REGISTRY = SELECTION / "registry_stage2.jsonl"
-PINNED_CACHE = SELECTION / ".cache" / "stage2"
+FROZEN_DIR = REPO_ROOT / "problems"
 EVAL_RUNNER = SELECTION / "eval_runner.py"
 
 MAX_VALUES = 2_000_000
@@ -113,11 +113,11 @@ def run_pinned(verifier: Path, solution_path: Path) -> dict:
 # ------------------------------------------------------------------------------------------------ gates
 
 def gate_a(slug: str, solution_path: Path, expected: float, live: dict | None, row: dict | None) -> dict:
-    verifier = PINNED_CACHE / slug / "verifier_pinned.py"
+    verifier = FROZEN_DIR / slug / "verifier_pinned.py"   # the frozen copy (sha256-locked by the WS1 tests)
     if row is None:
         return {"ok": False, "reason": f"{slug} not in registry_stage2.jsonl"}
     if not verifier.exists():
-        return {"ok": False, "reason": f"missing {verifier.relative_to(REPO_ROOT)}; run selection/stage2_profile.py"}
+        return {"ok": False, "reason": f"{slug} is not frozen in problems/ (no {verifier.relative_to(REPO_ROOT)})"}
     pinned_src = verifier.read_text()
     pinned_sha = sha256_bytes(pinned_src.encode())
     out = {"pinned_sha256": pinned_sha}

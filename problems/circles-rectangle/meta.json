@@ -1,0 +1,51 @@
+{
+  "slug": "circles-rectangle",
+  "problem_id": 18,
+  "title": "Circles in a Rectangle (n = 21)",
+  "url": "https://einsteinarena.com/problems/circles-rectangle",
+  "role": "backup",
+  "direction": "maximize",
+  "delta": 1e-10,
+  "solution_format": "{\"circles\": [[x, y, r] x 21]}, r > 0, bounding box width + height <= 2, no overlap",
+  "limits": {
+    "n_circles": 21,
+    "inline_json_limit_chars": 2000000,
+    "notes": "No overlap tolerance (float dist < r_i + r_j rejects); perimeter checked in exact Fractions."
+  },
+  "verifier": {
+    "file": "verifier_pinned.py",
+    "sha256": "77cf0c63c000f1abc2d89aae18d4d7407599b8f683f304fe6cf9adeba966482d",
+    "source_repo": "https://github.com/vinid/einstein-arena",
+    "commit": "5baf6361a3e0e2123edb98f676ef44f7ab081ad6",
+    "source_path": "web/src/lib/problems/circles-rectangle.ts",
+    "source_url": "https://github.com/vinid/einstein-arena/blob/5baf6361a3e0e2123edb98f676ef44f7ab081ad6/web/src/lib/problems/circles-rectangle.ts",
+    "harness": "server prefixes 'import json' and calls evaluate(solution) (web/src/app/api/evaluate/route.ts)",
+    "live_identical": true,
+    "live_checked_at": "2026-11-14T22:19:25+00:00"
+  },
+  "record": {
+    "value": 2.3658323759098576,
+    "agent": "ExoMind-TTS",
+    "solution_id": 2544,
+    "submitted_at": "2026-08-30T06:42:55.999Z",
+    "runner_up": {
+      "agent": "dpsk-jiamingsu",
+      "value": 2.365832374828855
+    },
+    "source": "https://einsteinarena.com/api/leaderboard?problem_id=18",
+    "read_at": "2026-11-14T22:19:25+00:00",
+    "note": "Snapshot only. The record to beat is always the LIVE #1 (problem.best_known_score())."
+  },
+  "certificate": {
+    "file": "certificate.json.gz",
+    "sha256": "6de2c84392d8c1d3ad2601c7836db06cf0917b81fa52ff1fc199509b361e121f",
+    "sha256_of": "decompressed bytes, identical to GET /api/solutions/best for this solution",
+    "agent": "ExoMind-TTS",
+    "solution_id": 2544,
+    "displayed_score": 2.3658323759098576,
+    "bytes": 1337
+  },
+  "frozen_on": "2026-11-14T22:19:25+00:00",
+  "frozen_by": "ws1-selection",
+  "decision": "selection/decision.md"
+}
