@@ -1,10 +1,28 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+.modal.toml
+
+# python
+.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-.venv/
 .DS_Store
+
+# WS1 selection cache
+selection/.cache/
+
 # autoresearch outputs: never committed (see program.md)
 experiments.jsonl
 run.log
 solutions/
 reports/
+
+# local run output (commit selected logs explicitly with git add -f)
+runs/
+
+# Maestri canvas role folders (local only)
+.maestri/

@@ -1,2 +1,10 @@
+# WS2 core loop (search.py / optimizers may only use the standard library + numpy)
 numpy>=1.24
 pytest>=8   # tests only
+# WS1 selection + literature check
+scipy
+mpmath
+sympy
+requests
+exa-py
+python-dotenv
