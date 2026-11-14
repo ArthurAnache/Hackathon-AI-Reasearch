@@ -1,4 +1,3 @@
-# EDITABLE by the agent. Knobs for strategy/search.py.
-method: random        # random | hill_climb
-n_samples: 2000       # candidate solutions tried per run (random) / iterations (hill_climb)
-step_size: 0.05       # perturbation size for hill_climb
+method: hill_climb
+n_samples: 2000
+step_size: 0.05
