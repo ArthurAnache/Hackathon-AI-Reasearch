@@ -6,7 +6,7 @@ Humans edit this file to steer the research; the agent never edits it.
 ## Goal
 Improve the score returned by `problem.verify` (direction: **maximize**).
 Current dummy problem: 12 points in the unit square, maximise the minimum
-pairwise distance. Literature best ≈ 0.366025.
+pairwise distance. Best known ≈ 0.388730.
 
 ## Rules
 1. You may only change `strategy/search.py` and `strategy/config.yaml`.

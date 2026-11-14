@@ -6,7 +6,7 @@ folder before every experiment (see frozen.lock) and refuses to run if it change
 Dummy problem (placeholder until we plug in a real record):
     Place N points in the unit square [0,1]^2 to MAXIMISE the minimum
     pairwise distance (point "spreading" / circle packing in a square).
-    Known optimum for N=12 is about 0.3660 (Nurmela & Ostergard), so there
+    Best known value for N=12 is about 0.38873 (Packomania), so there
     is a real target to chase.
 
 Contract:
@@ -20,7 +20,7 @@ from typing import Any
 
 N_POINTS = 12
 DIRECTION = "maximize"          # the runner keeps a change only if score goes UP
-KNOWN_BEST = 0.36602540378      # literature value for N=12, for reference only
+KNOWN_BEST = 0.388730126      # best known value for N=12 (Packomania), reference only
 TOL = 1e-12
 
 
