@@ -2,7 +2,9 @@
 signature, same return shape, same log file), plus:
 
 - several API keys with automatic failover (EXA_API_KEYS=name:key,name:key)
-- a stop loss for all keys together (EXA_BUDGET_USD, EXA_MAX_CALLS)
+- spending limit = each key's own prepaid balance on exa.ai: a key that runs out
+  of credit is disabled and the next key is used. An optional extra cap for all
+  keys together can be set with EXA_BUDGET_USD / EXA_MAX_CALLS (unset = no cap)
 - a cache: the same query with the same parameters is never paid for twice
 - no SDK needed: plain HTTPS to https://api.exa.ai/search
 
@@ -44,8 +46,10 @@ class BudgetExceeded(ExaUnavailable):
 
 
 def _limits():
-    return (float(os.environ.get("EXA_BUDGET_USD", "5")),
-            int(os.environ.get("EXA_MAX_CALLS", "200")))
+    """Optional extra caps. Unset or empty = no cap: the limit is each key's balance."""
+    usd = os.environ.get("EXA_BUDGET_USD", "").strip()
+    calls = os.environ.get("EXA_MAX_CALLS", "").strip()
+    return (float(usd) if usd else float("inf"), int(calls) if calls else 10 ** 12)
 
 
 def spend() -> Dict:
@@ -89,7 +93,7 @@ def search(query: str, since: Optional[str] = None, n: int = 10, *, decision: st
         entry.update(duration_s=0.0, ok=False, blocked="stop loss", spend=s,
                      budget_usd=budget_usd, max_calls=max_calls, urls=[])
         append_jsonl(LOG_PATH, entry)
-        raise BudgetExceeded("Exa stop loss: $%.3f / %d calls used (limits $%.2f / %d)"
+        raise BudgetExceeded("Exa optional cap reached: $%.3f / %d calls used (caps $%s / %s)"
                              % (s["usd"], s["calls"], budget_usd, max_calls))
 
     t0 = time.perf_counter()

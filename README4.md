@@ -19,7 +19,7 @@ Last updated: 2026-11-14.
 | `evidence_source.gather(problem, history)` | `integrations.evidence.ExaEvidence` | Exa literature search, only when it can change a decision: a record audit the first time a problem is seen, then idea mining each time the loop plateaus |
 | `evidence_source.gather(problem, history)` | `integrations.evidence.PastDevEvidence` | Recalls what **other** agents learned from past.dev. A config another agent kept becomes an actionable hint (`{"config": {...}}`) that `FeedbackAgent`'s `EvidenceHints` strategy acts on |
 | `experiment_store.append(result)` | `integrations.evidence.PastDevMirrorStore` | The local JSONL store stays the source of truth; every experiment is also mirrored to shared memory, attributed to the agent that ran it |
-| — | `integrations.exa_client.search` | Drop-in replacement for the WS1 Exa client (same signature, return shape and log file), plus multi-key failover, a stop loss and a cache |
+| — | `integrations.exa_client.search` | Drop-in replacement for the WS1 Exa client (same signature, return shape and log file), plus multi-key failover (the limit is each key's own balance), an optional cap and a cache |
 | — | `integrations.pastdev_client` | past.dev ingest/recall with multi-key failover and a same-project guard; `LocalMemory` fallback |
 | — | `integrations.sponsor_metrics` | The sponsor metrics, computed from the logs |
 
@@ -52,7 +52,7 @@ No extra dependency: the integrations use the standard library only (plain HTTPS
 
 | Service | Protection |
 |---|---|
-| Exa | No card on file, so spend is capped by the prepaid balance. In code: stop loss for all keys together (`EXA_BUDGET_USD`, default $5; `EXA_MAX_CALLS`, default 200), and identical queries are cached and free |
+| Exa | **The limit is each person's prepaid credit on exa.ai.** With no card on file, nothing beyond it can be charged. When a key runs out, the client moves to the next key. An optional extra cap for all keys together (`EXA_BUDGET_USD`, `EXA_MAX_CALLS`) is off by default. Identical queries are cached and free |
 | past.dev | Pay as you go with no card on file: "nothing is billed after the fact"; with no credits left, writes and recall pause. The plan allows 1 project, so every key shares one memory |
 | Rule | Do not click "Buy credits" or "Upgrade" on either dashboard: that saves a card and enables auto top-up |
 
@@ -139,7 +139,7 @@ error. A no-sponsor run D was stamped `{"exa": false, "pastdev": false, ...}`.
 ### Verified: tests
 
 - `tests/test_integrations.py`: 9 offline tests (fake server): key failover, spend per key name,
-  cache, stop loss, missing key, past.dev same-project guard, mirror store with a cross-agent hint,
+  cache, optional cap, missing key, past.dev same-project guard, mirror store with a cross-agent hint,
   Exa trigger logic (audit once, ideas once per plateau), memory-scope isolation (tag + `occurredFrom`),
   switch stamping, no secret in any log.
 - On the combined checkout (WS2 branch plus this branch): **96 passed, 3 skipped**, WS2's own tests
