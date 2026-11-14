@@ -22,6 +22,7 @@ Last updated: 2026-11-14.
 | — | `integrations.exa_client.search` | Drop-in replacement for the WS1 Exa client (same signature, return shape and log file), plus multi-key failover (the limit is each key's own balance), an optional cap and a cache |
 | — | `integrations.pastdev_client` | past.dev ingest/recall with multi-key failover and a same-project guard; `LocalMemory` fallback |
 | — | `integrations.sponsor_metrics` | The sponsor metrics, computed from the logs |
+| — | `integrations.import_results` | Imports published experiment JSONL (e.g. WS3 Modal runs) into shared memory: idempotent, namespaced, own scope |
 
 Every `Evidence` carries `source`, `citation` (URL or memory fact id) and `author`, and
 `run_experiment()` stores it in the experiment record, so each decision traces back to the search
@@ -97,6 +98,31 @@ Without a scope, agents read the accumulated memory of every run. That is the ri
 "learning from the past" metric (does tomorrow's run start faster from today's facts?), and the wrong
 one for an A/B comparison.
 
+**Rule: one `--store` file per arm.** The agent reads the experiment history from its store before
+every proposal. If two arms share a store, the "no sponsors" arm reads the other arm's results and the
+comparison is contaminated **without going through memory at all**. Runs without `--pastdev` never read
+shared memory; the store is the only other channel, so keep it separate.
+
+### Importing published results into memory (e.g. WS3 Modal exports)
+
+Results exported as JSONL (such as Thibault's Modal runs) do not reach memory by themselves.
+`integrations.import_results` turns each record into a memory fact, read-only from git, with nothing
+checked out:
+
+```bash
+python -m integrations.import_results --git-ref origin/results/modal-benchmarks \
+    --git-path results/ws2-v1/ws2_1a_131b577d_20261114T212806Z.jsonl            # add --dry-run to preview
+python -m integrations.run_loop --problem 1a --optimizer optimizers/1a_tuned.py --pastdev \
+    --memory-scope import-ws2_1a_131b577d_20261114T212806Z --store exp_import.jsonl
+```
+
+- **Idempotent:** stable fact ids, so re-importing replaces instead of duplicating.
+- **Namespaced:** `tuned/exp_0000` vs `baseline/exp_0000`, so workers do not collide.
+- **Machine-specific paths** (`INIT`, `solution_path`) are never used as hints.
+- **Own scope** (`import-<file>`), filtered by tag only, so it works from any machine. Runs without
+  `--pastdev`, or with another scope, never see imported facts. Runs with this scope, or with no scope
+  (accumulated memory), do.
+
 Logs (no secrets):
 
 | File | Content |
@@ -136,13 +162,22 @@ A's two experiment facts as evidence. C received **none**, neither from A and B 
 whereas before scopes existed every agent saw all past facts. past.dev accepted `occurredFrom` with no
 error. A no-sponsor run D was stamped `{"exa": false, "pastdev": false, ...}`.
 
+### Verified: importing WS3 results, live (2026-11-14)
+
+The 4 records from Thibault's Modal pilot (`results/modal-benchmarks`, commit `3fd148e`) were imported
+into past.dev under scope `import-ws2_1a_131b577d_20261114T212806Z`, attributed to `ws3-modal`. An agent
+run with `--pastdev` and that scope received all 4 facts as evidence. A control run without `--pastdev`
+received **none** (`evidence: []`, switches `pastdev: false, exa: false`).
+- **Limitation:** with `-n 1` the agent's first proposal is always the baseline config, so these facts
+  could only influence a decision from the second experiment on. This shows the plumbing, not a gain.
+
 ### Verified: tests
 
-- `tests/test_integrations.py`: 9 offline tests (fake server): key failover, spend per key name,
+- `tests/test_integrations.py`: offline tests (fake server): key failover, spend per key name,
   cache, optional cap, missing key, past.dev same-project guard, mirror store with a cross-agent hint,
   Exa trigger logic (audit once, ideas once per plateau), memory-scope isolation (tag + `occurredFrom`),
-  switch stamping, no secret in any log.
-- On the combined checkout (WS2 branch plus this branch): **96 passed, 3 skipped**, WS2's own tests
+  switch stamping, idempotent and namespaced imports, no secret in any log (10 tests).
+- On the combined checkout (WS2 branch plus this branch): **97 passed, 3 skipped**, WS2's own tests
   included, frozen files intact.
 
 ## 5. Why each sponsor tool, and how we measure it

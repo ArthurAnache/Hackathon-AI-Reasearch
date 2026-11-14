@@ -48,12 +48,26 @@ class Memory:
 
     def write(self, content: str, author: str, kind: str = "note", label: str = "",
               metadata: Optional[Dict[str, Any]] = None, wait: bool = True,
-              scope: Optional[str] = None) -> str:
+              scope: Optional[str] = None, fact_id: Optional[str] = None) -> str:
+        """fact_id: stable id; writing the same id again replaces the fact (no duplicate)."""
         raise NotImplementedError
 
     def read(self, query: str, reader: str, limit: int = 10, scope: Optional[str] = None,
              since: Optional[str] = None) -> List[Fact]:
         raise NotImplementedError
+
+
+SCOPES_PATH = STATE_DIR / "memory_scopes.json"
+
+
+def scope_start(scope: str) -> str:
+    """Start time of a memory scope, recorded on first use on this machine."""
+    from ._common import read_json, write_json
+    scopes = read_json(SCOPES_PATH, {})
+    if scope not in scopes:
+        scopes[scope] = utc_now()
+        write_json(SCOPES_PATH, scopes)
+    return scopes[scope]
 
 
 def _meta(metadata, author, kind, scope):
@@ -89,8 +103,9 @@ class PastDevMemory(Memory):
             return resp
         return self.pool.call(attempt)[1]
 
-    def write(self, content, author, kind="note", label="", metadata=None, wait=True, scope=None):
-        fact_id = "%s-%s" % (kind, uuid.uuid4().hex[:10])
+    def write(self, content, author, kind="note", label="", metadata=None, wait=True, scope=None,
+              fact_id=None):
+        fact_id = fact_id or "%s-%s" % (kind, uuid.uuid4().hex[:10])
         meta = _meta(metadata, author, kind, scope)
         if scope:
             content = "[scope %s] %s" % (scope, content)
@@ -152,8 +167,12 @@ class LocalMemory(Memory):
     def __init__(self, path: Optional[Path] = None):
         self.path = Path(path or STATE_DIR / "memory.jsonl")
 
-    def write(self, content, author, kind="note", label="", metadata=None, wait=True, scope=None):
-        fact_id = "%s-%s" % (kind, uuid.uuid4().hex[:10])
+    def write(self, content, author, kind="note", label="", metadata=None, wait=True, scope=None,
+              fact_id=None):
+        if fact_id and self.path.exists() and any(
+                json.loads(l).get("fact_id") == fact_id for l in self.path.read_text().splitlines() if l.strip()):
+            return fact_id                               # same id already stored: no duplicate
+        fact_id = fact_id or "%s-%s" % (kind, uuid.uuid4().hex[:10])
         meta = _meta(metadata, author, kind, scope)
         append_jsonl(self.path, {"fact_id": fact_id, "content": content, "author": author,
                                  "kind": kind, "label": label, "metadata": meta, "ts": utc_now()})

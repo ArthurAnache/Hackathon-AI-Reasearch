@@ -11,7 +11,11 @@
                 scope on this machine records its start time, and only facts written
                 after it are requested from past.dev (--memory-since overrides it,
                 e.g. for Modal workers that share a scope started elsewhere).
+                Scopes named import-* (integrations.import_results) use the tag only.
                 Without a scope, agents read the accumulated memory of every run.
+IMPORTANT for comparisons: give every arm its own --store file. The agent reads
+the experiment history from the store, so a shared store leaks results between
+arms even with every sponsor switched off.
 Every experiment record gets an "integrations" field with the switches in force.
 Without flags it behaves exactly like `python loop.py` (plus that field).
 """
@@ -25,20 +29,8 @@ import prepare
 from loop import _print, research_loop
 from research import FeedbackAgent
 
-from ._common import STATE_DIR, read_json, utc_now, write_json
 from .evidence import PastDevMirrorStore, TaggedStore, from_flags
-from .pastdev_client import get_memory
-
-SCOPES_PATH = STATE_DIR / "memory_scopes.json"
-
-
-def scope_start(scope: str) -> str:
-    """Start time of a memory scope, recorded on first use on this machine."""
-    scopes = read_json(SCOPES_PATH, {})
-    if scope not in scopes:
-        scopes[scope] = utc_now()
-        write_json(SCOPES_PATH, scopes)
-    return scopes[scope]
+from .pastdev_client import get_memory, scope_start
 
 
 def main(argv=None) -> int:
@@ -57,7 +49,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
 
     scope = a.memory_scope
-    since = a.memory_since or (scope_start(scope) if scope else None)
+    # import-* scopes hold facts written before this run (integrations.import_results): tag filter only
+    since = a.memory_since or (scope_start(scope) if scope and not scope.startswith("import-") else None)
     problem = I.get_problem(a.problem)
     opt = I.FileOptimizer(a.optimizer or prepare.ROOT / "optimizers" / f"{a.problem}_baseline.py")
     agent = FeedbackAgent(problem, opt, warm_start=False if a.no_warm_start else None)

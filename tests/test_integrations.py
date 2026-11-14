@@ -238,6 +238,30 @@ def test_tagged_store_records_switches():
     assert row["integrations"] == {"exa": False, "pastdev": True, "memory_scope": "ab-1"}
 
 
+def test_import_results_idempotent_namespaced_and_scoped():
+    from integrations import import_results
+    _reset_state()
+    path = os.path.join(_TMP, "ws3.jsonl")
+    rows = [{"experiment_id": "exp_0000", "problem": "1a", "status": "keep", "score": 1.5141,
+             "variant": "tuned", "git_commit": "abc", "timestamp": "t0", "optimizer": "optimizers/1a_tuned.py",
+             "hypothesis": "Baseline", "config": {"LR": 0.01, "INIT": "/remote/x.json"}},
+            {"experiment_id": "exp_0000", "problem": "1a", "status": "keep", "score": 1.6775,
+             "variant": "baseline", "git_commit": "abc", "timestamp": "t0", "optimizer": "optimizers/1a_baseline.py",
+             "hypothesis": "Baseline", "config": {"STEP": 0.1}}]
+    with open(path, "w") as f:
+        f.write("\n".join(json.dumps(r) for r in rows))
+    for _ in range(2):                                            # second import must not duplicate
+        import_results.main([path, "--scope", "import-test", "--author", "ws3-modal"])
+    mem = pastdev_client.LocalMemory()
+    facts = mem.read("imported experiment", reader="x", scope="import-test", limit=50)
+    assert sorted(f["metadata"]["experiment_id"] for f in facts) == ["baseline/exp_0000", "tuned/exp_0000"]
+    assert all("{" not in f["content"] for f in facts)            # no braces: hints stay parseable
+    assert mem.read("imported experiment", reader="x", scope="ab-other") == []   # other scopes never see them
+    ev = evidence.PastDevEvidence(mem, reader="me", scope="import-test").gather(P, [])
+    hints = [e.content for e in ev if '{"config"' in e.content]
+    assert any('{"config": {"LR": 0.01}}' in h for h in hints), hints        # INIT stripped
+
+
 def test_no_keys_means_local_fallbacks_and_no_secret_in_logs():
     for v in ("EXA_API_KEYS", "PAST_API_KEYS"):
         os.environ.pop(v, None)
