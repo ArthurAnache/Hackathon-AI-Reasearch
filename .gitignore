@@ -1,0 +1,30 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+.modal.toml
+
+# python / tooling
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+.maestri/
+
+# WS1 cache
+selection/.cache/
+
+# WS2 autoresearch outputs: never committed (see program.md)
+experiments.jsonl
+experiments_*.jsonl
+run.log
+solutions/
+reports/
+
+# WS4 local state: spend counters, query cache, disabled keys, local memory
+.cache/
+
+# old prototype output (local only)
+runs/
