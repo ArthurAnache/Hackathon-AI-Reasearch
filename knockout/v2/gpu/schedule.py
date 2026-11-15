@@ -37,6 +37,9 @@ class ChainSpec:
     hypothesis: str = ""
     jitter: float = 0.0             # kick before the chain: f_i <- f_i * exp(jitter * N(0, 1)), drawn from `seed`
     reopen: float = 0.0             # periodic opening of closed cells with a positive derivative (chain.py)
+    coarsen: int = 0                # before the chain: block means over this many cells (starts.py); 0 = off
+    masked: bool = False            # coarsen inside the support only (zero cells stay zero)
+    block: int = 0                  # the kick keeps the mass of every block of this many cells; 0 = free kick
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -48,7 +51,9 @@ class ChainSpec:
         stages = tuple(Stage(float(b), int(e)) for b, e in d["stages"])
         return ChainSpec(name=d["name"], start=d["start"], stages=stages, floor=float(d.get("floor", 0.0)),
                          seed=int(d.get("seed", 0)), hypothesis=d.get("hypothesis", ""),
-                         jitter=float(d.get("jitter", 0.0)), reopen=float(d.get("reopen", 0.0)))
+                         jitter=float(d.get("jitter", 0.0)), reopen=float(d.get("reopen", 0.0)),
+                         coarsen=int(d.get("coarsen", 0)), masked=bool(d.get("masked", False)),
+                         block=int(d.get("block", 0)))
 
 
 def geometric(beta_start: float, beta_end: float, n: int) -> list[float]:
@@ -111,8 +116,8 @@ def check_batch(chains: list[ChainSpec]) -> int:
     if len(set(names)) != len(names):
         raise ValueError("chain names must be distinct")
     for c in chains:
-        if c.floor < 0 or c.jitter < 0 or c.reopen < 0:
-            raise ValueError("floor, jitter and reopen must be >= 0")
+        if c.floor < 0 or c.jitter < 0 or c.reopen < 0 or c.coarsen < 0 or c.block < 0:
+            raise ValueError("floor, jitter, reopen, coarsen and block must be >= 0")
     return totals.pop()
 
 
@@ -317,8 +322,63 @@ def plan_reopen16(start: str, evals: int) -> list[ChainSpec]:
     return chains
 
 
+def plan_coarse16(start: str, evals: int) -> list[ChainSpec]:
+    """Reheat in resolution: erase the structure below k cells (block means), keep the envelope, then cool from a
+    moderate beta at full resolution. `masked` keeps the support; otherwise run edges move out to the block
+    boundaries. Kicked chains recover faster from a lower starting beta (round 2), so most chains start at 1e4."""
+    chains = [ChainSpec("control", start, anneal(1e9, 1e11, 2, evals),
+                        hypothesis="control: no change of the start, polish from beta = 1e9 to 1e11")]
+
+    def coarse(k, masked, b0):
+        tag = f"c{k}{'m' if masked else 'd'}-b{int(round(math.log10(b0)))}"
+        kind = "inside the support" if masked else "run edges moved out to the block boundaries"
+        return ChainSpec(tag, start, _with_polish(b0, 1e9, 3, evals, 0.25), coarsen=k, masked=masked,
+                         hypothesis=f"block means over {k} cells ({kind}), then one slow cooling from beta = "
+                                    f"{b0:.0e} to 1e9 and a polish to 1e11")
+
+    for k in (2, 4, 8, 16):
+        chains += [coarse(k, True, 1e4), coarse(k, False, 1e4)]
+    for k in (2, 4, 16):
+        chains += [coarse(k, True, 1e5)]
+    chains += [coarse(4, False, 1e5), coarse(64, True, 1e4), coarse(64, False, 1e4), coarse(2, True, 1e6)]
+    return chains
+
+
+def plan_blockkick16(start: str, evals: int) -> list[ChainSpec]:
+    """Kicks that keep the envelope. Between 2782 and 2783 the mass per block of 1,000 cells is the same within
+    0.9 %, and what changes is where the mass sits inside neighbourhoods of about 100 cells or fewer. So: a
+    log-normal cell kick, then every block of 20, 100 or 1,000 cells is rescaled to its mass before the kick.
+    Kicked chains recover faster from a low starting beta (round 2), hence 1e4 and 1e3. Three chains take the
+    deterministic limit of such a kick, block means inside the support. A polish-only control shares the budget.
+    (Coarse-to-fine resynthesis, with a re-optimization at low resolution, is another agent's work.)"""
+    chains = [ChainSpec("control", start, anneal(1e9, 1e11, 2, evals),
+                        hypothesis="control: no kick, polish from beta = 1e9 to 1e11 with the same budget")]
+
+    def kicked(sigma, block, b0, seed):
+        tag = f"k{sigma:g}-blk{block}-b{int(round(math.log10(b0)))}-s{seed}"
+        return ChainSpec(tag, start, _with_polish(b0, 1e9, 3, evals, 0.25), seed=seed, jitter=sigma, block=block,
+                         hypothesis=f"log-normal cell kick of width {sigma:g} (seed {seed}) that keeps the mass of "
+                                    f"every block of {block} cells, then one slow cooling from beta = {b0:.0e} "
+                                    f"to 1e9 and a polish to 1e11")
+
+    def means(k, b0):
+        return ChainSpec(f"c{k}m-b{int(round(math.log10(b0)))}", start, _with_polish(b0, 1e9, 3, evals, 0.25),
+                         coarsen=k, masked=True,
+                         hypothesis=f"block means over {k} cells inside the support (the limit of a kick that "
+                                    f"keeps block masses), then one slow cooling from beta = {b0:.0e} to 1e9 "
+                                    f"and a polish to 1e11")
+
+    for sigma in (0.3, 1.0, 2.0):
+        chains += [kicked(sigma, 100, 1e4, 1), kicked(sigma, 1000, 1e4, 1)]
+    chains += [kicked(1.0, 100, 1e4, 2), kicked(1.0, 100, 1e4, 3)]
+    chains += [kicked(0.3, 100, 1e3, 1), kicked(1.0, 100, 1e3, 1)]
+    chains += [kicked(1.0, 20, 1e4, 1), kicked(2.0, 20, 1e4, 1)]
+    chains += [means(4, 1e4), means(16, 1e4), means(64, 1e4)]
+    return chains
+
+
 PLANS = {"smoke": plan_smoke, "deep": plan_deep, "deep16": plan_deep16, "kick16": plan_kick16,
-         "reopen16": plan_reopen16}
+         "reopen16": plan_reopen16, "coarse16": plan_coarse16, "blockkick16": plan_blockkick16}
 
 
 def build_plan(name: str, start: str, evals: int) -> list[ChainSpec]:

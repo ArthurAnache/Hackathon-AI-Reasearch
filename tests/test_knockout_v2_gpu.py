@@ -13,6 +13,7 @@ from knockout.v2.gpu import schedule as sch
 from knockout.v2.gpu.chain import initial_w, reopen_cells, run_chains
 from knockout.v2.gpu.lbfgs import BatchedLBFGS
 from knockout.v2.gpu.objective import autoconvolution, evaluate, exact_score, fft_length, kappa_for
+from knockout.v2.gpu.starts import coarsen_blocks, kick
 
 
 def _start(n=60, rows=2, seed_=0, sparse=True):
@@ -261,6 +262,38 @@ def test_run_chains_with_reopen_keeps_the_budget():
     # cells are opened only while the chain is hot (beta <= reopen_beta_max): here during the first stage only
     hot = run_chains(np, w0, kappa, m, stages, reopen=[0.0, 1e-2], reopen_every=30, reopen_beta_max=5e3)
     assert hot["extra_evals"] == 2 and hot["evals"] == 120
+
+
+def test_start_changes_keep_block_masses():
+    rng = np.random.default_rng(0)
+    f = rng.random(103) + 0.1
+    f[rng.random(103) < 0.4] = 0.0
+    f[40:50] = 0.0                                             # one block of 10 with no mass
+
+    def block_mass(x, k):
+        pad = (-x.size) % k
+        return np.concatenate([x, np.zeros(pad)]).reshape(-1, k).sum(1)
+
+    free = kick(f, 0.5, 3)
+    assert free is not f and (free >= 0).all() and ((free > 0) == (f > 0)).all()
+    assert kick(f, 0.0, 3) is f and (kick(f, 0.5, 3) == free).all() and not (kick(f, 0.5, 4) == free).all()
+    kept = kick(f, 0.5, 3, block=10)
+    assert block_mass(kept, 10) == pytest.approx(block_mass(f, 10), rel=1e-12)
+    assert ((kept > 0) == (f > 0)).all() and not np.allclose(kept, f)
+    assert block_mass(free, 10) != pytest.approx(block_mass(f, 10), rel=1e-3)
+    for masked in (True, False):
+        c = coarsen_blocks(f, 10, masked)
+        assert c.size == f.size and block_mass(c, 10) == pytest.approx(block_mass(f, 10), rel=1e-12)
+        assert (c[40:50] == 0).all()
+    assert ((coarsen_blocks(f, 10, True) > 0) == (f > 0)).all()               # masked: the support is kept
+    dilated = coarsen_blocks(f, 10, False)
+    assert (dilated[:40] > 0).all() and len(set(np.round(dilated[:10], 15))) == 1   # one value per block
+    assert coarsen_blocks(f, 1, True) is f
+    spec = sch.ChainSpec("x", "live", (sch.Stage(1e9, 5),), jitter=1.0, block=100, coarsen=4, masked=True)
+    assert sch.ChainSpec.from_dict(spec.to_dict()) == spec
+    plan = sch.build_plan("blockkick16", "live", 6000)
+    assert len(plan) == 16 and sum(1 for c in plan if c.jitter > 0 and c.block > 0) == 12
+    assert sum(1 for c in plan if c.coarsen > 1 and c.masked) == 3
 
 
 def test_run_chains_stops_at_deadline():
