@@ -194,3 +194,29 @@ Pending Stage-3. Pilot uses 1CPU/4GiB WS3 containers (same as V2) until a contro
 - Submission staging: `runs/v3/submission/` (NOT submitted to Arena).
 - iter9 left running if still active; volumes not deleted.
 
+
+## Iteration 9 — 20261115T195749Z-v3it09
+
+- jobs: 6, est $0.7337, wall 1863.8s, structural_hits=2
+- live target: 0.9636715620620852 (live={'value': 0.9636615620620852, 'agent': 'MLAI_YONSEI', 'live': True, 'source': 'https://einsteinarena.com/api/leaderboard?problem_id=3', 'read_at': '2026-11-15T19:57:48Z'})
+- engineE-spectral-s101: valid=True gain=2.2946375069277103e-05 score=0.9636616143678816 status=keep
+- engineG-lse-s101: valid=True gain=2.2947230289172005e-05 score=0.9636616152231015 status=keep
+- engineA-surgery-s101: valid=True gain=2.2946375069277103e-05 score=0.9636616143678816 status=keep
+- engineE-spectral-s202: valid=True gain=2.2946375069277103e-05 score=0.9636616143678816 status=keep
+- engineG-lse-s202: valid=True gain=2.2946900106513013e-05 score=0.9636616148929188 status=keep
+- engineA-surgery-s202: valid=True gain=2.2946375069277103e-05 score=0.9636616143678816 status=keep
+  - topo engineE-spectral-s101: structural=False Δteeth=0 jaccard=1.0 rel_l2=0.0
+  - topo engineG-lse-s101: structural=True Δteeth=54 jaccard=0.9989386537683035 rel_l2=2.1703559343176527e-07
+  - topo engineA-surgery-s101: structural=False Δteeth=0 jaccard=1.0 rel_l2=0.0
+  - topo engineE-spectral-s202: structural=False Δteeth=0 jaccard=1.0 rel_l2=0.0
+  - topo engineG-lse-s202: structural=True Δteeth=40 jaccard=0.9992279174962707 rel_l2=1.7758003179984399e-07
+  - topo engineA-surgery-s202: structural=False Δteeth=0 jaccard=1.0 rel_l2=0.0
+
+
+## Iteration 9 — 20261115T195749Z-v3it09 (ITER_OK)
+
+- 6 jobs x 1800s, est $0.7337, rem after **$295.1129** (reservation settled).
+- Best engineG-lse-s101 sha 51f3792ebd62…: pinned **0.9636616152231015**, indep **0.9636616152231022**.
+- vs Iter8: **+8.55e-10**; vs live 2783: **+5.32e-8**; gap to target: **9.947e-6** (not beats_record).
+- Promoted to uns/v3/best/ and rtifacts/savant-v3/.
+

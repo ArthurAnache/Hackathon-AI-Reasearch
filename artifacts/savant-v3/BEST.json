@@ -1,9 +1,12 @@
 {
-  "sha256": "54140cd2e955df0cef6f521b94650bd78545f2743847af382539ca55ca9d97ea",
-  "pinned": 0.9636616143678811,
-  "independent": 0.9636616143678813,
-  "gain_vs_live_2783": 5.230579569470706e-08,
-  "gap_to_live_plus_delta": 9.947694204259783e-06,
-  "run_id": "20261115T191920Z-v3it08",
-  "job_id": "engineG-lse-s202"
+  "sha256": "51f3792ebd62d6fdd07dc17aaa40826f8eef05fbded2d37343f5f3c56953e231",
+  "pinned": 0.9636616152231015,
+  "independent": 0.9636616152231022,
+  "gain_vs_live_2783": 5.3161016255742766e-08,
+  "gap_to_live_plus_delta": 9.946838983698747e-06,
+  "gain_vs_it8": 8.552203389911028e-10,
+  "prev_it8_sha": "54140cd2e955df0cef6f521b94650bd78545f2743847af382539ca55ca9d97ea",
+  "run_id": "20261115T195749Z-v3it09",
+  "job_id": "engineG-lse-s101",
+  "beats_record": false
 }

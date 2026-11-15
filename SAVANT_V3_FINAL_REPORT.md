@@ -13,17 +13,18 @@ Campaign window: 2026-11-15
 |---|---|---|
 | Live #1 (public sol 2783) | 0.9636615620620852 | verified |
 | Success target (live + 1e-5) | 0.9636715620620852 | — |
-| **V3 best (pinned)** | **0.9636616143678811** | verified |
-| **V3 best (independent exact)** | **0.9636616143678813** | verified |
-| Gain vs live #1 | **+5.231×10⁻⁸** | verified |
-| Gap to beats_record | **9.948×10⁻⁶** | — |
+| **V3 best (pinned)** | **0.9636616152231015** | verified (it09) |
+| **V3 best (independent exact)** | **0.9636616152231022** | verified |
+| Gain vs live #1 | **+5.316×10⁻⁸** | verified |
+| Gap to beats_record | **9.947×10⁻⁶** | — |
 | V2 best (frozen-cert polish) | 0.9636387135161563 | verified (−2.29e-5 vs live) |
-| Shared ceiling remaining | **~$293.15 / $300** (iter9 may still hold ~$2.70 reserved) | ledger |
+| Shared ceiling remaining | **~$295.11 / $300** (iter9 reservation committed) | ledger |
 | Arena submission | none | — |
 
-Best certificate (re-verified 2026-11-15):  
-- Working copy: `runs/v3/best/54140cd2e955….json.gz` (+ `VERIFY.json`)  
-- **Commit pack:** `artifacts/savant-v3/` (`BEST.json`, `VERIFY.json`, certificate `.json.gz`, `README.md`)
+Best certificate (re-verified 2026-11-15, **Iter9**):  
+- sha256 `51f3792ebd62d6fdd07dc17aaa40826f8eef05fbded2d37343f5f3c56953e231`  
+- Working copy: `runs/v3/best/` (`BEST.json`, `VERIFY.json`, certificate `.json.gz`)  
+- **Commit pack:** `artifacts/savant-v3/` (same files + `README.md`)
 
 ### Modal packaging note
 
@@ -60,6 +61,7 @@ V2 polished the **frozen WS1 certificate** (~0.96363867). The public live #1 is 
 | it6 surgery chain | 0.963661562383 | +1.82e-10 | Lineage compounds |
 | **it7 LSE @ live lineage** | **0.963661612842** | **+5.05e-8** | Structural (Δteeth −21); breakthrough arm |
 | **it8 LSE scale** | **0.963661614368** | **+1.53e-9** | Diminishing returns |
+| **it9 LSE hail-mary** | **0.963661615223** | **+8.55e-10** vs it8 | Current best; 1800s |
 
 ## Iteration / spend table
 
@@ -86,7 +88,7 @@ Approximate V3 Modal spend ≈ **$2.4**; combined V2+V3 ≈ **$4.15** of $300.
 | | V2 | V3 |
 |---|---|---|
 | Warm start | frozen cert only | **public live #1 → chained lineage** |
-| Best score | 0.9636387135 | **0.9636616144** |
+| Best score | 0.9636387135 | **0.9636616152** (it09) |
 | vs live #1 | −2.29e-5 | **+5.23e-8** |
 | vs target (live+δ) | −3.29e-5 | **−9.95e-6** |
 | Spend | ~$1.74 | ~$2.4 V3 (shared ledger) |
