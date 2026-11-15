@@ -122,7 +122,7 @@ def stages(batch: BatchSpec, row: RowSpec, level: int) -> tuple:
     the polish-only control."""
     evals = batch.level_evals[level]
     last = level == len(batch.level_evals) - 1
-    if level > 0 and row.fine_stages:
+    if row.fine_stages and (level > 0 or not batch.ups):      # also the only level of a single-level batch
         total = sum(share for _, share in row.fine_stages)
         counts = [max(1, int(evals * share / total)) for _, share in row.fine_stages]
         counts[-1] += evals - sum(counts)
@@ -385,8 +385,22 @@ def plan_relink(start: str, evals: int, pools=()) -> list[BatchSpec]:
     return [BatchSpec("e5-relink", "E5", start, 1, (), (evals,), tuple(rows))]
 
 
+def plan_polish(start: str, evals: int, pools=()) -> list[BatchSpec]:
+    """Polish-only rows at full resolution, to compare schedules and L-BFGS memories (launch with --history 20
+    for the advised memory): the control (beta 1e9 to 1e11), the advised fine schedule (beta 1e7, 1e8, 1e9, 1e10
+    with 10 / 20 / 30 / 40 % of the evaluations), and two mild reheats."""
+    advised = ((1e7, 0.1), (1e8, 0.2), (1e9, 0.3), (1e10, 0.4))
+    rows = (_row("control", beta0=1e9, beta1=1e9, hypothesis="polish only, beta 1e9 to 1e11"),
+            _row("advised", beta0=1e7, fine_stages=advised,
+                 hypothesis="advised fine schedule: beta 1e7, 1e8, 1e9, 1e10 with growing stages"),
+            _row("b7", beta0=1e7, hypothesis="cooling from beta = 1e7, then polish to 1e11"),
+            _row("b6", beta0=1e6, hypothesis="cooling from beta = 1e6, then polish to 1e11"))
+    tag = start.replace("vol:", "").replace("/", "_").replace(".npy", "")[-24:]
+    return [BatchSpec(f"e4-polish-{tag}", "E4", start, 1, (), (evals,), rows)]
+
+
 PLANS = {"smoke": plan_smoke, "e1": plan_e1, "e2": plan_e2, "e2-blend": plan_e2_blend, "e3": plan_e3,
-         "edge": plan_edge, "vdeep": plan_vdeep, "grow": plan_grow, "relink": plan_relink}
+         "edge": plan_edge, "vdeep": plan_vdeep, "grow": plan_grow, "relink": plan_relink, "polish": plan_polish}
 
 
 def build(names, start: str, evals: int, pools=None) -> list[BatchSpec]:
