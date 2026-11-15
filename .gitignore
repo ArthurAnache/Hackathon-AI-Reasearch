@@ -36,3 +36,7 @@ runs/
 llm_spend.json
 llm_spend.tmp
 llm_spend.lock
+
+artifacts/savant-v3/SUBMISSION.json
+problems/*/live_public_best.json.gz
+

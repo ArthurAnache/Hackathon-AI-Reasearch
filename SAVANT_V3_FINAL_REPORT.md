@@ -19,12 +19,23 @@ Campaign window: 2026-11-15
 | Gap to beats_record | **9.947×10⁻⁶** | — |
 | V2 best (frozen-cert polish) | 0.9636387135161563 | verified (−2.29e-5 vs live) |
 | Shared ceiling remaining | **~$295.11 / $300** (iter9 reservation committed) | ledger |
-| Arena submission | none | — |
+| Arena submission | **BLOCKED by gate c** | verified 2026-11-15 |
 
 Best certificate (re-verified 2026-11-15, **Iter9**):  
 - sha256 `51f3792ebd62d6fdd07dc17aaa40826f8eef05fbded2d37343f5f3c56953e231`  
 - Working copy: `runs/v3/best/` (`BEST.json`, `VERIFY.json`, certificate `.json.gz`)  
 - **Commit pack:** `artifacts/savant-v3/` (same files + `README.md`)
+
+### Arena submit attempt (2026-11-15, `--confirm` passed)
+
+```
+integrations/submit.py second-autocorrelation-inequality artifacts/savant-v3/SUBMISSION.json
+  --expected-score 0.9636616152231015 --confirm
+```
+
+Gates: a_pinned ok · b_independent ok · d_size ok · rate_and_duplicate ok · e_confirm ok ·  
+**c_leaderboard NO** — gain **5.316e-8 < δ 1e-5**. Nothing was sent. No solution ID.  
+WS1 contract forbids bypassing this gate. Commits containing the pack: `50f1d10`, `302cd11` (+ this note).
 
 ### Modal packaging note
 
