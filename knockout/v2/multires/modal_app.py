@@ -59,7 +59,8 @@ def gpu_job(spec: dict) -> dict:
 
 @app.local_entrypoint()
 def launch(job: str = "run", plan: str = "smoke", start: str = "frozen", evals: int = 0, pools: str = "",
-           max_usd: float = 0.0, source_commit: str = "", tag: str = "", history: int = 8, wait: bool = False):
+           max_usd: float = 0.0, source_commit: str = "", tag: str = "", history: int = 8, wait: bool = False,
+           other: str = ""):
     if job == "prepare":
         print(json.dumps(prepare.remote(), indent=1))
         return
@@ -69,6 +70,8 @@ def launch(job: str = "run", plan: str = "smoke", start: str = "frozen", evals: 
         raise SystemExit("--evals (evaluations per level) is required")
     if not 0 < max_usd <= MAX_USD_PER_LAUNCH:
         raise SystemExit(f"--max-usd must be in (0, {MAX_USD_PER_LAUNCH}]")
+    if other:                 # the second end of the "line" plan: a solution stored on the Volume
+        pl.OTHER = other
     factors = tuple(int(x) for x in pools.split(",") if x) or None
     batches = pl.build(plan, start, evals, factors)
     est = pl.estimate(batches)

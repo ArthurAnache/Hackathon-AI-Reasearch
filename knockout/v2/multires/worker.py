@@ -110,6 +110,10 @@ def run_job(vol: Path, spec: dict, commit=lambda: None, xp=None, to_xp=None, to_
                 raise RuntimeError(f"start {batch.start!r} is rejected by the frozen verifier: {res['error']}")
             start_scores[batch.start] = res["score"]
         start_score = start_scores[batch.start]
+        for row in batch.rows:                        # reference solutions named by "mix": files of the Volume
+            for p in row.pre:
+                if p["kind"] == "mix" and p["other"] not in refs:
+                    refs[p["other"]] = np.load(_start_path(vol, p["other"]))
         f0 = driver.level_start(batch, np.load(start_file), refs)
         chains = [_Chain(batch, r) for r in batch.rows]
         n_levels = len(batch.level_evals)
@@ -149,8 +153,9 @@ def run_job(vol: Path, spec: dict, commit=lambda: None, xp=None, to_xp=None, to_
                     terms = loss_terms(sol)                        # 1 - score = plateau + roughness (exact)
                     extra["loss_plateau"], extra["loss_roughness"] = terms["plateau"], terms["roughness"]
                     if res["n"] == batch.pad_to:                   # the envelope, against both reference solutions
-                        for name, ref in refs.items():
-                            extra[f"profile_l1_{PROFILE_BLOCK}_vs_{name}"] = profile_l1(sol, ref, PROFILE_BLOCK)
+                        for name in ("frozen", "live"):
+                            extra[f"profile_l1_{PROFILE_BLOCK}_vs_{name}"] = profile_l1(sol, refs[name],
+                                                                                       PROFILE_BLOCK)
                 rec = sch.make_record(
                     run_id=run_id, chain=chains[i], step=f"L{level}", score=res["score"], valid=res["valid"],
                     gpu_objective=info["smooth"][i], gpu_exact=info["exact"][i], start_score=start_score,

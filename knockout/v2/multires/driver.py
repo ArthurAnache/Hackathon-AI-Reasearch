@@ -29,17 +29,23 @@ def level_start(batch: pl.BatchSpec, start: np.ndarray, refs: dict | None = None
 
     base = pad_right(np.maximum(np.asarray(start, dtype=np.float64), 0.0), batch.pad_to)
     rows = [sum_pool(perturb.apply_all(base, r.pre, r.seed, None, refs), batch.pool) for r in batch.rows]
-    return np.stack([perturb.apply_all(row, r.coarse, r.seed + 500) for row, r in zip(rows, batch.rows)])
+    rows = [perturb.apply_all(row, r.coarse, r.seed + 500) for row, r in zip(rows, batch.rows)]
+    return repeat_upsample(np.stack(rows), batch.lift)        # lift > 1: level 0 works above the start's grid
 
 
 def next_level(batch: pl.BatchSpec, level: int, f_end: np.ndarray, gain: np.ndarray | None = None) -> np.ndarray:
     """Rows of level `level + 1`: repeat-upsampling by ups[level] (1 = same resolution, a cycle), then the rows'
     `post` perturbations (seeded by the row's seed and the level, so two levels do not reuse a draw). `gain`
     (B x n, same resolution as f_end) is passed to the gradient-guided perturbations."""
+    from knockout.v2.multires.resample import sum_pool
+
     k = batch.ups[level]
-    up = repeat_upsample(f_end, k)
-    if gain is not None and k > 1:
-        gain = repeat_upsample(gain, k)
+    if k < 0:                                   # the way back down from a lifted level: masses of groups of -k cells
+        up, gain = sum_pool(f_end, -k), None
+    else:
+        up = repeat_upsample(f_end, k)
+        if gain is not None and k > 1:
+            gain = repeat_upsample(gain, k)
     return np.stack([perturb.apply_all(up[i], r.post, r.seed + 1000 * (level + 1),
                                        None if gain is None else gain[i])
                      for i, r in enumerate(batch.rows)])
@@ -111,13 +117,15 @@ def run_ladder(xp, batch: pl.BatchSpec, f0: np.ndarray, *, to_xp, to_np, history
             break
         if level < len(batch.ups):
             k = batch.ups[level]
-            # the exact invariance the ladder relies on, checked on the scoring backend at every transition
-            coarse = exact_score(xp, f_end_x, m)
-            fine = exact_score(xp, to_xp(repeat_upsample(f_end, k)), fft_length(n * k))
-            repeat_gap = float(abs(fine - coarse).max())
-            if not repeat_gap <= REPEAT_TOL:
-                raise AssertionError(f"repeat-upsampling by {k} changed the score by {repeat_gap:.3e} at n = {n}")
-            del coarse, fine
+            if k > 1:
+                # the exact invariance the ladder relies on, checked on the scoring backend at every transition
+                coarse = exact_score(xp, f_end_x, m)
+                fine = exact_score(xp, to_xp(repeat_upsample(f_end, k)), fft_length(n * k))
+                repeat_gap = float(abs(fine - coarse).max())
+                if not repeat_gap <= REPEAT_TOL:
+                    raise AssertionError(f"repeat-upsampling by {k} changed the score by {repeat_gap:.3e} "
+                                         f"at n = {n}")
+                del coarse, fine
             gain = None
             if any(perturb.needs_gain(r.post) for r in batch.rows):
                 # the gain is taken at the beta the "grow" perturbation names (default: the row's last beta)

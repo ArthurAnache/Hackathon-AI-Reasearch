@@ -284,6 +284,26 @@ def test_gradient_guided_growth_cycles_on_numpy():
     assert all(info["n"] == 96 for _, info in seen)
 
 
+def test_lift_and_project_on_numpy():
+    plan = pl.build("lift", "frozen", 400)[0]
+    assert plan.lift == 2 and plan.ups == (-2,) and pl.level_sizes(plan) == [4_000_000, 2_000_000]
+    assert plan.level_evals == (400, 600) and len(plan.rows) == 8
+    assert pl.BatchSpec.from_dict(json.loads(json.dumps(plan.to_dict()))) == plan
+    rows = (pl.RowSpec("a", beta0=1e4, beta1=1e5, beta0_up=1e3),)
+    batch = pl.BatchSpec("lift", "E6", "frozen", 1, (-2,), (50, 50), rows, pad_to=96, lift=2)
+    start = _comb(95, seed=7)
+    f0 = driver.level_start(batch, start)
+    assert f0.shape == (1, 192) and rs.closed_form_score(f0[0]) == pytest.approx(rs.closed_form_score(start), abs=1e-13)
+    seen = []
+    driver.run_ladder(np, batch, f0, to_xp=lambda a: np.array(a, dtype=np.float64), to_np=np.asarray,
+                      on_level_end=lambda lv, fr, info: seen.append((fr.copy(), info)))
+    assert [fr.shape for fr, _ in seen] == [(1, 192), (1, 96)]
+    assert seen[0][1]["exact"][0] >= rs.closed_form_score(start) - 1e-12      # the lifted level starts at the start's score
+    assert seen[1][1]["init_exact"][0] == pytest.approx(rs.closed_form_score(rs.sum_pool(seen[0][0][0], 2)), abs=1e-12)
+    with pytest.raises(ValueError):
+        pl.check_batch(pl.BatchSpec("x", "E6", "frozen", 1, (-2,), (50, 50), rows, pad_to=95, lift=1))
+
+
 def test_ladder_stops_at_the_deadline():
     batch = _tiny_batch()
     f0 = driver.level_start(batch, _comb(95, seed=7))

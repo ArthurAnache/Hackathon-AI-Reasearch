@@ -73,38 +73,44 @@ class BatchSpec:
     level_evals: tuple
     rows: tuple
     pad_to: int = CAP
+    lift: int = 1                     # level 0 is the pooled start repeated `lift` times (2 = work above the cap)
 
     def to_dict(self) -> dict:
         return {"name": self.name, "experiment": self.experiment, "start": self.start, "pool": self.pool,
                 "ups": list(self.ups), "level_evals": list(self.level_evals), "pad_to": self.pad_to,
-                "rows": [r.to_dict() for r in self.rows]}
+                "lift": self.lift, "rows": [r.to_dict() for r in self.rows]}
 
     @staticmethod
     def from_dict(d: dict) -> "BatchSpec":
         return BatchSpec(name=d["name"], experiment=d["experiment"], start=d["start"], pool=int(d["pool"]),
                          ups=tuple(int(k) for k in d["ups"]), level_evals=tuple(int(e) for e in d["level_evals"]),
-                         rows=tuple(RowSpec.from_dict(r) for r in d["rows"]), pad_to=int(d["pad_to"]))
+                         rows=tuple(RowSpec.from_dict(r) for r in d["rows"]), pad_to=int(d["pad_to"]),
+                         lift=int(d.get("lift", 1)))
 
 
 def level_sizes(batch: BatchSpec) -> list[int]:
-    """Number of cells at each level, coarse to fine."""
-    sizes = [batch.pad_to // batch.pool]
+    """Number of cells at each level. A factor k >= 1 of `ups` repeats every cell k times; a factor k <= -2
+    sum-pools groups of -k cells (a way back down from a lifted level)."""
+    sizes = [batch.pad_to * batch.lift // batch.pool]
     for k in batch.ups:
-        sizes.append(sizes[-1] * k)
+        sizes.append(sizes[-1] * k if k > 0 else sizes[-1] // -k)
     return sizes
 
 
 def check_batch(batch: BatchSpec) -> None:
-    if batch.pool < 1 or batch.pad_to % batch.pool:
+    if batch.pool < 1 or batch.pad_to % batch.pool or batch.lift < 1:
         raise ValueError(f"{batch.name}: pad_to {batch.pad_to} is not a multiple of the pooling factor {batch.pool}")
-    if any(k < 1 for k in batch.ups):
-        raise ValueError(f"{batch.name}: upsampling factors must be >= 1 (1 = a cycle at the same resolution)")
-    if batch.pool % math.prod(batch.ups):
+    if any(k in (0, -1) for k in batch.ups):
+        raise ValueError(f"{batch.name}: a factor is >= 1 (repeat; 1 = a cycle at the same resolution) or <= -2")
+    if all(k > 0 for k in batch.ups) and batch.pool % math.prod(batch.ups):
         raise ValueError(f"{batch.name}: the upsampling factors {batch.ups} do not divide the pooling factor")
     if len(batch.level_evals) != len(batch.ups) + 1:
         raise ValueError(f"{batch.name}: need one evaluation budget per level")
-    if level_sizes(batch)[-1] > CAP:
-        raise ValueError(f"{batch.name}: the finest level exceeds the submission cap of {CAP} values")
+    sizes = level_sizes(batch)
+    if any(k < 0 and n % -k for n, k in zip(sizes, batch.ups)):
+        raise ValueError(f"{batch.name}: a level cannot be pooled by its factor")
+    if sizes[-1] > CAP:
+        raise ValueError(f"{batch.name}: the last level exceeds the submission cap of {CAP} values")
     names = [r.name for r in batch.rows]
     if not names or len(set(names)) != len(names):
         raise ValueError(f"{batch.name}: rows need distinct names")
@@ -385,6 +391,45 @@ def plan_relink(start: str, evals: int, pools=()) -> list[BatchSpec]:
     return [BatchSpec("e5-relink", "E5", start, 1, (), (evals,), tuple(rows))]
 
 
+OTHER = "frozen"          # the second end of plan_line's line; the launcher sets it (--other vol:<path>.npy)
+
+
+def plan_line(start: str, evals: int, pools=()) -> list[BatchSpec]:
+    """E7, the line between the start and an independently derived solution `OTHER` (a V-cycle end stored on the
+    Volume). knockout/v2/gpu found that chains started on the line between solutions 2782 and 2783 stay where
+    they are put, while random directions are pulled back; so the direction between two solutions derived
+    separately is the one worth a line search. Rows start inside the segment (t > 0, towards OTHER) and beyond
+    the start (t < 0), with a mild cooling (a deep one costs more than the line can give)."""
+    rows = [_row("control", beta0=1e9, beta1=1e9, hypothesis="control: the start, polish only")]
+    plan = ((0.02, 1e6), (0.05, 1e6), (0.05, 1e5), (0.1, 1e5), (0.1, 1e6), (0.2, 1e5), (0.3, 1e5), (0.5, 1e4),
+            (-0.01, 1e6), (-0.02, 1e6), (-0.05, 1e6), (-0.05, 1e5), (-0.1, 1e5), (-0.1, 1e6), (-0.2, 1e5))
+    for t, b0 in plan:
+        where = f"{t:.0%} of the way to the other solution" if t > 0 else f"{-t:.0%} beyond the start"
+        rows.append(_row(f"line{t:g}-b{int(round(math.log10(b0)))}", pre=({"kind": "mix", "other": OTHER, "t": t},),
+                         beta0=b0, hypothesis=f"line search: start {where} on the line through the start and "
+                                              f"{OTHER}, cooling from beta = {b0:.0e}, then polish"))
+    return [BatchSpec("e7-line", "E7", start, 1, (), (evals,), tuple(rows))]
+
+
+def plan_lift(start: str, evals: int, pools=(2,)) -> list[BatchSpec]:
+    """E6, lift and project: the published transfers that worked all go upwards (repeat, then polish), and the
+    cap of 2,000,000 values stops that road. Here the start is repeated by 2 (4,000,000 cells, same score, not
+    submittable), optimized there, sum-pooled by 2 back to 2,000,000 cells and optimized again. Level 0 also
+    measures what 4,000,000 cells would be worth. Scores at 4,000,000 cells are the GPU closed form only: the
+    frozen scorer refuses more than 2,000,000 values."""
+    lift = pools[0]
+    rows = []
+    for c0 in (1e9, 1e6, 1e5, 1e4):
+        for f0 in (1e3, 1e4):
+            how = "polish only" if c0 >= 1e9 else f"cooling from beta = {c0:.0e}"
+            rows.append(_row(f"up{int(round(math.log10(c0)))}-down{int(round(math.log10(f0)))}", beta0=c0,
+                             beta0_up=f0, hypothesis=f"lift and project: {how} at {lift}x the resolution, pool "
+                                                     f"back by {lift}, cooling from beta = {f0:.0e}, then polish"))
+    tag = start.replace("vol:", "").replace("/", "_").replace(".npy", "")[-24:]
+    return [BatchSpec(f"e6-lift{lift}-{tag}", "E6", start, 1, (-lift,), (evals, evals + evals // 2), tuple(rows),
+                      lift=lift)]
+
+
 def plan_polish(start: str, evals: int, pools=()) -> list[BatchSpec]:
     """Polish-only rows at full resolution, to compare schedules and L-BFGS memories (launch with --history 20
     for the advised memory): the control (beta 1e9 to 1e11), the advised fine schedule (beta 1e7, 1e8, 1e9, 1e10
@@ -400,7 +445,8 @@ def plan_polish(start: str, evals: int, pools=()) -> list[BatchSpec]:
 
 
 PLANS = {"smoke": plan_smoke, "e1": plan_e1, "e2": plan_e2, "e2-blend": plan_e2_blend, "e3": plan_e3,
-         "edge": plan_edge, "vdeep": plan_vdeep, "grow": plan_grow, "relink": plan_relink, "polish": plan_polish}
+         "edge": plan_edge, "vdeep": plan_vdeep, "grow": plan_grow, "relink": plan_relink, "polish": plan_polish,
+         "lift": plan_lift, "line": plan_line}
 
 
 def build(names, start: str, evals: int, pools=None) -> list[BatchSpec]:

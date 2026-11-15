@@ -115,7 +115,32 @@ def main(out_path: str) -> dict:
     return out
 
 
+def loss_table(out_path: str, named_paths: list[str]) -> list[dict]:
+    """The two exact loss terms (resample.loss_terms) of the frozen certificate, of the certificate pooled by
+    2 ... 64, and of the stored solutions given as name=path.npy (downloaded from the Volume)."""
+    from problems.catalog import load
+
+    frozen = np.asarray(load(SLUG).certificate()["values"], dtype=np.float64)
+    items = [("certificate (EA solution 2782)", frozen)]
+    items += [(f"certificate pooled by {k}", rs.sum_pool(rs.pad_to_multiple(frozen, k), k))
+              for k in (2, 4, 8, 16, 32, 64)]
+    items += [(name, np.load(path)) for name, path in (x.split("=", 1) for x in named_paths)]
+    out = []
+    for name, f in items:
+        terms = rs.loss_terms(f)
+        out.append({"solution": name, "n": int(f.size), "score": rs.closed_form_score(f), **terms,
+                    "roughness_share": terms["roughness"] / (terms["plateau"] + terms["roughness"])})
+    with open(out_path, "w") as fh:
+        json.dump(out, fh, indent=1)
+    return out
+
+
 if __name__ == "__main__":
+    if sys.argv[1] == "--loss":
+        for row in loss_table(sys.argv[2], sys.argv[3:]):
+            print(f"{row['solution']:<42} n {row['n']:<8} score {row['score']:.9f} plateau {row['plateau']:.6f} "
+                  f"roughness {row['roughness']:.3e} ({row['roughness_share']:.2%} of the loss)")
+        raise SystemExit(0)
     res = main(sys.argv[1])
     print(json.dumps({k: res[k] for k in ("frozen", "live", "repeat_check_frozen_verifier")}, indent=1))
     for name, rows in res["pooled"].items():
