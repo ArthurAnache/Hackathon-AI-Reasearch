@@ -61,8 +61,11 @@ def run_batch(jobs: list[dict]) -> dict:
     containers stayed queued. A detached `modal run` also keeps only the last triggered function alive, which
     this single call is. Children write plain files under /vol; this process commits the Volume."""
     import multiprocessing as mp
+    import os
     import threading
 
+    for name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):  # Modal exports cpu=48 here
+        os.environ[name] = "1"
     sys.path.insert(0, f"{IMAGE_ROOT}/selection")
     import scout_third_autocorr as core
 
@@ -211,7 +214,7 @@ def launch(round_name: str, track: str, budget: float = 1200.0, plan: str = "r1"
 # ----------------------------------------------------------------------------------------------------------------
 # Harvest (plain Python; the round is downloaded first with `modal volume get`)
 
-def harvest(round_name: str, keep: int) -> None:
+def harvest(round_name: str, keep: int, dry: bool = False) -> None:
     import datetime as dt
 
     import numpy as np
@@ -273,12 +276,11 @@ def harvest(round_name: str, keep: int) -> None:
                                 "arbitration, not a record claim" if row["decision"] == "candidate"
                                 else "not delta below the live #1")
             rows.append(row)
-        done = ({json.loads(l)["experiment_id"] for l in log_path.read_text().splitlines()}
-                if log_path.exists() else set())
-        with log_path.open("a") as fh:
-            for row in rows:
-                if row["experiment_id"] not in done:
-                    fh.write(json.dumps(row) + "\n")
+        if not dry:  # one line per job; a later harvest of the same round replaces its lines
+            merged = ({json.loads(l)["experiment_id"]: json.loads(l) for l in log_path.read_text().splitlines()}
+                      if log_path.exists() else {})
+            merged.update({row["experiment_id"]: row for row in rows})
+            log_path.write_text("".join(json.dumps(r) + "\n" for r in merged.values()))
         print(f"--- track {track} ({PROVENANCE[track]}), round {round_name}: {len(rows)} jobs, "
               f"{sum(m['final'] for m in metas)} finished")
         for row in rows[: max(keep, 14)]:
@@ -295,5 +297,6 @@ if __name__ == "__main__":
     ap.add_argument("mode", choices=["harvest"])
     ap.add_argument("--round-name", required=True)
     ap.add_argument("--keep", type=int, default=3)
+    ap.add_argument("--dry", action="store_true", help="print the table only: no re-scoring, no log line")
     a = ap.parse_args()
-    harvest(a.round_name, a.keep)
+    harvest(a.round_name, 0 if a.dry else a.keep, a.dry)

@@ -38,8 +38,11 @@ import sys
 import time
 from pathlib import Path
 
+# One thread per process, always. Not setdefault: a Modal container with cpu=48 exports OMP_NUM_THREADS=48 and
+# OPENBLAS_NUM_THREADS=48, and 48 processes with 48 threads each ran this objective about 250 times slower
+# (measured: 541 ms per evaluation instead of about 2 ms).
 for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "MKL_NUM_THREADS"):
-    os.environ.setdefault(_v, "1")
+    os.environ[_v] = "1"
 
 import numpy as np  # noqa: E402
 import scipy.fft as sfft  # noqa: E402
@@ -203,6 +206,7 @@ def run_steps(f0: np.ndarray, steps: list[dict], seed: int, budget_s: float, on_
     Steps:
       {"op": "pool", "k": 2}                      sum-pool to a coarser grid (len must be a multiple of k)
       {"op": "resample", "n": 25600}              exact block average onto another grid
+      {"op": "decimate", "k": 8}                  keep one value in k (what MILO's page did to its record)
       {"op": "repeat", "k": 2}                    block-repeat (preserves the score exactly)
       {"op": "path", "t_hot", "t_cold", "stages", "seconds", "sigma": 0, "keep_start": True}
                                                   one timed cooling path from the current best (+ relative noise);
@@ -237,9 +241,11 @@ def run_steps(f0: np.ndarray, steps: list[dict], seed: int, budget_s: float, on_
         if time.monotonic() >= deadline:
             break
         op = step["op"]
-        if op in ("pool", "repeat", "resample"):
+        if op in ("pool", "repeat", "resample", "decimate"):
             if op == "pool":
                 g = best.reshape(-1, step["k"]).mean(axis=1)
+            elif op == "decimate":
+                g = best[:: step["k"]].copy()
             elif op == "repeat":
                 g = np.repeat(best, step["k"])
             else:
