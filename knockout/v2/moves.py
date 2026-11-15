@@ -23,6 +23,9 @@ Families and the meaning of `strength`:
 | `open_gradient` | opens the zero cells where the gradient of the smoothed score is largest | cells opened / support |
 | `envelope` | continues the slow drift of the leader's envelope (needs the reference solutions) | drift, in units of 1e-5 of the leader's score gain |
 | `clear_band` | scales down the sparse band between 65 % and 90 % of the grid | share of the band's mass removed |
+| `block_noise` | log-normal noise, then each block of 256 cells is rescaled to its old mass | sigma |
+| `jitter_runs` | shifts single runs by one cell | share of runs shifted |
+| `neighbour_transfer` | moves mass between two neighbouring runs, pair mass kept | share of the lighter run's mass |
 
 `region_noise` and `swap_support` come from comparing solutions 2782 and 2783 (the previous and the current #1 of
 the same team): 25,554 small cells holding 0.7 % of the mass disappeared, 23,191 cells appeared, and on common
@@ -33,6 +36,11 @@ block.
 2783; +1.3e-5, +1.3e-5, +2.3e-5). Cell by cell their steps look like a random walk (cosine between successive
 displacements 0.03 to 0.10), but the displacement of the mass of blocks of 65,536 cells keeps its direction
 (cosine 0.90 to 0.93): the first 5 % of the grid gains mass at every step and the sparse band loses mass.
+
+`block_noise`, `jitter_runs` and `neighbour_transfer` keep the envelope and re-draw the mass inside neighbourhoods
+of at most a few hundred cells. That is what one step of the leader looks like: between 2782 and 2783 the block
+masses differ by 0.0004 (L1) for blocks of 65,536 cells and by 0.02 for blocks of 256 cells, against 0.225 cell by
+cell.
 """
 from __future__ import annotations
 
@@ -198,6 +206,55 @@ def clear_band(f, rng, strength, lo: float = 0.65, hi: float = 0.90):
     return out
 
 
+def block_noise(f, rng, strength, block: int = 256):
+    """Log-normal noise on the non-zero cells, then every block of `block` cells is rescaled to its old mass: the
+    mass is re-drawn inside neighbourhoods, the envelope stays exactly as it was."""
+    n = len(f)
+    out = lognormal(f, rng, strength)
+    edges = np.arange(0, n, block)
+    old = np.add.reduceat(f, edges)
+    new = np.add.reduceat(out, edges)
+    scale = np.where(new > 0, old / np.where(new > 0, new, 1.0), 1.0)
+    return out * np.repeat(scale, block)[:n]
+
+
+def jitter_runs(f, rng, strength):
+    """Shift single runs by one cell, left or right. `strength` is the share of runs shifted. A run moves only
+    into a gap of at least three zero cells, so it never touches its neighbour, even if that one moves too."""
+    n = len(f)
+    starts, ends = runs(f)
+    gap_before = starts - np.concatenate(([0], ends[:-1]))
+    gap_after = np.concatenate((starts[1:], [n])) - ends
+    out = f.copy()
+    for i in np.flatnonzero(rng.random(len(starts)) < strength):
+        a, b = int(starts[i]), int(ends[i])
+        step = int(rng.choice([-1, 1]))
+        if (step == -1 and gap_before[i] < 3) or (step == 1 and gap_after[i] < 3):
+            continue
+        out[a:b] = 0.0
+        out[a + step:b + step] = f[a:b]
+    return out
+
+
+def neighbour_transfer(f, rng, strength):
+    """Move mass between neighbouring runs: for half of the pairs (run 2i, run 2i + 1), a share `strength` of the
+    lighter run's mass goes from one run to the other (direction at random). The mass of each pair is kept."""
+    starts, ends = runs(f)
+    cum = np.concatenate(([0.0], np.cumsum(f)))
+    mass = cum[ends] - cum[starts]
+    scale = np.ones(len(starts))
+    left = np.arange(0, len(starts) - 1, 2)
+    left = left[rng.random(len(left)) < 0.5]
+    moved = strength * np.minimum(mass[left], mass[left + 1]) * rng.choice([-1.0, 1.0], size=len(left))
+    scale[left] = 1.0 - moved / mass[left]
+    scale[left + 1] = 1.0 + moved / mass[left + 1]
+    out = f.copy()
+    lengths = ends - starts
+    cells = np.flatnonzero(f > 0)
+    out[cells] = f[cells] * np.repeat(scale, lengths)
+    return out
+
+
 MOVES = {
     "reheat": reheat,
     "lognormal": lognormal,
@@ -212,6 +269,9 @@ MOVES = {
     "open_gradient": open_gradient,
     "envelope": envelope,
     "clear_band": clear_band,
+    "block_noise": block_noise,
+    "jitter_runs": jitter_runs,
+    "neighbour_transfer": neighbour_transfer,
 }
 
 # Moves that read other solutions: they get `references`, a dict name -> solution.

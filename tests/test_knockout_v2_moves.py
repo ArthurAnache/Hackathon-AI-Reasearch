@@ -158,6 +158,25 @@ class MovesTest(unittest.TestCase):
         self.assertEqual(cleared[2600:3600].sum(), 0.0)
         self.assertEqual(cleared[:2600].sum() + cleared[3600:].sum(), 3000.0)
 
+    def test_local_moves_keep_the_envelope(self):
+        f = comb(4096)
+        rng = lambda: np.random.default_rng(5)  # noqa: E731
+        noisy = MOVES["block_noise"](f, rng(), 0.3, block=256)
+        self.assertFalse(np.array_equal(noisy, f))
+        np.testing.assert_allclose(noisy.reshape(16, 256).sum(1), f.reshape(16, 256).sum(1), rtol=1e-12)
+        jittered = MOVES["jitter_runs"](f, rng(), 0.5)
+        self.assertFalse(np.array_equal(jittered, f))
+        self.assertEqual(len(runs(jittered)[0]), len(runs(f)[0]))
+        np.testing.assert_array_equal(jittered[jittered > 0], f[f > 0])       # same values, in the same order
+        self.assertLessEqual(np.abs(runs(jittered)[0] - runs(f)[0]).max(), 1)
+        moved = MOVES["neighbour_transfer"](f, rng(), 0.2)
+        self.assertFalse(np.array_equal(moved, f))
+        np.testing.assert_array_equal(moved > 0, f > 0)
+        starts, ends = runs(f)
+        pair = lambda g, i: g[starts[i]:ends[i + 1]].sum()  # noqa: E731
+        for i in range(0, len(starts) - 1, 2):
+            self.assertAlmostEqual(pair(moved, i), pair(f, i), places=10)
+
     def test_broken_move_is_rejected(self):
         MOVES["_bad"] = lambda f, rng, s: -f
         try:

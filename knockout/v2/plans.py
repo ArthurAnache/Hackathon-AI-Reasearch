@@ -27,6 +27,12 @@ TRAJECTORY_STRENGTHS = {
     "envelope": [0.01, 0.1, 1.0, 3.0],
     "clear_band": [0.01, 0.1, 0.5, 1.0],
 }
+# Families that keep the envelope and re-draw the mass inside small neighbourhoods (added after E1 as well).
+LOCAL_STRENGTHS = {
+    "block_noise": [3e-6, 3e-5, 3e-4],
+    "jitter_runs": [1e-4, 1e-3, 1e-2],
+    "neighbour_transfer": [1e-5, 1e-4, 1e-3],
+}
 REHEAT_SCHEDULES = ["a7", "a6", "a5", "mm6", "mm7", "mm8"]
 
 
@@ -136,10 +142,28 @@ def e2_moves() -> list[dict]:
     return out
 
 
+def local_moves() -> list[dict]:
+    """The envelope-preserving families from both starts: every strength with the anneal at 1,500 evaluations, and
+    the mildest one at 3,000 from the live #1. Baselines are in the E1 and e2_reheat runs."""
+    out = []
+    for start in ("sol2782", "sol2783"):
+        for family, strengths in LOCAL_STRENGTHS.items():
+            out += [spec(start, family, strength, 1, "a7", 1500) for strength in strengths]
+    out += [spec("sol2783", family, strengths[0], 2, "a7", 3000) for family, strengths in LOCAL_STRENGTHS.items()]
+    return out
+
+
+def from_2416() -> list[dict]:
+    """Calibration: our polisher from solution 2416 (ClaudeExplorer, 2026-07-22, 0.963588), the public solution
+    the leader's series is closest to. The leader went from there to 0.963613 (solution 2780)."""
+    return reheats("sol2416", (1500, 6000), ("p0", "a7", "a6"))
+
+
 def deep_holds() -> list[dict]:
     """Holds at beta = 1e5 from both starts (the baselines are in the `holds` run)."""
     return [s for start in ("sol2782", "sol2783") for s in reheats(start, (6000, 12000), ("h5",))]
 
 
 PLANS = {"smoke": smoke, "e1": e1, "e1_wide": e1_wide, "e2_reheat": e2_reheat, "holds": holds, "direct": direct,
-         "deep_holds": deep_holds, "e1_extra": e1_extra, "e2_moves": e2_moves}
+         "deep_holds": deep_holds, "e1_extra": e1_extra, "e2_moves": e2_moves, "from_2416": from_2416,
+         "local_moves": local_moves}
