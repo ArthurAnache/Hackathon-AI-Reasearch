@@ -144,6 +144,36 @@ at most 3 wins and 2 lessons, one line of at most 200 chars per fact. The "do no
   win more often, so the higher win share and lower USD per win cannot be credited to memory (**hypothesis** at
   best). A repeat rate of 0 % on both sides means this metric does not separate them here. A fair answer needs
   the A/B on equal budget with isolated scopes (`memory.scope_suffix`, `memory.since`), which is not run.
+- **verified, toy A/B on equal budget** (2026-11-15, 6 runs under `runs/ab2/`):
+  - Setup: 120 s per run, OpenAI editor, `llm.max_output_tokens=6000` and a 0.28 USD cap on every run, seeds
+    101/202/303 on both sides, LLM total 1.17 USD.
+  - ON: memory in a fresh isolated scope (`memory.scope_suffix=ab-on2`), so ON runs accumulate facts across runs,
+    one after another.
+  - OFF: memory disabled, same seeds, run in parallel.
+  - Every run stopped on the USD cap after 1 control round and 1 main batch (4 to 6 children). There were
+    0 memory errors and no truncated or rejected program.
+
+  | Pair (seed) | ON run | OFF run | Facts recalled (ON) | Children beating ref ON / OFF | LLM USD per winning child ON / OFF | LLM USD ON / OFF |
+  |---|---|---|---|---|---|---|
+  | 1 (101) | `20261115T195414Z` | `20261115T195415Z` | 0 (scope new) | 2/4 / 1/4 | 0.082 / 0.178 | 0.165 / 0.178 |
+  | 2 (202) | `20261115T195625Z` | `20261115T195625Z` | 4 (3 from run 1) | 2/6 / 1/4 | 0.114 / 0.170 | 0.228 / 0.171 |
+  | 3 (303) | `20261115T200058Z` | `20261115T200058Z` | 8 (7 from runs 1-2) | 1/6 / 1/4 | 0.257 / 0.172 | 0.257 / 0.171 |
+  | pooled | | | | 5/16 (31 %) / 3/12 (25 %) | 0.130 / 0.173 | 0.650 / 0.520 |
+
+  Repeat rate: 0 % on every run.
+
+  Reading:
+  - No measurable effect. Pair 3, which carries the most accumulated memory, is the one where ON does worse
+    (1/6 vs 1/4).
+  - With 4 to 6 children per run, a difference of one winning child is noise, and the LLM is not deterministic
+    under a fixed seed.
+  - What is measurable is the cost: memory makes prompts longer, about +0.05 to +0.09 USD of LLM per run once
+    facts exist.
+  - Whether memory helps is still a **hypothesis**. Testing it needs longer runs, many more children and more
+    pairs.
+- **limitation, first A/B attempt (discarded)**: with `memory.since` set, every recall got `HTTP 400 on POST
+  /recall` from past.dev (2 per ON run, `runs/ab/`). Each of those runs also stopped after one round at about
+  0.05 USD. The rerun above drops `since`; the scope suffix alone isolates the A/B.
 - **limitation**: before the tests were made offline, one test run wrote about 57 test facts to the live past.dev
   project, tagged `toy-circles-26` and `another-problem` (runs `runA`, `runB`, `runO`, `run1`, `run2`; about 78
   credits). They are kept, by decision. They never reach main-problem prompts, but a toy demo would recall them.
