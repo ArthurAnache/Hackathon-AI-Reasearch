@@ -268,7 +268,9 @@ saved solution):
   ran the seed program, then could not return its result: above 2 MiB Modal sends a return value through external
   blob storage, and the worker has no network (`block_network=True`), hence a DNS error. Fix: the worker yields its
   result as compressed chunks of at most 1 MiB (`executor.pack_result`), which stay on Modal's own channel; the
-  network stays blocked. `launch.yaml` stays a 15-minute, 5 USD smoke run until one run ends cleanly.
+  network stays blocked. The third attempt (18:16 PT) ran to the end (see "Results").
+  `launch.yaml` is still the 15-minute, 5 USD smoke run: raise `wall_clock_s` and `max_usd` there for a real
+  campaign.
 - A record is only claimed against a live leaderboard read. If the read fails, the frozen catalog serves its
   snapshot (stale since 2026-11-14), the run prints a warning, and `beats_record` stays false.
 - The scout needs `EXA_API_KEY`; it is not passed to Modal, so the scout is skipped there.
