@@ -102,6 +102,11 @@ prompts are byte-identical to before.
 committed v1 ledgers into facts that keep their original timestamps. A dry run writes them to
 `runs/memory_backfill/facts.jsonl`; `--push FILE` ingests them through `knockout.pastdev`.
 `knockout/memory_metrics.py --on RUN --off RUN [--facts FILE]` compares two runs.
+`knockout/memory_demo.py RUN_DIR [RUN_DIR ...] --out FILE.md` (agent 2) builds a static, evidence-linked
+report from run ledgers and `pastdev_log.jsonl`. For each fact written, it gives the run, arm, kind and headline,
+and which later run and arm recalled it with which query; it also lists every recall query and any store errors.
+Example on the two past.dev toy runs: `runs/memory_demo.md`, not committed. It shows the 4 facts of run
+`20261115T190228Z` recalled by both arms of run `20261115T190750Z`, with 0 errors.
 
 **Block layout.** Refuted ideas and failed batches come first, alternating so neither crowds out the other, then
 at most 3 wins and 2 lessons, one line of at most 200 chars per fact. The "do not retry" query asks for twice
