@@ -93,8 +93,8 @@ def level_sizes(batch: BatchSpec) -> list[int]:
 def check_batch(batch: BatchSpec) -> None:
     if batch.pool < 1 or batch.pad_to % batch.pool:
         raise ValueError(f"{batch.name}: pad_to {batch.pad_to} is not a multiple of the pooling factor {batch.pool}")
-    if any(k < 2 for k in batch.ups):
-        raise ValueError(f"{batch.name}: upsampling factors must be >= 2")
+    if any(k < 1 for k in batch.ups):
+        raise ValueError(f"{batch.name}: upsampling factors must be >= 1 (1 = a cycle at the same resolution)")
     if batch.pool % math.prod(batch.ups):
         raise ValueError(f"{batch.name}: the upsampling factors {batch.ups} do not divide the pooling factor")
     if len(batch.level_evals) != len(batch.ups) + 1:
@@ -314,8 +314,38 @@ def plan_vdeep(start: str, evals: int, pools=(2,)) -> list[BatchSpec]:
     return out
 
 
+def plan_grow(start: str, evals: int, pools=(1, 2, 4)) -> list[BatchSpec]:
+    """E3c, gradient-guided support growth, in cycles at full resolution. Level 0 polishes at beta = 1e9; then,
+    three times: compute the gain d log C_beta / d f_i of every zero cell at the current point, open the zero
+    cells within `radius` cells of the support whose gain is positive (at t times the neighbouring value), and
+    polish again. This is the active-set step that a chain with f = w^2 cannot take; unlike the blind opening of
+    E3b it adds mass only where the smoothed objective says it helps. The last level polishes up to 1e11."""
+    rows = [_row("control", beta0=1e9, beta1=1e9, hypothesis="control: the same four polish levels, no opening")]
+
+    def add(radius, t, up=1e9, top=1.0):
+        tag = (f"grow{radius}-t{t:g}" + (f"-top{top:g}" if top < 1 else "")
+               + (f"-b{int(round(math.log10(up)))}" if up < 1e9 else ""))
+        how = "polish at beta = 1e9" if up >= 1e9 else f"cooling from beta = {up:.0e}"
+        rows.append(_row(tag, post=({"kind": "grow", "radius": radius, "t": t, "top": top},), beta0=1e9,
+                         beta0_up=up, hypothesis=f"support growth: zero cells within {radius} cells of the "
+                                                 f"support with a positive gain ({top:.0%} of them) open at "
+                                                 f"{t:g} of the neighbouring value, then {how}; three cycles"))
+
+    for radius in pools:
+        for t in (1e-3, 1e-2, 1e-1):
+            add(radius, t)
+    mid = pools[min(1, len(pools) - 1)]
+    for t in (1e-3, 1e-2, 1e-1):
+        add(mid, t, up=1e7)
+    add(2 * pools[-1], 1e-2)
+    add(mid, 1e-2, top=0.1)
+    add(mid, 1.0)
+    tag = start.replace("vol:", "").replace("/", "_").replace(".npy", "")[-24:]
+    return [BatchSpec(f"e3c-grow-{tag}", "E3c", start, 1, (1, 1, 1), (evals,) * 4, tuple(rows[:16]))]
+
+
 PLANS = {"smoke": plan_smoke, "e1": plan_e1, "e2": plan_e2, "e2-blend": plan_e2_blend, "e3": plan_e3,
-         "edge": plan_edge, "vdeep": plan_vdeep}
+         "edge": plan_edge, "vdeep": plan_vdeep, "grow": plan_grow}
 
 
 def build(names, start: str, evals: int, pools=None) -> list[BatchSpec]:

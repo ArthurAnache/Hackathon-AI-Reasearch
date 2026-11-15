@@ -211,6 +211,49 @@ def test_ladder_runs_coarse_to_fine_on_numpy():
     assert seen[1][2]["init_exact"][1] != pytest.approx(seen[0][2]["exact"][1], abs=1e-9)    # the noisy row moved
 
 
+def test_gradient_guided_growth_cycles_on_numpy():
+    from knockout.v2.gpu.objective import evaluate, fft_length, kappa_for
+
+    # the gain of driver.support_gain is the derivative of log C_beta with respect to f, zero cells included
+    f = _comb(40, seed=5)[None, :]
+    m = fft_length(40)
+    beta = np.full((1, 1), 50.0)
+    gain = driver.support_gain(np, f, beta, m)[0]
+
+    def log_c(v):
+        return -evaluate(np, np.sqrt(v), beta, kappa_for(np, f, m), m)[0][0]
+
+    for i in (int(np.flatnonzero(f[0] == 0)[0]), int(np.flatnonzero(f[0] > 0)[0])):
+        up, down = f.copy(), f.copy()
+        up[0, i] += 1e-6
+        down[0, i] = max(0.0, down[0, i] - 1e-6)
+        step = up[0, i] - down[0, i]
+        assert (log_c(up) - log_c(down)) / step == pytest.approx(gain[i], rel=1e-4, abs=1e-7)
+    # "grow" opens exactly the zero cells next to the support whose gain is positive
+    g = np.array([0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 1.0, 0.0])
+    gains = np.array([1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 2.0])
+    assert np.allclose(perturb.apply(g, {"kind": "grow", "radius": 1, "t": 0.1}, 0, gains),
+                       [0.0, 0.3, 3.0, 0.0, 0.0, 0.1, 1.0, 0.1])
+    assert np.allclose(perturb.apply(g, {"kind": "grow", "radius": 1, "t": 0.1, "top": 0.34}, 0, gains),
+                       [0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 1.0, 0.1])
+    with pytest.raises(ValueError):
+        perturb.apply(g, {"kind": "grow", "radius": 1, "t": 0.1}, 0)
+    # cycles at the same resolution (upsampling factor 1) through the ladder
+    plan = pl.build("grow", "frozen", 40)[0]
+    assert plan.ups == (1, 1, 1) and len(plan.rows) == 16 and pl.level_sizes(plan) == [2_000_000] * 4
+    rows = (pl.RowSpec("control", beta0=1e4, beta1=1e4),
+            pl.RowSpec("grow", post=({"kind": "grow", "radius": 1, "t": 0.01},), beta0=1e4, beta1=1e4))
+    batch = pl.BatchSpec("cycles", "E3c", "frozen", 1, (1, 1), (40, 40, 40), rows, pad_to=96)
+    f0 = driver.level_start(batch, _comb(95, seed=7))
+    seen = []
+    driver.run_ladder(np, batch, f0, to_xp=lambda a: np.array(a, dtype=np.float64), to_np=np.asarray,
+                      on_level_end=lambda lv, fr, info: seen.append((fr.copy(), info)))
+    support = [[int(np.count_nonzero(fr[i])) for fr, _ in seen] for i in range(2)]
+    assert support[0][0] == support[0][1] == support[0][2]             # the control never opens a cell
+    assert support[1][2] >= support[1][1] >= support[1][0] and support[1][2] > support[1][0]
+    assert all(info["n"] == 96 for _, info in seen)
+
+
 def test_ladder_stops_at_the_deadline():
     batch = _tiny_batch()
     f0 = driver.level_start(batch, _comb(95, seed=7))

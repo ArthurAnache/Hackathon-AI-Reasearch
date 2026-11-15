@@ -15,6 +15,9 @@ row is the same on any device. A perturbation is a dict {"kind": ..., parameters
                                                          the largest value within d cells; no random draw
     {"kind": "roll", "by": s}                            cyclic shift by s cells: changes the pooling phase, and is
                                                          score-neutral when the s cells that wrap are zero
+    {"kind": "grow", "radius": d, "t": t, "top": p}      like "dilate", but only the zero cells whose gain
+                                                         d log C_beta / d f_i is positive open (the driver passes
+                                                         the gain, computed on the device at the row's last beta)
 
 "shuffle", "shift", "resample" and "redraw" keep the mass of every block of k cells: they redraw the
 micro-structure at a fixed envelope. `frac` < 1 touches a random share of the blocks that hold mass.
@@ -25,7 +28,7 @@ import numpy as np
 
 from knockout.v2.multires.resample import pad_to_multiple, smooth_blocks
 
-KINDS = ("lognormal", "uniform", "blend", "dilate", "roll", "shuffle", "shift", "resample", "redraw")
+KINDS = ("lognormal", "uniform", "blend", "dilate", "grow", "roll", "shuffle", "shift", "resample", "redraw")
 
 
 def local_max(f: np.ndarray, radius: int) -> np.ndarray:
@@ -62,11 +65,27 @@ def _rescale(new: np.ndarray, old: np.ndarray) -> np.ndarray:
     return out
 
 
-def apply(f: np.ndarray, spec: dict, seed: int) -> np.ndarray:
-    """One perturbation of the 1-D vector f; returns a new non-negative vector of the same length."""
+def grow_candidates(f: np.ndarray, gain: np.ndarray, radius: int, top: float = 1.0) -> np.ndarray:
+    """Zero cells within `radius` cells of the support whose gain (d log C_beta / d f_i at the current point) is
+    positive: the cells a projected-gradient step would open. `top` < 1 keeps that share with the largest gain."""
+    cand = (f == 0.0) & (local_max(f, radius) > 0.0) & (gain > 0.0)
+    if top < 1.0 and cand.any():
+        cand &= gain >= np.quantile(gain[cand], 1.0 - top)
+    return cand
+
+
+def apply(f: np.ndarray, spec: dict, seed: int, gain: np.ndarray | None = None) -> np.ndarray:
+    """One perturbation of the 1-D vector f; returns a new non-negative vector of the same length. `gain` is
+    needed by "grow" only."""
     kind = spec["kind"]
     rng = np.random.default_rng(seed)
     f = np.asarray(f, dtype=np.float64)
+    if kind == "grow":
+        if gain is None:
+            raise ValueError("grow needs the gain of every cell")
+        radius = int(spec["radius"])
+        cand = grow_candidates(f, gain, radius, float(spec.get("top", 1.0)))
+        return np.where(cand, float(spec["t"]) * local_max(f, radius), f)
     if kind == "lognormal":
         return f * np.exp(float(spec["sigma"]) * rng.standard_normal(f.size))
     if kind == "uniform":
@@ -107,12 +126,16 @@ def apply(f: np.ndarray, spec: dict, seed: int) -> np.ndarray:
     return x.reshape(-1)[:n]
 
 
-def apply_all(f: np.ndarray, specs, seed: int) -> np.ndarray:
+def apply_all(f: np.ndarray, specs, seed: int, gain: np.ndarray | None = None) -> np.ndarray:
     """The perturbations of `specs` in order; perturbation j is drawn from seed + j."""
     out = np.asarray(f, dtype=np.float64)
     for j, spec in enumerate(specs):
-        out = apply(out, spec, seed + j)
+        out = apply(out, spec, seed + j, gain)
     return out
+
+
+def needs_gain(specs) -> bool:
+    return any(s["kind"] == "grow" for s in specs)
 
 
 def describe(specs) -> str:

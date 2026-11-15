@@ -31,12 +31,29 @@ def level_start(batch: pl.BatchSpec, start: np.ndarray) -> np.ndarray:
     return np.stack([sum_pool(r, batch.pool) for r in rows])
 
 
-def next_level(batch: pl.BatchSpec, level: int, f_end: np.ndarray) -> np.ndarray:
-    """Rows of level `level + 1`: repeat-upsampling by ups[level], then the rows' `post` perturbations (seeded by
-    the row's seed and the level, so two levels do not reuse a draw)."""
-    up = repeat_upsample(f_end, batch.ups[level])
-    return np.stack([perturb.apply_all(up[i], r.post, r.seed + 1000 * (level + 1))
+def next_level(batch: pl.BatchSpec, level: int, f_end: np.ndarray, gain: np.ndarray | None = None) -> np.ndarray:
+    """Rows of level `level + 1`: repeat-upsampling by ups[level] (1 = same resolution, a cycle), then the rows'
+    `post` perturbations (seeded by the row's seed and the level, so two levels do not reuse a draw). `gain`
+    (B x n, same resolution as f_end) is passed to the gradient-guided perturbations."""
+    k = batch.ups[level]
+    up = repeat_upsample(f_end, k)
+    if gain is not None and k > 1:
+        gain = repeat_upsample(gain, k)
+    return np.stack([perturb.apply_all(up[i], r.post, r.seed + 1000 * (level + 1),
+                                       None if gain is None else gain[i])
                      for i, r in enumerate(batch.rows)])
+
+
+def support_gain(xp, f, beta, m: int):
+    """d log C_beta / d f_i for every cell of each row of f (B, n), zero cells included: the smoothed objective
+    of knockout/v2/gpu evaluated at w = sqrt(f + 1e-300), so that a zero cell keeps a non-zero w and its
+    derivative is not lost (grad_w = -2 w grad_f). A zero cell with a positive gain is a cell that a chain with
+    f = w^2 cannot open but a projected-gradient step would."""
+    from knockout.v2.gpu.objective import evaluate
+
+    w = xp.sqrt(f + 1e-300)
+    _, grad_w, _ = evaluate(xp, w, beta, kappa_for(xp, f, m), m)
+    return -grad_w / (2.0 * w)
 
 
 def run_ladder(xp, batch: pl.BatchSpec, f0: np.ndarray, *, to_xp, to_np, history: int = 8, on_level_end=None,
@@ -99,6 +116,11 @@ def run_ladder(xp, batch: pl.BatchSpec, f0: np.ndarray, *, to_xp, to_np, history
             repeat_gap = float(abs(fine - coarse).max())
             if not repeat_gap <= REPEAT_TOL:
                 raise AssertionError(f"repeat-upsampling by {k} changed the score by {repeat_gap:.3e} at n = {n}")
-            del f_end_x, coarse, fine
-            f = next_level(batch, level, f_end)
+            del coarse, fine
+            gain = None
+            if any(perturb.needs_gain(r.post) for r in batch.rows):
+                betas = to_xp(np.array([[pl.stages(batch, r, level)[-1].beta] for r in batch.rows]))
+                gain = to_np(support_gain(xp, f_end_x, betas, m))
+            del f_end_x
+            f = next_level(batch, level, f_end, gain)
     return {"levels": infos, "stopped_early": stopped, "f": f}
