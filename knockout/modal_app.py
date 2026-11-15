@@ -72,13 +72,16 @@ volume = modal.Volume.from_name(_CFG["volume"], create_if_missing=True)
 
 @app.function(cpu=float(_CFG["cpu"]), memory=int(_CFG["memory_mb"]), timeout=int(_CFG["worker_timeout_s"]),
               block_network=True, max_containers=int(_CFG["max_containers"]))
-def evaluate_job(job: dict, sandbox_cfg: dict) -> dict:
-    """One sandboxed tuning job. The program runs in a child process (rlimits, timeout) inside this container."""
+def evaluate_job(job: dict, sandbox_cfg: dict):
+    """One sandboxed tuning job. The program runs in a child process (rlimits, timeout) inside this container.
+    The result is yielded as compressed chunks of at most 1 MiB (knockout.executor.pack_result): this container
+    has no network, so it cannot use Modal's blob storage for a large return value."""
     from dataclasses import asdict
 
+    from knockout.executor import pack_result
     from knockout.sandbox import SandboxJob, run_job
 
-    return asdict(run_job(SandboxJob(**job), **sandbox_cfg))
+    yield from pack_result(asdict(run_job(SandboxJob(**job), **sandbox_cfg)))
 
 
 @app.function(cpu=4.0, memory=int(_CFG["orchestrator_memory_mb"]), timeout=int(_CFG["orchestrator_timeout_s"]),

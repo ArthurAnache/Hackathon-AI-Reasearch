@@ -231,6 +231,30 @@ def test_control_arm_end_to_end(tmp_path):
     assert p.score(json.loads((run_dir / best["solution_path"]).read_text())) == best["score"]
 
 
+def test_modal_results_travel_in_small_chunks():
+    """A 2M-value candidate must come back as chunks under Modal's 2 MiB inline limit, and survive the trip."""
+    from dataclasses import asdict
+
+    from knockout.executor import CHUNK_BYTES, ModalExecutor, pack_result, unpack_result
+    from knockout.sandbox import SandboxResult
+
+    rng = np.random.default_rng(0)
+    values = np.where(rng.random(2_000_000) < 0.25, rng.random(2_000_000), 0.0).tolist()
+    result = asdict(SandboxResult(True, None, [{"params": {}, "guide": 0.5, "candidate": {"values": values}}], 1))
+    chunks = pack_result(result)
+    assert len(chunks) > 1 and max(len(c) for c in chunks) <= CHUNK_BYTES
+    assert unpack_result(chunks) == result
+
+    class GenFn:                      # what the Modal function looks like to the executor
+        def remote_gen(self, job, cfg):
+            yield from chunks
+
+    ex = ModalExecutor(GenFn(), 1, {}, 2.0, 4096, 1e-5, 1e-6, 2.0)
+    out = ex.submit(SandboxJob("x = 1\n", 0, 1.0, "maximize", "a:b")).result()
+    assert out.ok and out.trials[0]["candidate"]["values"] == values
+    ex.shutdown()
+
+
 # ------------------------------------------------------------------ LLM editor, warm-start ratchet, secrets
 class _FakeResponses:
     def __init__(self, answers):

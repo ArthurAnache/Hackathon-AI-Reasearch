@@ -188,6 +188,9 @@ def run(problem_id: str, *, runs_root: str | Path = "runs", run_id: str | None =
             if empty[name] >= 2:  # two steps without a single usable program: stop instead of burning the budget
                 stop_reason = f"{name} arm got no program twice: {getattr(ctx.llm, 'last_error', None)}"
                 break
+    except Exception as exc:  # noqa: BLE001  (recorded in the ledger, then re-raised)
+        stop_reason = f"error: {type(exc).__name__}: {str(exc)[:400]}"
+        raise
     finally:
         # Best verified candidate of the run, over both arms.
         arms = {"control": {"best": control.best_score, "best_experiment": control.best_experiment,

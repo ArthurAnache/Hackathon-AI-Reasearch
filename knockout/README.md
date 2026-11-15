@@ -250,9 +250,11 @@ saved solution):
   orchestrator downloaded and scored the live #1, then failed after 7.8 s with `FileNotFoundError:
   /root/problems/second-autocorrelation-inequality/meta.json`. Cause: the image put `problems/`, `integrations/`
   and `docs/` under `/root/repo`, while Modal mounted the `knockout` package at `/root/knockout`. Fix: the image
-  now lays everything out under `/root` (not re-run yet). Still untested: the evaluation workers, and candidates of
-  2M values (16–40 MB) travelling as function arguments and results. `launch.yaml` stays a 15-minute, 5 USD smoke
-  run until one run ends cleanly.
+  now lays everything out under `/root` (verified by the second attempt). Second attempt (18:09 PT): the worker
+  ran the seed program, then could not return its result: above 2 MiB Modal sends a return value through external
+  blob storage, and the worker has no network (`block_network=True`), hence a DNS error. Fix: the worker yields its
+  result as compressed chunks of at most 1 MiB (`executor.pack_result`), which stay on Modal's own channel; the
+  network stays blocked. `launch.yaml` stays a 15-minute, 5 USD smoke run until one run ends cleanly.
 - A record is only claimed against a live leaderboard read. If the read fails, the frozen catalog serves its
   snapshot (stale since 2026-11-14), the run prints a warning, and `beats_record` stays false.
 - The scout needs `EXA_API_KEY`; it is not passed to Modal, so the scout is skipped there.

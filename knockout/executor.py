@@ -5,6 +5,8 @@ Both return concurrent.futures.Future[SandboxResult], so the loop does not care 
 from __future__ import annotations
 
 import concurrent.futures as cf
+import pickle
+import zlib
 from dataclasses import asdict
 from typing import Protocol
 
@@ -42,6 +44,23 @@ class LocalExecutor:
         self._pool.shutdown(wait=True, cancel_futures=True)
 
 
+CHUNK_BYTES = 1 << 20      # Modal returns values above 2 MiB through external blob storage
+
+
+def pack_result(result: dict) -> list[bytes]:
+    """A job result as compressed chunks of at most 1 MiB. A worker has no network (block_network=True), so it
+    cannot upload a large return value to blob storage (first Modal run, 2026-11-14: DNS error on the upload of a
+    2M-value candidate). Small chunks travel through Modal's own function-output channel instead."""
+    blob = zlib.compress(pickle.dumps(result, protocol=5), 1)
+    return [blob[i:i + CHUNK_BYTES] for i in range(0, len(blob), CHUNK_BYTES)] or [b""]
+
+
+def unpack_result(chunks) -> dict:
+    """Inverse of pack_result. The chunks come from our own worker entry point, never from a candidate program
+    (a program can only write JSON, which the worker parses before packing)."""
+    return pickle.loads(zlib.decompress(b"".join(chunks)))
+
+
 class ModalExecutor:
     """Jobs go to the `evaluate_job` Modal function (CPU, block_network=True, no secrets).
 
@@ -61,7 +80,10 @@ class ModalExecutor:
         self._pool = cf.ThreadPoolExecutor(max_workers=workers)
 
     def _call(self, job: SandboxJob) -> SandboxResult:
-        out = self._fn.remote(asdict(job), self.sandbox_cfg)
+        if hasattr(self._fn, "remote_gen"):     # the real Modal function: a generator of result chunks
+            out = unpack_result(list(self._fn.remote_gen(asdict(job), self.sandbox_cfg)))
+        else:                                   # a plain callable returning the result dict (tests)
+            out = self._fn.remote(asdict(job), self.sandbox_cfg)
         return SandboxResult(**out)
 
     def submit(self, job: SandboxJob) -> "cf.Future[SandboxResult]":
