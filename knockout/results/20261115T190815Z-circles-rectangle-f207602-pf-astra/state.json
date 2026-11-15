@@ -1,0 +1,3996 @@
+{
+ "genes": [
+  {
+   "id": "g0001",
+   "type": "formulation",
+   "text": "Canonical formulation: `construct` returns the candidate directly in the verifier's own format.",
+   "status": "validated",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0002",
+   "type": "structure",
+   "text": "Search a reflection-symmetric family containing three circles on the horizontal midline and nine mirrored pairs. Optimize representative centres, radii, and rectangle width with height equal to two minus width. Initialize independently generated quotient layouts, not only perturbations of the incumbent; finally release symmetry and polish each promising result.",
+   "status": "refuted",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [
+    "exp_000012",
+    "exp_000013",
+    "exp_000014",
+    "exp_000015",
+    "exp_000035",
+    "exp_000036"
+   ],
+   "stats": {
+    "neighbour/explore": [
+     0.985,
+     0.0,
+     0
+    ],
+    "record/climb": [
+     0.0,
+     3.753649022423912,
+     0
+    ]
+   },
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0003",
+   "type": "structure",
+   "text": "Perform coordinated contact surgery: select three to six active contact or wall constraints, grouping reflected partners together. Preserve remaining contacts approximately while generating finite displacements that open the selected constraints. Permit temporary objective loss, then restore all nonoverlap inequalities and reoptimize. Compare against single-contact releases under equal computational budgets.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0004",
+   "type": "structure",
+   "text": "Generate cold starts from unequal row populations summing to 21, including alternating dense and sparse rows. Enumerate four through seven rows, vary horizontal offsets and row spacings, and initialize at least two radius classes. Optimize every layout with free centres and radii rather than preserving its row structure.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0005",
+   "type": "structure",
+   "text": "Mutate a packing by removing two or three circles and reinserting the same number into different large-clearance regions. Estimate clearance on a coarse grid using minimum wall distance and distance to each remaining disk. Jointly relax inserted circles and their neighbours before a full optimization, allowing temporary score loss during relocation.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0006",
+   "type": "structure",
+   "text": "Maintain a population indexed by contact-graph signature and aspect-ratio bin, retaining the best feasible packing in each niche. Allocate mutations across niches rather than selecting only the highest score. Use contact graphs canonicalized against circle relabeling and rectangle reflections, with a fixed geometric contact threshold, to suppress repeated exploration of the incumbent basin.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0007",
+   "type": "formulation",
+   "text": "Eliminate radii and bounding-box variables through a fixed-centre linear program, then optimize its optimal value over centres. Derive centre sensitivities from contact and wall dual multipliers, verify their signs by finite differences, and use trust-region steps with LP reevaluation. Shrink steps when the active LP basis changes or predicted improvement fails.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0008",
+   "type": "formulation",
+   "text": "Polish feasible layouts using sequential linear programs over centres, radii, and rectangle dimensions. For each pair, freeze its current unit separation vector and impose projected separation at least the radius sum. These conservative linear inequalities ensure geometric nonoverlap. Add centre trust bounds, maximize total radius, and update separation directions after accepted steps.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0009",
+   "type": "numeric",
+   "text": "Replace escalating squared penalties with an augmented-Lagrangian inequality solver using analytic derivatives. Update nonnegative multipliers from constraint violations and increase the penalty only when feasibility stagnates. Bound radii strictly above zero and rectangle width away from zero and two. Finish promising solutions with a constrained second-order solver rather than further penalty escalation.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0010",
+   "type": "structure",
+   "text": "Explore aspect-ratio continuation instead of unconstrained local restarts: fix rectangle width on a sweep, affinely deform centres from the preceding solution, and reoptimize radii and centres. Sweep in both directions with multiple initial families. When the contact graph changes, branch a new trajectory; periodically release width and optimize the full problem.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0011",
+   "type": "numeric",
+   "text": "Separate optimization from export certification. Refine promising active-contact systems at high precision, round to float64, then validate using the exact verifier arithmetic. Repair with tiny radius reductions and, if necessary, uniform scaling with explicit perimeter headroom. Adapt repair size to actual violations and require the final verified score gain, not the unrounded gain, to exceed 1e-10.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0012",
+   "type": "formulation",
+   "text": "Represent circles by parallel x, y, and radius arrays. Alternate between computing pairwise separation directions and maximizing total radius by linear programming under directional separation and variable rectangle constraints. These supporting-halfspace constraints imply true non-overlap. The adapter only combines the arrays; all geometric repair and exact scoring occur inside construct.",
+   "status": "validated",
+   "origin": "diff",
+   "island_id": "I2",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 4
+  },
+  {
+   "id": "g0013",
+   "type": "numeric",
+   "text": "Use penalty continuation to approach a feasible packing, then reserve time for constrained polishing of centres, radii, and rectangle width. Supply analytic Jacobians for pairwise separation and wall-containment inequalities instead of relying on increasingly stiff penalties. Repair and validate the result against the exact verifier before accepting it.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I1",
+   "evidence": [
+    "exp_000015"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 16
+  },
+  {
+   "id": "g0014",
+   "type": "formulation",
+   "text": "Optimize circle centres, radii, and rectangle width jointly with explicit pairwise non-overlap and wall-containment inequalities, setting height to two minus width. Supply analytic constraint Jacobians instead of relying on escalating squared-violation penalties followed by fixed-centre radius optimization.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I1",
+   "evidence": [
+    "exp_000013"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 16
+  },
+  {
+   "id": "g0015",
+   "type": "structure",
+   "text": "Use incumbent-preserving local restarts: first refine the best feasible packing, then perturb its centres to explore nearby contact patterns. Repair and validate candidates against the exact verifier before accepting improvements, and retain the original incumbent whenever a restart fails.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I1",
+   "evidence": [
+    "exp_000013"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 16
+  },
+  {
+   "id": "g0016",
+   "type": "formulation",
+   "text": "Optimize centres, radii and rectangle width through sequential linear inner approximations: each pair must separate along its current contact direction by at least its radius sum. Refresh directions after every LP, then polish the Euclidean constraints. Candidates are encoded as three coordinate rows rather than circle triples.",
+   "status": "validated",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 23
+  },
+  {
+   "id": "g0017",
+   "type": "formulation",
+   "text": "Represent a packing by disks whose radii sum to one. Minimize their enclosing rectangle's width plus height, then rescale to semiperimeter two. Search contact-opening directions in this normalized space. The adapter deterministically repairs roundoff and rescales normalized disks; an unchanged canonical warm start passes through directly.",
+   "status": "validated",
+   "origin": "diff",
+   "island_id": "I4",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 36
+  },
+  {
+   "id": "g0018",
+   "type": "formulation",
+   "text": "Fix the sum of radii to one and minimize enclosing rectangle width plus height. Screen structured layouts using successive directional separation LPs, then polish true Euclidean constraints. Rescale and strictly certify each promising packing. The returned packing_rows object stores the final certified x, y, and radius rows.",
+   "status": "validated",
+   "origin": "diff",
+   "island_id": "I5",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 48
+  },
+  {
+   "id": "g0019",
+   "type": "structure",
+   "text": "Replace one long local trajectory with time-capped multistart trajectories: include distinct staggered-row constructions, then perturb the best verified packing at several amplitudes. Stop stagnant trajectories early, retain the best feasible result across all starts, and run final nonlinear polishing from that incumbent rather than the last trajectory.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [
+    "exp_000102"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 64
+  },
+  {
+   "id": "g0020",
+   "type": "numeric",
+   "text": "Exploit scale invariance when repairing candidates: first shrink radii enough to remove overlaps, then uniformly rescale centres and radii to nearly saturate the bounding-box width-plus-height limit, allowing enlargement as well as contraction. Leave a small inward rounding margin and verify using the evaluator\u2019s exact arithmetic rules before accepting.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [
+    "exp_000102"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 64
+  },
+  {
+   "id": "g0021",
+   "type": "formulation",
+   "text": "Exploit scale invariance: fix the sum of radii to one and minimize rectangle width plus height, then rescale the packing to width plus height two. Solve successive LPs using separating directions from current circle centres; these give conservative nonoverlap constraints without requiring a local trust box.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [
+    "exp_000094"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 64
+  },
+  {
+   "id": "g0022",
+   "type": "structure",
+   "text": "Screen several geometrically distinct staggered-row packings with short sequential-LP runs instead of spending the entire budget in the warm-start basin. Perturb their centres slightly, divide screening time across candidates, then allocate refinement and nonlinear polishing to the candidate with the smallest normalized bounding-box width plus height.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [
+    "exp_000094"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 64
+  },
+  {
+   "id": "g0023",
+   "type": "structure",
+   "text": "Search reflection-symmetric packings using axis circles and mirrored pairs with shared radii and opposite transverse coordinates. Optimize only independent variables, retain one non-overlap constraint per reflection orbit, and expand to the full packing for strict verification. Seed several axis-count and paired-row configurations to explore different symmetric packing families.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I5",
+   "evidence": [
+    "exp_000122"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 76
+  },
+  {
+   "id": "g0024",
+   "type": "structure",
+   "text": "Search in a reflection-symmetric quotient: represent axis circles individually and off-axis circles as mirrored pairs sharing radii and horizontal coordinates. Expand this reduced representation linearly into the full packing, retain one non-overlap constraint per reflection orbit, and deduplicate wall constraints. Run sequential LP and nonlinear polishing directly in the reduced coordinates.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I5",
+   "evidence": [
+    "exp_000124"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 76
+  },
+  {
+   "id": "g0025",
+   "type": "structure",
+   "text": "Release three to six active contact or wall constraints simultaneously, grouping reflected partners when applicable. Generate finite displacements while approximately preserving unselected contacts, allow temporary objective loss, then restore all inequalities and optimize without imposed symmetry. Compare changed contact graphs and verified gains against equal-budget single-contact controls.",
+   "status": "candidate",
+   "origin": "strategist",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 76
+  },
+  {
+   "id": "g0026",
+   "type": "structure",
+   "text": "Remove two or three circles and reinsert them into distinct high-clearance regions estimated from wall distances and distances to remaining circles. Preserve the circle count, initialize positive radii, relax inserted circles and nearby neighbours first, then optimize the full packing. Retain structurally novel feasible outcomes even when their initial scores are lower.",
+   "status": "candidate",
+   "origin": "strategist",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 76
+  },
+  {
+   "id": "g0027",
+   "type": "structure",
+   "text": "Maintain a feasible archive indexed by relabeling-invariant contact-graph signatures and aspect-ratio bins. Seed it with unequal staggered-row layouts and multi-circle relocations. Allocate trials across occupied niches rather than only top scores, cap repeated returns to the incumbent graph, and strictly verify every proposed record against the frozen evaluator.",
+   "status": "candidate",
+   "origin": "strategist",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 76
+  },
+  {
+   "id": "g0028",
+   "type": "structure",
+   "text": "Use a staged multistart search over geometrically distinct staggered-row packings plus the incumbent. Give every start a short round-robin sequence of tangent LP steps, rank by repaired feasible score, and spend further refinement on the top two. Stop stalled trajectories and reserve time for nonlinear polishing instead of exhausting the budget in one basin.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [
+    "exp_000147"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 91
+  },
+  {
+   "id": "g0029",
+   "type": "numeric",
+   "text": "After shrinking radii to repair overlaps, uniformly rescale both centres and radii to saturate the bounding-box width-plus-height limit, allowing expansion as well as contraction. Leave a small inward rounding margin and validate improvements with the exact verifier; otherwise unused bounding-box slack can suppress scores and distort multistart rankings.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [
+    "exp_000147"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 91
+  },
+  {
+   "id": "g0030",
+   "type": "structure",
+   "text": "Use several geometrically distinct staggered-row packings as search seeds instead of refining only the warm start. Allocate short, capped optimization stages to each seed and retain the best verifier-feasible candidate across stages, so one basin cannot consume the entire search budget.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [
+    "exp_000139"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 91
+  },
+  {
+   "id": "g0031",
+   "type": "formulation",
+   "text": "Replace coordinate trust regions with global box bounds in sequential packing LPs. For each pair, impose u\u00b7(c_i\u2212c_j) \u2265 r_i+r_j using its current unit separation direction, then recompute directions after solving. These inequalities conservatively guarantee nonoverlap even for large moves, allowing broader steps without sacrificing geometric feasibility.",
+   "status": "candidate",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [
+    "exp_000139"
+   ],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 91
+  }
+ ],
+ "members": [
+  {
+   "id": "m00001",
+   "program_id": "p_546200ea6db5",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [],
+   "operator": "seed",
+   "model": null,
+   "born_at": 0,
+   "hypothesis": "baseline: the seed program as written",
+   "scores": {
+    "F0@record:0": 2.3658323759098576,
+    "F0@cold:0": 2.359951782983219,
+    "F0@neighbour:1": 2.3606109415275656,
+    "F0@record:2": 2.365832375910715,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:0": "exp_000002",
+    "F0@cold:0": "exp_000011",
+    "F0@neighbour:1": "exp_000029",
+    "F0@record:2": "exp_000064",
+    "F0@record:3": "exp_000170"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0,
+    "cold": 2.359951782983219,
+    "neighbour": 2.3606109415275656
+   }
+  },
+  {
+   "id": "m00002",
+   "program_id": "p_a837ef394091",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [
+    "g0002"
+   ],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 0,
+   "hypothesis": "Replacing penalty continuation with analytic constrained optimization of two reflection-symmetric layouts, followed by unrestricted polishing, will produce substantially better cold-start packings within two seconds.",
+   "scores": {
+    "F0@cold:0": 2.3465095715145177,
+    "F0@neighbour:1": 2.3538587799752673,
+    "F0@record:2": 2.365832375910715,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000012",
+    "F0@neighbour:1": "exp_000031",
+    "F0@record:2": "exp_000068",
+    "F0@record:3": "exp_000169"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3465095715145177,
+    "neighbour": 2.3538587799752673,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00003",
+   "program_id": "p_e43b64395e56",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 1,
+   "hypothesis": "Replacing penalty continuation and fixed-centre LP repair with deadline-aware, analytically differentiated SLSQP will produce higher valid scores from the cold starts within two seconds.",
+   "scores": {
+    "F0@cold:0": 2.3642482017525075,
+    "F0@neighbour:1": 2.3642482017515603,
+    "F0@record:2": 2.365832375910715
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000013",
+    "F0@neighbour:1": "exp_000034",
+    "F0@record:2": "exp_000067"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3642482017525075,
+    "neighbour": 2.3642482017515603,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00004",
+   "program_id": "p_01441a0a8e6c",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [
+    "g0002"
+   ],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 2,
+   "hypothesis": "Replacing cold-start initialization with a reflection-symmetric 3-singleton/9-pair layout, then releasing symmetry during polishing, will raise the mean cold-start score above 2.25.",
+   "scores": {
+    "F0@cold:0": 2.3504550896810703,
+    "F0@neighbour:1": 2.3558315390585465,
+    "F0@record:2": 2.365832375910715
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000014",
+    "F0@neighbour:1": "exp_000032",
+    "F0@record:2": "exp_000060"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3504550896810703,
+    "neighbour": 2.3558315390585465,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00005",
+   "program_id": "p_c5a6891bf7de",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 3,
+   "hypothesis": "Replacing the final high-penalty descent stages with an analytic-Jacobian constrained polish will improve cold-start scores by eliminating residual contact violations without freezing the circle centres.",
+   "scores": {
+    "F0@cold:0": 2.365040288827486,
+    "F0@record:2": 2.365832375910715
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000015",
+    "F0@record:2": "exp_000065"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.365040288827486,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00006",
+   "program_id": "p_1185e886037f",
+   "island_id": "I2",
+   "lineage": "L002",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "reformulate",
+   "model": "gpt-6-astra",
+   "born_at": 4,
+   "hypothesis": "Replacing penalty continuation with sequential supporting-hyperplane linear programs and structured lattice restarts will produce valid cold-start packings with a mean radius sum above 2.30.",
+   "scores": {
+    "F0@cold:0": 2.3600141065478777
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000016"
+   },
+   "fit": 2.3600141065478777,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3600141065478777
+   }
+  },
+  {
+   "id": "m00007",
+   "program_id": "p_2b08b2b27cb6",
+   "island_id": "I1",
+   "lineage": "L003",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 5,
+   "hypothesis": "Optimizing a square-lattice packing with five interstitial circles, followed by a staggered-lattice restart, will raise both cold-start scores above 2.25.",
+   "scores": {
+    "F0@cold:0": 2.3600141065486206,
+    "F0@record:2": 2.365832375910715,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000017",
+    "F0@record:2": "exp_000062",
+    "F0@record:3": "exp_000174"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3600141065486206,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00008",
+   "program_id": "p_fd1186e8488e",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 6,
+   "hypothesis": "Replacing tiny-radius cold starts with a staggered triangular-lattice initialization will improve the two-start mean score by spending the short optimization budget on packing refinement rather than initial circle inflation.",
+   "scores": {
+    "F0@cold:0": 2.3561986974242943,
+    "F0@neighbour:1": 2.362727023941706
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000018",
+    "F0@neighbour:1": "exp_000033"
+   },
+   "fit": 2.362727023941706,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3561986974242943,
+    "neighbour": 2.362727023941706
+   }
+  },
+  {
+   "id": "m00009",
+   "program_id": "p_8d218c9725b4",
+   "island_id": "I1",
+   "lineage": "L004",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 7,
+   "hypothesis": "Analytic constrained optimization from several compact lattice packings will raise the cold-start mean radius sum above 2.25 within the two-second budget.",
+   "scores": {
+    "F0@cold:0": 2.359967272218129,
+    "F0@record:2": 2.365832375910715
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000019",
+    "F0@record:2": "exp_000063"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.359967272218129,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00010",
+   "program_id": "p_d5e3bdf59656",
+   "island_id": "I1",
+   "lineage": "L005",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 8,
+   "hypothesis": "Analytic-gradient optimization of several reflection-symmetric triangular-lattice families will raise the cold-start scores above 2.25 within the time budget.",
+   "scores": {
+    "F0@cold:0": 2.352942477839635
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000020"
+   },
+   "fit": 2.352942477839635,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.352942477839635
+   }
+  },
+  {
+   "id": "m00011",
+   "program_id": "p_3b05425349e4",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 9,
+   "hypothesis": "Replacing penalty continuation with analytic constrained SLSQP, while continuously certifying intermediate layouts, will produce better cold-start packings within the two-second budget.",
+   "scores": {
+    "F0@cold:0": 2.3571523969972232
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000021"
+   },
+   "fit": 2.3571523969972232,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3571523969972232
+   }
+  },
+  {
+   "id": "m00012",
+   "program_id": "p_fc7fee0aece8",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 10,
+   "hypothesis": "Replacing the penalty continuation and final LP with two deadline-limited analytic-gradient SLSQP searches will produce substantially better valid packings from the cold starts within two seconds.",
+   "scores": {
+    "F0@cold:0": 2.3448258072019557,
+    "F0@record:2": 2.365832375910715,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000022",
+    "F0@record:2": "exp_000061",
+    "F0@record:3": "exp_000171"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3448258072019557,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00013",
+   "program_id": "p_a23fdf3c6593",
+   "island_id": "I1",
+   "lineage": "L006",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 11,
+   "hypothesis": "Analytic-gradient optimization of several compact triangular-lattice constructions will raise both cold-start scores above 2.25 within the time budget.",
+   "scores": {
+    "F0@cold:0": 2.358551886326566
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000023"
+   },
+   "fit": 2.358551886326566,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.358551886326566
+   }
+  },
+  {
+   "id": "m00014",
+   "program_id": "p_0afd58253591",
+   "island_id": "I1",
+   "lineage": "L007",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 12,
+   "hypothesis": "A reflection-symmetric triangular initialization followed by analytic-gradient constrained optimization will raise both cold-start scores above 2.30 within the time budget.",
+   "scores": {
+    "F0@cold:0": 2.3579720168851717
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000024"
+   },
+   "fit": 2.3579720168851717,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3579720168851717
+   }
+  },
+  {
+   "id": "m00015",
+   "program_id": "p_f0b4f6a1e451",
+   "island_id": "I1",
+   "lineage": "L008",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 13,
+   "hypothesis": "Symmetry-reduced optimization of several staggered-row families will lift the cold-start score above 2.30 within the time budget.",
+   "scores": {
+    "F0@cold:0": 2.352942477839513
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000025"
+   },
+   "fit": 2.352942477839513,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.352942477839513
+   }
+  },
+  {
+   "id": "m00016",
+   "program_id": "p_137bf9f7a6bf",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 14,
+   "hypothesis": "Replacing the last high-penalty continuation stages with analytic constrained polishing will improve cold-start scores by reducing residual overlap without sacrificing as much radius during repair.",
+   "scores": {
+    "F0@cold:0": 2.348504714890555
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000026"
+   },
+   "fit": 2.348504714890555,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.348504714890555
+   }
+  },
+  {
+   "id": "m00017",
+   "program_id": "p_05cecebc316c",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 15,
+   "hypothesis": "Replacing penalty continuation with analytic-Jacobian constrained optimization from a staggered lattice will produce valid cold-start scores above 2.25 within the two-second budget.",
+   "scores": {
+    "F0@cold:0": 2.352143824041756,
+    "F0@neighbour:1": 2.3589880999725312
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000027",
+    "F0@neighbour:1": "exp_000030"
+   },
+   "fit": 2.3589880999725312,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.352143824041756,
+    "neighbour": 2.3589880999725312
+   }
+  },
+  {
+   "id": "m00018",
+   "program_id": "p_15acdf946813",
+   "island_id": "I1",
+   "lineage": "L009",
+   "genome": [
+    "g0002"
+   ],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 16,
+   "hypothesis": "Combining an independently initialized 3-axis/9-pair symmetric search with unrestricted warm-start polishing will improve the mean verified score of the two starts.",
+   "scores": {
+    "F0@neighbour:1": 2.353493742897946
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000035"
+   },
+   "fit": 2.353493742897946,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.353493742897946
+   }
+  },
+  {
+   "id": "m00019",
+   "program_id": "p_e147121c6628",
+   "island_id": "I1",
+   "lineage": "L010",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 17,
+   "hypothesis": "Direct analytic-gradient optimization of the supplied geometry, followed by small coordinated centre perturbations, will recover a score above 2.30 from the perturbed start while preserving or improving the archive start.",
+   "scores": {
+    "F0@neighbour:1": 2.3650402888378883,
+    "F0@record:2": 2.3658323759107605
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000036",
+    "F0@record:2": "exp_000069"
+   },
+   "fit": 4.529709940470639e-14,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3650402888378883,
+    "record": 4.529709940470639e-14
+   }
+  },
+  {
+   "id": "m00020",
+   "program_id": "p_821b399089e5",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [
+    "g0002"
+   ],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 18,
+   "hypothesis": "Replacing penalty continuation with feasible sequential linear programming, plus an independent reflection-symmetric restart, will improve the two-start mean score by at least 0.002.",
+   "scores": {
+    "F0@neighbour:1": 2.3335308854301893,
+    "F0@record:2": 2.365832375910715,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000037",
+    "F0@record:2": "exp_000066",
+    "F0@record:3": "exp_000164"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3335308854301893,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00021",
+   "program_id": "p_d191cbca0c1a",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 19,
+   "hypothesis": "Jointly optimizing centres and radii through conservative tangent-plane linear programs, then applying a short nonlinear polish, will improve the mean score of the two neighbour starts by at least 0.002.",
+   "scores": {
+    "F0@neighbour:1": 2.351478797419953
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000038"
+   },
+   "fit": 2.351478797419953,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.351478797419953
+   }
+  },
+  {
+   "id": "m00022",
+   "program_id": "p_df23f49e3911",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001",
+    "m00017"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 20,
+   "hypothesis": "Penalty continuation on the supplied geometry followed by exact-Jacobian SLSQP polishing will improve the two-start mean score by recovering perturbed contacts without sacrificing final feasibility.",
+   "scores": {
+    "F0@neighbour:1": 2.3621311541526104
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000039"
+   },
+   "fit": 2.3621311541526104,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3621311541526104
+   }
+  },
+  {
+   "id": "m00023",
+   "program_id": "p_c495caa27703",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00017",
+    "m00001"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 21,
+   "hypothesis": "Combining direct constrained polishing with low-penalty basin smoothing and a second constrained polish will improve the two-start mean score by at least 0.0001.",
+   "scores": {
+    "F0@neighbour:1": 2.3601357092514537
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000040"
+   },
+   "fit": 2.3601357092514537,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3601357092514537
+   }
+  },
+  {
+   "id": "m00024",
+   "program_id": "p_0fabee92a80e",
+   "island_id": "I1",
+   "lineage": "L011",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 22,
+   "hypothesis": "Direct analytic-gradient optimization of each supplied neighborhood, followed by one topology-perturbing restart, will improve the two-start mean while preserving every verified warm-start score.",
+   "scores": {
+    "F0@neighbour:1": 2.3483930479531248,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000041",
+    "F0@record:3": "exp_000167"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3483930479531248,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00025",
+   "program_id": "p_95d5dba81632",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "reformulate",
+   "model": "gpt-6-astra",
+   "born_at": 23,
+   "hypothesis": "Sequential tangent-plane linear programs followed by constrained polishing will improve the two-start mean score by preserving feasible contact geometry while allowing centres and radii to move together.",
+   "scores": {
+    "F0@neighbour:1": 2.351478797415732,
+    "F0@cold:0": 2.340007341082762,
+    "F0@neighbour:2": 2.342435898004947
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000042",
+    "F0@cold:0": "exp_000093",
+    "F0@neighbour:2": "exp_000132"
+   },
+   "fit": 2.342435898004947,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.342435898004947,
+    "cold": 2.340007341082762
+   }
+  },
+  {
+   "id": "m00026",
+   "program_id": "p_c392cd805567",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 24,
+   "hypothesis": "Replacing penalty continuation with feasible sequential linear programming will recover larger radii from the perturbed start and improve the two-start mean score by at least 0.002.",
+   "scores": {
+    "F0@neighbour:1": 2.3514787974199427,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000043",
+    "F0@record:3": "exp_000166"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3514787974199427,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00027",
+   "program_id": "p_c220dfd6dc70",
+   "island_id": "I1",
+   "lineage": "L013",
+   "genome": [],
+   "parents": [
+    "m00002"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 25,
+   "hypothesis": "Direct analytic-Jacobian optimization of each supplied packing, with continuously certified intermediate candidates and a topology-changing restart, will improve both neighbourhood starts within the two-second budget.",
+   "scores": {
+    "F0@neighbour:1": 2.362923241228884
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000044"
+   },
+   "fit": 2.362923241228884,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.362923241228884
+   }
+  },
+  {
+   "id": "m00028",
+   "program_id": "p_1bce805c6ead",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 26,
+   "hypothesis": "Replacing the stiffest penalty-continuation stages with deadline-aware analytic-Jacobian constrained polishing will improve the mean verified score by at least 0.001 on the two neighbour starts.",
+   "scores": {
+    "F0@neighbour:1": 2.3606110474920605
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000045"
+   },
+   "fit": 2.3606110474920605,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3606110474920605
+   }
+  },
+  {
+   "id": "m00029",
+   "program_id": "p_72d83df9f0eb",
+   "island_id": "I1",
+   "lineage": "L014",
+   "genome": [],
+   "parents": [
+    "m00004"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 27,
+   "hypothesis": "Deadline-limited analytic-Jacobian optimization from each supplied packing, followed by localized multi-circle perturbations, will improve the mean verified score while preserving every valid warm start.",
+   "scores": {
+    "F0@neighbour:1": 2.3650402888367097
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000046"
+   },
+   "fit": 2.3650402888367097,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3650402888367097
+   }
+  },
+  {
+   "id": "m00030",
+   "program_id": "p_50a725a67c32",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00008"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 28,
+   "hypothesis": "Replacing the final fixed-centre radius LP with a deadline-limited joint constrained polish will improve the mean verified score by at least 0.001 by allowing contact centres to move.",
+   "scores": {
+    "F0@neighbour:1": 2.3606110474876276,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000047",
+    "F0@record:3": "exp_000172"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3606110474876276,
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00031",
+   "program_id": "p_9d32814824c1",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00003",
+    "m00004"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 29,
+   "hypothesis": "Combining reflection-symmetric penalty exploration on weak starts with exact-Jacobian constrained polishing will improve the two-start mean score by at least 0.001 over penalty-only optimization.",
+   "scores": {
+    "F0@neighbour:1": 2.355831539633894
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000048"
+   },
+   "fit": 2.355831539633894,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.355831539633894
+   }
+  },
+  {
+   "id": "m00032",
+   "program_id": "p_f45e750f3f02",
+   "island_id": "I1",
+   "lineage": "L015",
+   "genome": [],
+   "parents": [
+    "m00008"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 30,
+   "hypothesis": "Direct analytic-gradient optimization of the supplied neighbour, with continuously certified iterates and small coordinated restarts, will improve the two-start mean score more reliably than replacing both starts with lattice constructions.",
+   "scores": {
+    "F0@neighbour:1": 2.349732410797318
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000049"
+   },
+   "fit": 2.349732410797318,
+   "alive": false,
+   "fit_by_regime": {
+    "neighbour": 2.349732410797318
+   }
+  },
+  {
+   "id": "m00033",
+   "program_id": "p_08d10fdbb684",
+   "island_id": "I1",
+   "lineage": "L016",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 31,
+   "hypothesis": "Direct analytic-Jacobian optimization of the supplied neighbour, with feasible intermediate-point recovery, will restore the perturbed packing above 2.30 while preserving or improving the archive start.",
+   "scores": {
+    "F0@neighbour:1": 2.335768823889958
+   },
+   "exp_ids": {
+    "F0@neighbour:1": "exp_000050"
+   },
+   "fit": 2.335768823889958,
+   "alive": false,
+   "fit_by_regime": {
+    "neighbour": 2.335768823889958
+   }
+  },
+  {
+   "id": "m00034",
+   "program_id": "p_767ac581bccf",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [
+    "g0003"
+   ],
+   "parents": [
+    "m00004"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 32,
+   "hypothesis": "Replacing penalty continuation with contact-preserving, reflected multi-contact surgery followed by short constrained polishes will find a verified improvement of at least 1e-10 over the incumbent.",
+   "scores": {
+    "F0@record:2": 2.365832375910715
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000070"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00035",
+   "program_id": "p_30b93b54c3cd",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00004"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 33,
+   "hypothesis": "Replacing high-penalty continuation with active-contact Newton correction followed by constrained polishing will recover at least 1e-10 of verified radius sum if the incumbent retains numerical contact residuals.",
+   "scores": {
+    "F0@record:2": 2.365832375910798
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000071"
+   },
+   "fit": 8.304468224196171e-14,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 8.304468224196171e-14
+   }
+  },
+  {
+   "id": "m00036",
+   "program_id": "p_dfc63ec98185",
+   "island_id": "I1",
+   "lineage": "L017",
+   "genome": [
+    "g0003"
+   ],
+   "parents": [
+    "m00012"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 34,
+   "hypothesis": "Opening three reflection-grouped contact sets together before constrained reoptimization will find a packing improving the incumbent by at least 1e-10.",
+   "scores": {
+    "F0@record:2": 2.3658323759107995,
+    "F1@record:2": 2.3658323759107995
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000072",
+    "F1@record:2": "exp_000090"
+   },
+   "fit": 8.43769498715119e-14,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 8.43769498715119e-14
+   }
+  },
+  {
+   "id": "m00037",
+   "program_id": "p_5011c357b823",
+   "island_id": "I1",
+   "lineage": "L018",
+   "genome": [],
+   "parents": [
+    "m00012"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 35,
+   "hypothesis": "High-precision contact polishing followed by coordinated three-contact releases will improve the incumbent by at least 1e-10 if it contains recoverable numerical slack or an accessible adjacent packing basin.",
+   "scores": {
+    "F0@record:2": 2.3658323759108164,
+    "F1@record:2": 2.3658323759108164
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000073",
+    "F1@record:2": "exp_000089"
+   },
+   "fit": 1.0125233984581428e-13,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 1.0125233984581428e-13
+   }
+  },
+  {
+   "id": "m00038",
+   "program_id": "p_fca5fe4f53c0",
+   "island_id": "I4",
+   "lineage": "L019",
+   "genome": [],
+   "parents": [
+    "m00007"
+   ],
+   "operator": "reformulate",
+   "model": "gpt-6-astra",
+   "born_at": 36,
+   "hypothesis": "Minimizing rectangle semiperimeter at fixed total radius, followed by coordinated releases of three weak contacts, will escape the incumbent contact graph and improve the verified radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:2": 2.3658323759107995
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000074"
+   },
+   "fit": 8.43769498715119e-14,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 8.43769498715119e-14
+   }
+  },
+  {
+   "id": "m00039",
+   "program_id": "p_6249bb5f188f",
+   "island_id": "I1",
+   "lineage": "L020",
+   "genome": [],
+   "parents": [
+    "m00009"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 37,
+   "hypothesis": "Tight contact-equation polishing followed by coordinated four-contact openings will improve the verified radius sum by at least 1e-10 while retaining the incumbent if exploration fails.",
+   "scores": {
+    "F0@record:2": 2.3658323759108226,
+    "F1@record:2": 2.3658323759108226
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000075",
+    "F1@record:2": "exp_000087"
+   },
+   "fit": 1.0746958878371515e-13,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 1.0746958878371515e-13
+   }
+  },
+  {
+   "id": "m00040",
+   "program_id": "p_91aca24873ab",
+   "island_id": "I1",
+   "lineage": "L021",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 38,
+   "hypothesis": "Accurate active-contact polishing followed by coordinated releases of three low-stress contacts will improve the incumbent by at least 1e-10 without sacrificing its verified score.",
+   "scores": {
+    "F0@record:2": 2.365832375910829,
+    "F1@record:2": 2.365832375910829,
+    "F2@record:2": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000076",
+    "F1@record:2": "exp_000086",
+    "F2@record:2": "exp_000091"
+   },
+   "fit": 1.1368683772161603e-13,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 1.1368683772161603e-13
+   }
+  },
+  {
+   "id": "m00041",
+   "program_id": "p_8f372efc201a",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00005"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 39,
+   "hypothesis": "Replacing the final fixed-centre radius LP with joint active-contact Newton polishing will recover at least 1e-10 in radius sum when the incumbent's limiting error is incomplete contact convergence.",
+   "scores": {
+    "F0@record:2": 2.365832375910715
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000077"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00042",
+   "program_id": "p_26af3dd61e7a",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00020"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 40,
+   "hypothesis": "Replacing repeated linear programs with analytic-Jacobian nonlinear polishing, active-contact Newton refinement, and coordinated local restarts will improve the verified incumbent by at least 1e-10.",
+   "scores": {
+    "F0@record:2": 2.3658323759108177,
+    "F1@record:2": 2.365832375910818,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000078",
+    "F1@record:2": "exp_000088",
+    "F0@record:3": "exp_000173"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00043",
+   "program_id": "p_b1b5a8cee413",
+   "island_id": "I1",
+   "lineage": "L022",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 41,
+   "hypothesis": "High-accuracy contact polishing followed by coordinated rotations of three to five neighboring circles will find a verified improvement of at least 1e-10 without sacrificing the incumbent.",
+   "scores": {
+    "F0@record:2": 2.36583237591079,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000079",
+    "F0@record:3": "exp_000168"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00044",
+   "program_id": "p_59e038c11c14",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00003"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 42,
+   "hypothesis": "Replacing independent jitter restarts with localized radius-weight continuation followed by unweighted polishing will cross a contact-topology barrier and improve the verified radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:2": 2.365832375910729,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000080",
+    "F0@record:3": "exp_000165"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00045",
+   "program_id": "p_920d44356de0",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 43,
+   "hypothesis": "Replacing the fixed penalty schedule with short, contact-localized penalty excursions followed by tight constrained polishing will find a verified improvement of at least 1e-10 while preserving the incumbent.",
+   "scores": {
+    "F0@record:2": 2.365832375910715
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000081"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00046",
+   "program_id": "p_74769da2d9e5",
+   "island_id": "I1",
+   "lineage": "L003",
+   "genome": [],
+   "parents": [
+    "m00007"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 44,
+   "hypothesis": "Penalty-screening several unrestricted lattice constructions before selective-contact SLSQP polishing will find a different packing basin with a verified gain of at least 1e-10.",
+   "scores": {
+    "F0@record:2": 2.365832375910715,
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000082",
+    "F0@record:3": "exp_000163"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00047",
+   "program_id": "p_b4a100a9c7b0",
+   "island_id": "I1",
+   "lineage": "L023",
+   "genome": [],
+   "parents": [
+    "m00002"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 45,
+   "hypothesis": "High-precision contact polishing followed by curvature-ranked simultaneous releases of three to five active constraints will improve the incumbent radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:2": 2.365832375910798
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000083"
+   },
+   "fit": 8.304468224196171e-14,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 8.304468224196171e-14
+   }
+  },
+  {
+   "id": "m00048",
+   "program_id": "p_eba50725d050",
+   "island_id": "I1",
+   "lineage": "L010",
+   "genome": [],
+   "parents": [
+    "m00019"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 46,
+   "hypothesis": "Adding active-contact Newton refinement before feasibility repair will recover at least 1e-10 in radius sum when residual contact errors, rather than the packing topology, limit the incumbent.",
+   "scores": {
+    "F0@record:2": 2.3658323759107986
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000084"
+   },
+   "fit": 8.348877145181177e-14,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 8.348877145181177e-14
+   }
+  },
+  {
+   "id": "m00049",
+   "program_id": "p_1870081370a0",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00005",
+    "m00003"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 47,
+   "hypothesis": "Combining tight direct polishing with localized multi-circle penalty smoothing and a final constrained polish will improve the verified warm-start score by at least 1e-10 while preserving it on unsuccessful searches.",
+   "scores": {
+    "F0@record:2": 2.3658323759107986
+   },
+   "exp_ids": {
+    "F0@record:2": "exp_000085"
+   },
+   "fit": 8.348877145181177e-14,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 8.348877145181177e-14
+   }
+  },
+  {
+   "id": "m00050",
+   "program_id": "p_2c77bef81f21",
+   "island_id": "I5",
+   "lineage": "L024",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "reformulate",
+   "model": "gpt-6-astra",
+   "born_at": 48,
+   "hypothesis": "Fixing total radius instead of rectangle perimeter, and screening several structured packing families before polishing, will improve the cold-start mean score by at least 0.001.",
+   "scores": {
+    "F0@cold:0": 2.355895784206089
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000094"
+   },
+   "fit": 2.355895784206089,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.355895784206089
+   }
+  },
+  {
+   "id": "m00051",
+   "program_id": "p_de0a998d75fd",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 49,
+   "hypothesis": "Switching from tangent-plane LPs to Euclidean polishing once the active contact set stabilizes will improve the cold-start mean score by spending less time on slowly converging linear approximations.",
+   "scores": {
+    "F0@cold:0": 2.3445659977376065,
+    "F0@neighbour:2": 2.3424358980049447
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000095",
+    "F0@neighbour:2": "exp_000138"
+   },
+   "fit": 2.3424358980049447,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3445659977376065,
+    "neighbour": 2.3424358980049447
+   }
+  },
+  {
+   "id": "m00052",
+   "program_id": "p_721bf818f96c",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 50,
+   "hypothesis": "Replacing one long LP trajectory with two short basin-finding runs and a best-first polishing phase will raise the mean cold-start score by at least 0.0002.",
+   "scores": {
+    "F0@cold:0": 2.3538070445021737,
+    "F0@neighbour:2": 2.353807044502176
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000096",
+    "F0@neighbour:2": "exp_000133"
+   },
+   "fit": 2.353807044502176,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3538070445021737,
+    "neighbour": 2.353807044502176
+   }
+  },
+  {
+   "id": "m00053",
+   "program_id": "p_04d031505411",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 51,
+   "hypothesis": "Switching from LP steps to Euclidean polishing when active-contact curvature becomes small will improve the cold-start mean score by at least 1e-5 by avoiding low-yield LP iterations.",
+   "scores": {
+    "F0@cold:0": 2.3445659977376154,
+    "F0@neighbour:2": 2.3424358980049265
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000097",
+    "F0@neighbour:2": "exp_000135"
+   },
+   "fit": 2.3424358980049265,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3445659977376154,
+    "neighbour": 2.3424358980049265
+   }
+  },
+  {
+   "id": "m00054",
+   "program_id": "p_159098beeb58",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 52,
+   "hypothesis": "Screening both unrestricted and reflection-symmetric LP trajectories before polishing the best basin will improve the cold-start mean by at least 0.001 over a single-trajectory search.",
+   "scores": {
+    "F0@cold:0": 2.3491617456282254
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000098"
+   },
+   "fit": 2.3491617456282254,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3491617456282254
+   }
+  },
+  {
+   "id": "m00055",
+   "program_id": "p_40d922af833e",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 53,
+   "hypothesis": "Switching from linear programs to nonlinear polishing once active-contact directions stabilize will improve the cold-start mean score by at least 1e-5 by avoiding slow late-stage tangent-plane convergence.",
+   "scores": {
+    "F0@cold:0": 2.3448258071960675
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000099"
+   },
+   "fit": 2.3448258071960675,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3448258071960675
+   }
+  },
+  {
+   "id": "m00056",
+   "program_id": "p_ec281005bd68",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 54,
+   "hypothesis": "Switching from LP iterations to Euclidean polishing when recent LP gains show a small, contracting tail will improve the cold-start mean score by at least 1e-4 within the same budget.",
+   "scores": {
+    "F0@cold:0": 2.340007341082762,
+    "F0@neighbour:2": 2.342435898004947
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000100",
+    "F0@neighbour:2": "exp_000136"
+   },
+   "fit": 2.342435898004947,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.340007341082762,
+    "neighbour": 2.342435898004947
+   }
+  },
+  {
+   "id": "m00057",
+   "program_id": "p_c5a506a5671e",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 55,
+   "hypothesis": "Switching from sequential LPs to nonlinear polishing once the active contact graph stabilizes will improve the cold-start mean score by spending less of the two-second budget on slow tangent-plane convergence.",
+   "scores": {
+    "F0@cold:0": 2.3445659977376128,
+    "F0@neighbour:2": 2.339577607341475
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000101",
+    "F0@neighbour:2": "exp_000137"
+   },
+   "fit": 2.339577607341475,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3445659977376128,
+    "neighbour": 2.339577607341475
+   }
+  },
+  {
+   "id": "m00058",
+   "program_id": "p_32fc28bb59a2",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 56,
+   "hypothesis": "Replacing one long LP trajectory with short competing trajectories from the cold start and staggered-row packings, followed by polishing the best trajectory, will improve the mean cold-start score by at least 0.0002.",
+   "scores": {
+    "F0@cold:0": 2.3612079884239465
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000102"
+   },
+   "fit": 2.3612079884239465,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3612079884239465
+   }
+  },
+  {
+   "id": "m00059",
+   "program_id": "p_57a0659df633",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 57,
+   "hypothesis": "Expanding the LP trust region when centre motion reaches its boundary will improve the cold-start mean score by at least 1e-4 by reducing artificially restricted iterations before polishing.",
+   "scores": {
+    "F0@cold:0": 2.3424948077384777
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000103"
+   },
+   "fit": 2.3424948077384777,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3424948077384777
+   }
+  },
+  {
+   "id": "m00060",
+   "program_id": "p_e34af6dea142",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 58,
+   "hypothesis": "Racing the supplied initialization against two staggered-row constructions before concentrating LP refinement and nonlinear polishing on the best basin will improve the cold-start mean by at least 0.0002.",
+   "scores": {
+    "F0@cold:0": 2.352942477825649
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000104"
+   },
+   "fit": 2.352942477825649,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.352942477825649
+   }
+  },
+  {
+   "id": "m00061",
+   "program_id": "p_8e9cd5dd4728",
+   "island_id": "I3",
+   "lineage": "L025",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 59,
+   "hypothesis": "Hexagonal-row starts followed by separation-plane LPs and analytic Euclidean polishing will produce a valid mean score above 2.35 within the two-second cold-start budget.",
+   "scores": {
+    "F0@cold:0": 2.3585518863262065
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000105"
+   },
+   "fit": 2.3585518863262065,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3585518863262065
+   }
+  },
+  {
+   "id": "m00062",
+   "program_id": "p_b50e8fde093c",
+   "island_id": "I3",
+   "lineage": "L026",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 60,
+   "hypothesis": "Using several structured triangular starts before tangent-plane LP refinement and nonlinear polishing will produce a higher two-start mean score than refining the cold coordinates alone.",
+   "scores": {
+    "F0@cold:0": 2.36120798843264,
+    "F0@neighbour:2": 2.3612079884326436
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000106",
+    "F0@neighbour:2": "exp_000134"
+   },
+   "fit": 2.3612079884326436,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.36120798843264,
+    "neighbour": 2.3612079884326436
+   }
+  },
+  {
+   "id": "m00063",
+   "program_id": "p_f1856dd54c1f",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 61,
+   "hypothesis": "Safeguarded momentum in the LP contact-direction updates will accelerate geometric convergence and improve the cold-start mean score by at least 1e-5 within the same time budget.",
+   "scores": {
+    "F0@cold:0": 2.3506831254743012
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000107"
+   },
+   "fit": 2.3506831254743012,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3506831254743012
+   }
+  },
+  {
+   "id": "m00064",
+   "program_id": "p_2a0ed807a334",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 62,
+   "hypothesis": "A structured interstitial seed competing with the cold start, followed by best-basin polishing, will improve the two-start mean by at least 0.001 over a single sequential-LP trajectory.",
+   "scores": {
+    "F0@cold:0": 2.355895784206084
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000108"
+   },
+   "fit": 2.355895784206084,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.355895784206084
+   }
+  },
+  {
+   "id": "m00065",
+   "program_id": "p_84d92ab6bfbb",
+   "island_id": "I3",
+   "lineage": "L027",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 63,
+   "hypothesis": "Three structured and warm-start direction fields, optimized by sequential separation LPs, will produce a mean cold-start score above 2.35 within the time limit.",
+   "scores": {
+    "F0@cold:0": 2.3529424778269674
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000109"
+   },
+   "fit": 2.3529424778269674,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3529424778269674
+   }
+  },
+  {
+   "id": "m00066",
+   "program_id": "p_1ce6d6bf1d2e",
+   "island_id": "I5",
+   "lineage": "L024",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 64,
+   "hypothesis": "Optimizing reflection-quotient layouts and polishing several finalists instead of one will improve the cold-start mean score by at least 0.001.",
+   "scores": {
+    "F0@cold:0": 2.3558957842102637
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000119"
+   },
+   "fit": 2.3558957842102637,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3558957842102637
+   }
+  },
+  {
+   "id": "m00067",
+   "program_id": "p_d4cabc180112",
+   "island_id": "I5",
+   "lineage": "L024",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 65,
+   "hypothesis": "Reflection-reduced optimization followed by time-sliced polishing of several structured layouts will improve the cold-start mean score by at least 0.001 over polishing only the best screened layout.",
+   "scores": {
+    "F0@cold:0": 2.3558957842102863
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000120"
+   },
+   "fit": 2.3558957842102863,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3558957842102863
+   }
+  },
+  {
+   "id": "m00068",
+   "program_id": "p_a8b675e0f373",
+   "island_id": "I5",
+   "lineage": "L028",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 66,
+   "hypothesis": "Screening several staggered row families with radius-normalized separation LPs, then polishing the best families with exact Euclidean constraints, will raise the cold-start mean score above 2.3559.",
+   "scores": {
+    "F0@cold:0": 2.355895784210274
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000121"
+   },
+   "fit": 2.355895784210274,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.355895784210274
+   }
+  },
+  {
+   "id": "m00069",
+   "program_id": "p_ce755beeb420",
+   "island_id": "I5",
+   "lineage": "L024",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 67,
+   "hypothesis": "Screening reflection-reduced layouts and polishing two finalists instead of one full-dimensional finalist will improve the cold-start mean score by at least 0.001.",
+   "scores": {
+    "F0@cold:0": 2.3642482017567277
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000122"
+   },
+   "fit": 2.3642482017567277,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3642482017567277
+   }
+  },
+  {
+   "id": "m00070",
+   "program_id": "p_471efb6bb4d6",
+   "island_id": "I5",
+   "lineage": "L024",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 68,
+   "hypothesis": "Briefly polishing the two best LP survivors before committing the remaining polishing time to the better certified result will improve the cold-start mean score by at least 0.001.",
+   "scores": {
+    "F0@cold:0": 2.355895784206089
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000123"
+   },
+   "fit": 2.355895784206089,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.355895784206089
+   }
+  },
+  {
+   "id": "m00071",
+   "program_id": "p_e10bebdde0cf",
+   "island_id": "I5",
+   "lineage": "L024",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 69,
+   "hypothesis": "Optimizing reflection-symmetric layouts in a reduced coordinate space and allocating refinement time through successive elimination will improve the cold-start mean score by at least 0.001.",
+   "scores": {
+    "F0@cold:0": 2.3642482017567272
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000124"
+   },
+   "fit": 2.3642482017567272,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3642482017567272
+   }
+  },
+  {
+   "id": "m00072",
+   "program_id": "p_32cef0c309f9",
+   "island_id": "I5",
+   "lineage": "L029",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 70,
+   "hypothesis": "Screening several staggered-row families with radius-normalized separation LPs, then polishing the best two with Euclidean constraints, will improve the cold-start mean score above 2.3559.",
+   "scores": {
+    "F0@cold:0": 2.357264449306916
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000125"
+   },
+   "fit": 2.357264449306916,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.357264449306916
+   }
+  },
+  {
+   "id": "m00073",
+   "program_id": "p_4dc648e69939",
+   "island_id": "I5",
+   "lineage": "L030",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 71,
+   "hypothesis": "Screening several reflection-symmetric triangular-row families in the fixed-total-radius formulation will raise the cold-start mean score above 2.3559.",
+   "scores": {
+    "F0@cold:0": 2.3558957842179944
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000126"
+   },
+   "fit": 2.3558957842179944,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3558957842179944
+   }
+  },
+  {
+   "id": "m00074",
+   "program_id": "p_a81f3f45aa6e",
+   "island_id": "I5",
+   "lineage": "L024",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 72,
+   "hypothesis": "Screening and polishing reflection-symmetric layouts in reduced coordinates before unrestricted polishing will improve the cold-start mean score by at least 0.002.",
+   "scores": {
+    "F0@cold:0": 2.3558957842102717
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000127"
+   },
+   "fit": 2.3558957842102717,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3558957842102717
+   }
+  },
+  {
+   "id": "m00075",
+   "program_id": "p_897d9bf27f72",
+   "island_id": "I5",
+   "lineage": "L024",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 73,
+   "hypothesis": "Optimizing reflection-symmetric packings in 35 variables and polishing several screened families will improve the cold-start mean score by at least 0.003.",
+   "scores": {
+    "F0@cold:0": 2.3642482017525257
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000128"
+   },
+   "fit": 2.3642482017525257,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3642482017525257
+   }
+  },
+  {
+   "id": "m00076",
+   "program_id": "p_159b78279d46",
+   "island_id": "I5",
+   "lineage": "L031",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 74,
+   "hypothesis": "Screening several staggered and reflection-symmetric layouts with fixed-total-radius separation LPs, then polishing the best layouts with Euclidean constraints, will raise the cold-start mean score above 2.356.",
+   "scores": {
+    "F0@cold:0": 2.357264449310276
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000129"
+   },
+   "fit": 2.357264449310276,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.357264449310276
+   }
+  },
+  {
+   "id": "m00077",
+   "program_id": "p_02e025e01812",
+   "island_id": "I5",
+   "lineage": "L024",
+   "genome": [],
+   "parents": [
+    "m00050"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 75,
+   "hypothesis": "Screening reflection-symmetric layouts in reduced coordinates, then polishing multiple finalists before releasing symmetry, will improve the cold-start mean by at least 0.001.",
+   "scores": {
+    "F0@cold:0": 2.3558957842102863
+   },
+   "exp_ids": {
+    "F0@cold:0": "exp_000130"
+   },
+   "fit": 2.3558957842102863,
+   "alive": true,
+   "fit_by_regime": {
+    "cold": 2.3558957842102863
+   }
+  },
+  {
+   "id": "m00078",
+   "program_id": "p_0f7561a4fc11",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [
+    "g0019"
+   ],
+   "parents": [
+    "m00025",
+    "m00065"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 76,
+   "hypothesis": "Combining time-capped staggered-row LP trajectories with perturbations of the best verified packing and final Euclidean polishing will raise the two-start mean score above 2.35.",
+   "scores": {
+    "F0@neighbour:2": 2.3544191310165097
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000139"
+   },
+   "fit": 2.3544191310165097,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3544191310165097
+   }
+  },
+  {
+   "id": "m00079",
+   "program_id": "p_609beccda14c",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025",
+    "m00065"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 77,
+   "hypothesis": "Racing structured staggered-row LP trajectories against the warm start, then analytically polishing the strongest basins, will raise the two-start mean score above 2.35.",
+   "scores": {
+    "F0@neighbour:2": 2.3529424778311947
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000140"
+   },
+   "fit": 2.3529424778311947,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3529424778311947
+   }
+  },
+  {
+   "id": "m00080",
+   "program_id": "p_4884dfeffc14",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [
+    "g0019"
+   ],
+   "parents": [
+    "m00052"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 78,
+   "hypothesis": "Racing reflection-reduced lattice trajectories against the warm start, then polishing the best verified packing without symmetry restrictions, will improve the two-start mean score by at least 0.0002.",
+   "scores": {
+    "F0@neighbour:2": 2.353807044506455
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000141"
+   },
+   "fit": 2.353807044506455,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.353807044506455
+   }
+  },
+  {
+   "id": "m00081",
+   "program_id": "p_46a0d1a69171",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00052"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 79,
+   "hypothesis": "Optimizing reflected triangular-row seeds in a reduced variable space before unrestricted polishing will raise the two-start mean score above 2.35 within the two-second budget.",
+   "scores": {
+    "F0@neighbour:2": 2.352942477831257
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000142"
+   },
+   "fit": 2.352942477831257,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.352942477831257
+   }
+  },
+  {
+   "id": "m00082",
+   "program_id": "p_6896e27d07bd",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 80,
+   "hypothesis": "Screening distant pair constraints during Euclidean polishing, with mandatory reinstatement of newly threatened pairs, will improve the two-start mean score by at least 1e-5 within the same time budget.",
+   "scores": {
+    "F0@neighbour:2": 2.342435898004955
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000143"
+   },
+   "fit": 2.342435898004955,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.342435898004955
+   }
+  },
+  {
+   "id": "m00083",
+   "program_id": "p_2dc63fa552a7",
+   "island_id": "I3",
+   "lineage": "L032",
+   "genome": [],
+   "parents": [
+    "m00062"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 81,
+   "hypothesis": "Competing staggered-row and warm-start LP trajectories, each followed by analytic Euclidean polishing, will raise the two-start mean score above 2.35 within the available budget.",
+   "scores": {
+    "F0@neighbour:2": 2.355895784218599
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000144"
+   },
+   "fit": 2.355895784218599,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.355895784218599
+   }
+  },
+  {
+   "id": "m00084",
+   "program_id": "p_ab4782ea7cb1",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00053",
+    "m00025"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 82,
+   "hypothesis": "Combining curvature-triggered polishing with short competing LP trajectories from the warm start and staggered-row seeds will raise the two-start mean score by at least 0.001 over either single-trajectory parent.",
+   "scores": {
+    "F0@neighbour:2": 2.3479720656694476
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000145"
+   },
+   "fit": 2.3479720656694476,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3479720656694476
+   }
+  },
+  {
+   "id": "m00085",
+   "program_id": "p_f0c9cf51ec78",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00056"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 83,
+   "hypothesis": "Racing the warm start against three staggered-row constructions and polishing the two strongest distinct trajectories will improve the two-start mean score by at least 0.001 over the single-trajectory parent.",
+   "scores": {
+    "F0@neighbour:2": 2.3479720656651866
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000146"
+   },
+   "fit": 2.3479720656651866,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3479720656651866
+   }
+  },
+  {
+   "id": "m00086",
+   "program_id": "p_a6b7befa1a55",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00053"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 84,
+   "hypothesis": "Successive-halving of warm-start and staggered-row LP trajectories, followed by polishing the winning basin, will improve the two-start mean score by at least 0.001 over a single LP trajectory.",
+   "scores": {
+    "F0@neighbour:2": 2.3642482017525173
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000147"
+   },
+   "fit": 2.3642482017525173,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3642482017525173
+   }
+  },
+  {
+   "id": "m00087",
+   "program_id": "p_47d908811cca",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 85,
+   "hypothesis": "Switching from separation LPs to Euclidean polishing when the contact graph stabilizes and dual-weighted curvature becomes small will improve the two-start mean score by at least 0.0001.",
+   "scores": {
+    "F0@neighbour:2": 2.3385628634858007
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000148"
+   },
+   "fit": 2.3385628634858007,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3385628634858007
+   }
+  },
+  {
+   "id": "m00088",
+   "program_id": "p_3d372bda1bf2",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 86,
+   "hypothesis": "Handing off from sequential LPs to Euclidean polishing once the near-contact graph stabilizes will improve the two-start mean score by at least 1e-4 by avoiding slow late-stage LP convergence.",
+   "scores": {
+    "F0@neighbour:2": 2.342435898004932
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000149"
+   },
+   "fit": 2.342435898004932,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.342435898004932
+   }
+  },
+  {
+   "id": "m00089",
+   "program_id": "p_db8a4e32e845",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00057",
+    "m00052"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 87,
+   "hypothesis": "Combining structured-start competition with contact-graph-triggered LP handoff will raise the two-start mean score above 2.35 within the two-second budget.",
+   "scores": {
+    "F0@neighbour:2": 2.3529424778269816
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000150"
+   },
+   "fit": 2.3529424778269816,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3529424778269816
+   }
+  },
+  {
+   "id": "m00090",
+   "program_id": "p_364ea50b2c45",
+   "island_id": "I3",
+   "lineage": "L033",
+   "genome": [],
+   "parents": [
+    "m00025"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 88,
+   "hypothesis": "Competing staggered-row seeds followed by exact-derivative Euclidean polishing will improve both cold starts and produce a mean verified score above 2.35.",
+   "scores": {
+    "F0@neighbour:2": 2.3558957842184807
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000151"
+   },
+   "fit": 2.3558957842184807,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3558957842184807
+   }
+  },
+  {
+   "id": "m00091",
+   "program_id": "p_a14b6bcda6c7",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00051"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 89,
+   "hypothesis": "Safeguarded extrapolation of LP separation directions will improve the two-start mean score by at least 1e-5 by reducing slow geometric convergence before Euclidean polishing.",
+   "scores": {
+    "F0@neighbour:2": 2.34243589800478
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000152"
+   },
+   "fit": 2.34243589800478,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.34243589800478
+   }
+  },
+  {
+   "id": "m00092",
+   "program_id": "p_7668a3427a6d",
+   "island_id": "I3",
+   "lineage": "L012",
+   "genome": [],
+   "parents": [
+    "m00051",
+    "m00054"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 90,
+   "hypothesis": "Racing warm-start, reflection-symmetric, and staggered-row LP trajectories, then switching stable contact graphs to analytic nonlinear polishing, will improve the two-start mean score by at least 0.001 over a single warm-start trajectory.",
+   "scores": {
+    "F0@neighbour:2": 2.3489853822824744
+   },
+   "exp_ids": {
+    "F0@neighbour:2": "exp_000153"
+   },
+   "fit": 2.3489853822824744,
+   "alive": true,
+   "fit_by_regime": {
+    "neighbour": 2.3489853822824744
+   }
+  },
+  {
+   "id": "m00093",
+   "program_id": "p_e74f496547fe",
+   "island_id": "I1",
+   "lineage": "L034",
+   "genome": [
+    "g0003"
+   ],
+   "parents": [
+    "m00046"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 91,
+   "hypothesis": "Continuing coordinated reflected contact releases to the next new contact, rather than applying a single linear perturbation, will expose an adjacent packing basin with a verified gain of at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829,
+    "F1@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000175",
+    "F1@record:3": "exp_000191"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00094",
+   "program_id": "p_ea42fde327af",
+   "island_id": "I1",
+   "lineage": "L035",
+   "genome": [],
+   "parents": [
+    "m00046"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 92,
+   "hypothesis": "Replacing a small circle by a circle in a distant maximal-clearance pocket, then jointly optimizing all circles, will cross a different topology barrier and improve the verified radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829,
+    "F1@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000176",
+    "F1@record:3": "exp_000192"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00095",
+   "program_id": "p_60387a92d064",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [
+    "g0003"
+   ],
+   "parents": [
+    "m00020"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 93,
+   "hypothesis": "Replacing independent restarts with reflected multi-contact gap continuation inside sequential linear programming will cross a packing-topology barrier and improve the verified radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829,
+    "F1@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000177",
+    "F1@record:3": "exp_000193"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00096",
+   "program_id": "p_5cc31ba43a2d",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00020"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 94,
+   "hypothesis": "Alternating score-floor-constrained directional LP excursions with ordinary radius-sum LP recovery will cross a contact-topology barrier and improve the verified incumbent by at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829,
+    "F1@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000178",
+    "F1@record:3": "exp_000194"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00097",
+   "program_id": "p_4eb5a6a2cc0e",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00044",
+    "m00036"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 95,
+   "hypothesis": "Combining low-stress multi-contact surgery with spatially coordinated radius-weight continuation will escape the incumbent contact topology and find a verified gain of at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829,
+    "F1@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000179",
+    "F1@record:3": "exp_000195"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00098",
+   "program_id": "p_17fbc1fd2ab0",
+   "island_id": "I1",
+   "lineage": "L036",
+   "genome": [],
+   "parents": [
+    "m00026"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 96,
+   "hypothesis": "Forcing a finite rectangle-aspect excursion with a small symmetry-breaking shear, then releasing the aspect constraint, will cross a packing-topology barrier and improve the verified radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000180"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00099",
+   "program_id": "p_c295741a516e",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00044"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 97,
+   "hypothesis": "Replacing fixed-amplitude patch loading with contact-event-driven load escalation will cross a topology barrier and produce a verified gain of at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000181"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00100",
+   "program_id": "p_6a897e4111ba",
+   "island_id": "I1",
+   "lineage": "L037",
+   "genome": [],
+   "parents": [
+    "m00024"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6-astra",
+   "born_at": 98,
+   "hypothesis": "Forcing substantial rectangle-aspect changes before releasing the aspect constraint will cross a contact-topology barrier and yield a verified radius-sum gain of at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000182"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00101",
+   "program_id": "p_3969cf119079",
+   "island_id": "I1",
+   "lineage": "L022",
+   "genome": [],
+   "parents": [
+    "m00043"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6-astra",
+   "born_at": 99,
+   "hypothesis": "Screening a beam of contact-graph cluster rotations with a cheap penalty optimizer before spending the remaining budget on exact constrained polishing will find a topology-changing improvement of at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000183"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00102",
+   "program_id": "p_5457d16b2e88",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00002",
+    "m00030"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 100,
+   "hypothesis": "Combining fixed-aspect penalty excursions with unrestricted analytic-Jacobian polishing will cross a packing-topology barrier and improve the verified radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000184"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00103",
+   "program_id": "p_bd149b459a65",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6-astra",
+   "born_at": 101,
+   "hypothesis": "Replacing pure penalty escalation with multiplier-corrected continuation will reduce finite-penalty bias and may expose a different contact basin yielding at least 1e-10 in verified radius sum.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000185"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00104",
+   "program_id": "p_fa08b0aefcc9",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00012",
+    "m00041"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 102,
+   "hypothesis": "Combining aspect-ratio continuation through a soft-penalty landscape with exact-Jacobian constrained polishing will cross a packing-topology barrier and improve the verified radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000186"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00105",
+   "program_id": "p_d692d5132313",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00030",
+    "m00047"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 103,
+   "hypothesis": "Screening simultaneous contact-release directions with low-penalty relaxation before exact constrained polishing will cross a topology barrier and improve the verified radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000187"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00106",
+   "program_id": "p_06bdc318c5ee",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00042",
+    "m00004"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 104,
+   "hypothesis": "Combining nonlocal vacancy relocation, short penalty continuation, and exact-Jacobian constrained polishing will escape the incumbent contact graph and find a verified gain of at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000188"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00107",
+   "program_id": "p_780db40b4e78",
+   "island_id": "I1",
+   "lineage": "L003",
+   "genome": [],
+   "parents": [
+    "m00007",
+    "m00049"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 105,
+   "hypothesis": "Combining hole-based reconstruction with localized penalty relaxation and constrained polishing will cross a different contact-topology barrier and yield a verified improvement of at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000189"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  },
+  {
+   "id": "m00108",
+   "program_id": "p_5f01c28c6bf9",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00020",
+    "m00012"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6-astra",
+   "born_at": 106,
+   "hypothesis": "Relocating two circles into newly opened cavities, then combining feasible linear-programming ascent with nonlinear polishing, will reach a different contact graph and improve the verified radius sum by at least 1e-10.",
+   "scores": {
+    "F0@record:3": 2.365832375910829
+   },
+   "exp_ids": {
+    "F0@record:3": "exp_000190"
+   },
+   "fit": 0.0,
+   "alive": true,
+   "fit_by_regime": {
+    "record": 0.0
+   }
+  }
+ ],
+ "islands": [
+  {
+   "id": "I1",
+   "formulation": "g0001",
+   "canonical": true,
+   "evals": 64,
+   "best_score": 2.365832375910829,
+   "pool": 60,
+   "arm": [
+    3.9503553124999984,
+    1.7147499999999998
+   ],
+   "gate": {
+    "gene_id": "g0003",
+    "wins": 0,
+    "losses": 0,
+    "pairs": 4,
+    "audit": false,
+    "evidence": [
+     "exp_000070",
+     "exp_000071",
+     "exp_000072",
+     "exp_000073",
+     "exp_000175",
+     "exp_000176",
+     "exp_000177",
+     "exp_000178"
+    ]
+   },
+   "lineages": {
+    "L001": {
+     "frozen": false,
+     "since_improvement": 27
+    },
+    "L003": {
+     "frozen": false,
+     "since_improvement": 5
+    },
+    "L004": {
+     "frozen": false,
+     "since_improvement": 1
+    },
+    "L005": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L006": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L007": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L008": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L009": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L010": {
+     "frozen": false,
+     "since_improvement": 1
+    },
+    "L011": {
+     "frozen": false,
+     "since_improvement": 1
+    },
+    "L013": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L014": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L015": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L016": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L017": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L018": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L020": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L021": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L022": {
+     "frozen": false,
+     "since_improvement": 1
+    },
+    "L023": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L034": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L035": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L036": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L037": {
+     "frozen": false,
+     "since_improvement": 0
+    }
+   }
+  },
+  {
+   "id": "I2",
+   "formulation": "g0012",
+   "canonical": false,
+   "evals": 0,
+   "best_score": null,
+   "pool": 1,
+   "arm": [
+    1.0,
+    1.0
+   ],
+   "gate": null,
+   "lineages": {
+    "L002": {
+     "frozen": false,
+     "since_improvement": 0
+    }
+   }
+  },
+  {
+   "id": "I3",
+   "formulation": "g0016",
+   "canonical": false,
+   "evals": 31,
+   "best_score": 2.3642482017525173,
+   "pool": 31,
+   "arm": [
+    2.8049999999999997,
+    1.0
+   ],
+   "gate": {
+    "gene_id": "g0019",
+    "wins": 2,
+    "losses": 0,
+    "pairs": 2,
+    "audit": false,
+    "evidence": [
+     "exp_000139",
+     "exp_000140",
+     "exp_000141",
+     "exp_000142"
+    ]
+   },
+   "lineages": {
+    "L012": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L025": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L026": {
+     "frozen": false,
+     "since_improvement": 1
+    },
+    "L027": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L032": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L033": {
+     "frozen": false,
+     "since_improvement": 0
+    }
+   }
+  },
+  {
+   "id": "I4",
+   "formulation": "g0017",
+   "canonical": false,
+   "evals": 0,
+   "best_score": null,
+   "pool": 1,
+   "arm": [
+    1.0,
+    1.0
+   ],
+   "gate": null,
+   "lineages": {
+    "L019": {
+     "frozen": false,
+     "since_improvement": 0
+    }
+   }
+  },
+  {
+   "id": "I5",
+   "formulation": "g0018",
+   "canonical": false,
+   "evals": 12,
+   "best_score": 2.3642482017567295,
+   "pool": 13,
+   "arm": [
+    1.9,
+    1.0
+   ],
+   "gate": null,
+   "lineages": {
+    "L024": {
+     "frozen": false,
+     "since_improvement": 1
+    },
+    "L028": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L029": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L030": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L031": {
+     "frozen": false,
+     "since_improvement": 0
+    }
+   }
+  }
+ ],
+ "operator_arms": {
+  "refine": [
+   1.0,
+   2.4061287311213304
+  ],
+  "restructure": [
+   1.0,
+   3.7582499014273965
+  ],
+  "hybridize": [
+   1.0,
+   6.70852657020499
+  ],
+  "reformulate": [
+   1.0,
+   1.0
+  ],
+  "fresh": [
+   1.0,
+   4.16447907806269
+  ]
+ },
+ "model_arms": {
+  "gpt-6-astra": [
+   1.0,
+   1.0
+  ]
+ },
+ "evals": 107,
+ "batches": 6,
+ "epoch": 3,
+ "best_score": 2.365832375910829,
+ "best_experiment": "exp_000076",
+ "best_member": "m00040",
+ "best_solution_path": "solutions/main/exp_000076.json",
+ "curve": [
+  [
+   0.00020503135837043998,
+   2.3658323759098576
+  ],
+  [
+   3.835086463087783,
+   2.3658323759106374
+  ],
+  [
+   7.2892281751041885,
+   2.365832375910715
+  ],
+  [
+   10.961654338064523,
+   2.365832375910829
+  ],
+  [
+   14.693191100416126,
+   2.365832375910829
+  ],
+  [
+   18.836091712608994,
+   2.365832375910829
+  ],
+  [
+   22.699629165625588,
+   2.365832375910829
+  ]
+ ],
+ "portfolio": {
+  "regime_arms": {
+   "record": [
+    1.0,
+    1.7147499999999998
+   ],
+   "neighbour": [
+    3.443518749999999,
+    1.0
+   ],
+   "cold": [
+    4.173842812499999,
+    1.0
+   ]
+  },
+  "regime_spend": {
+   "record": 3.6724261629603348,
+   "neighbour": 7.2433091650330015,
+   "cold": 11.619218806273883
+  },
+  "regime_stats": {
+   "record": {
+    "batches": 1,
+    "children": 16,
+    "beat_parent": 0,
+    "best_regime_score": 2.365832375910829,
+    "best_progress": -0.13257379596064214
+   },
+   "neighbour": {
+    "batches": 2,
+    "children": 31,
+    "beat_parent": 14,
+    "best_regime_score": 2.3650402888378883,
+    "best_progress": 0.998428878711512
+   },
+   "cold": {
+    "batches": 3,
+    "children": 44,
+    "beat_parent": 25,
+    "best_regime_score": 2.365040288827486,
+    "best_progress": 0.9996621988460628
+   }
+  },
+  "operator_arms_by_regime": {
+   "record": {
+    "refine": [
+     1.0,
+     2.2768408625781245
+    ],
+    "restructure": [
+     1.0,
+     4.558256923028785
+    ],
+    "hybridize": [
+     1.0,
+     2.0
+    ],
+    "reformulate": [
+     1.0,
+     1.1376001845529191
+    ],
+    "fresh": [
+     1.0,
+     4.433622493809634
+    ]
+   },
+   "neighbour": {
+    "refine": [
+     1.0,
+     4.684880125472073
+    ],
+    "restructure": [
+     2.7235154547656237,
+     2.050757005907628
+    ],
+    "hybridize": [
+     4.159930142950543,
+     1.0
+    ],
+    "reformulate": [
+     1.0,
+     1.0
+    ],
+    "fresh": [
+     2.183310759211062,
+     2.142187167722736
+    ]
+   },
+   "cold": {
+    "refine": [
+     2.0427444956044756,
+     5.0510149879878705
+    ],
+    "restructure": [
+     5.5844651165028685,
+     3.4566267071546504
+    ],
+    "hybridize": [
+     1.0,
+     1.0
+    ],
+    "reformulate": [
+     1.0,
+     1.0
+    ],
+    "fresh": [
+     4.53252060579427,
+     2.0833801472203786
+    ]
+   }
+  },
+  "start_sets": {
+   "record": {
+    "id": "record:3",
+    "origin": [
+     "incumbent"
+    ],
+    "start_scores": [
+     2.365832375910829
+    ]
+   },
+   "cold": {
+    "id": "cold:0",
+    "origin": [
+     "cold:0",
+     "cold:1"
+    ],
+    "start_scores": [
+     0.021000000000000005,
+     0.021000000000000005
+    ]
+   },
+   "neighbour": {
+    "id": "neighbour:2",
+    "origin": [
+     "archive:c1-2-3-0-2",
+     "perturb:0.1585"
+    ],
+    "start_scores": [
+     2.3378376946374497,
+     1.0431401939700575
+    ]
+   }
+  },
+  "archive": [
+   {
+    "cell": "c0-2-3-0-1",
+    "score": 2.352942477839634,
+    "experiment": "exp_000020",
+    "regime": "cold",
+    "program": "p_d5e3bdf59656",
+    "deep_polished": true
+   },
+   {
+    "cell": "c0-2-3-0-2",
+    "score": 2.3642482017525075,
+    "experiment": "exp_000013",
+    "regime": "cold",
+    "program": "p_e43b64395e56",
+    "deep_polished": true
+   },
+   {
+    "cell": "c0-2-3-0-3",
+    "score": 2.3658323759098576,
+    "experiment": "exp_000002",
+    "regime": "record",
+    "program": "p_546200ea6db5",
+    "deep_polished": false
+   },
+   {
+    "cell": "c0-2-3-1-3",
+    "score": 2.3612079884360226,
+    "experiment": "exp_000019",
+    "regime": "cold",
+    "program": "p_8d218c9725b4",
+    "deep_polished": true
+   },
+   {
+    "cell": "c0-2-3-2-0",
+    "score": 2.3558957842167225,
+    "experiment": "exp_000023",
+    "regime": "cold",
+    "program": "p_a23fdf3c6593",
+    "deep_polished": true
+   },
+   {
+    "cell": "c0-2-3-3-3",
+    "score": 2.345779497359452,
+    "experiment": "exp_000035",
+    "regime": "neighbour",
+    "program": "p_15acdf946813",
+    "deep_polished": true
+   },
+   {
+    "cell": "c1-2-3-0-1",
+    "score": 2.3373180757263494,
+    "experiment": "exp_000026",
+    "regime": "cold",
+    "program": "p_137bf9f7a6bf",
+    "deep_polished": true
+   },
+   {
+    "cell": "c1-2-3-0-2",
+    "score": 2.3378376946374497,
+    "experiment": "exp_000022",
+    "regime": "cold",
+    "program": "p_fc7fee0aece8",
+    "deep_polished": false
+   },
+   {
+    "cell": "c1-2-3-0-3",
+    "score": 2.3518139197664616,
+    "experiment": "exp_000022",
+    "regime": "cold",
+    "program": "p_fc7fee0aece8",
+    "deep_polished": false
+   }
+  ],
+  "archive_edges": {
+   "aspect": [
+    1.1467050040475912,
+    1.338889542458388,
+    1.531074080869185
+   ],
+   "n_small": [
+    -2.5e-10,
+    0.0,
+    2.5000000000000007e-10
+   ],
+   "r_max_rel": [
+    1.0515759769367083,
+    1.1031519538734167,
+    1.1547279308101253
+   ],
+   "r_q25_rel": [
+    0.9648912981872093,
+    0.9765941987914728,
+    0.9882970993957364
+   ],
+   "r_q75_rel": [
+    1.019287105316013,
+    1.0385742106320262,
+    1.0578613159480392
+   ]
+  },
+  "promotions": [
+   {
+    "entry": {
+     "cell": "c0-2-3-0-1",
+     "experiment": "exp_000020",
+     "score": 2.352942477839634,
+     "regime": "cold"
+    },
+    "program": "m00001",
+    "budget_s": 20.0,
+    "score_before": 2.352942477839634,
+    "score_after": 2.3658045799193723,
+    "incumbent_score": 2.3658323759106374,
+    "new_incumbent_from_other_basin": false,
+    "experiment": "exp_000028"
+   },
+   {
+    "entry": {
+     "cell": "c0-2-3-0-2",
+     "experiment": "exp_000013",
+     "score": 2.3642482017525075,
+     "regime": "cold"
+    },
+    "program": "m00001",
+    "budget_s": 20.0,
+    "score_before": 2.3642482017525075,
+    "score_after": 2.3642482017525075,
+    "incumbent_score": 2.365832375910715,
+    "new_incumbent_from_other_basin": false,
+    "experiment": "exp_000051"
+   },
+   {
+    "entry": {
+     "cell": "c0-2-3-1-3",
+     "experiment": "exp_000019",
+     "score": 2.3612079884360226,
+     "regime": "cold"
+    },
+    "program": "m00040",
+    "budget_s": 20.0,
+    "score_before": 2.3612079884360226,
+    "score_after": 2.365832375910829,
+    "incumbent_score": 2.365832375910829,
+    "new_incumbent_from_other_basin": false,
+    "experiment": "exp_000092"
+   },
+   {
+    "entry": {
+     "cell": "c0-2-3-2-0",
+     "experiment": "exp_000023",
+     "score": 2.3558957842167225,
+     "regime": "cold"
+    },
+    "program": "m00040",
+    "budget_s": 20.0,
+    "score_before": 2.3558957842167225,
+    "score_after": 2.365832375910829,
+    "incumbent_score": 2.365832375910829,
+    "new_incumbent_from_other_basin": false,
+    "experiment": "exp_000110"
+   },
+   {
+    "entry": {
+     "cell": "c0-2-3-3-3",
+     "experiment": "exp_000035",
+     "score": 2.345779497359452,
+     "regime": "neighbour"
+    },
+    "program": "m00040",
+    "budget_s": 20.0,
+    "score_before": 2.345779497359452,
+    "score_after": 2.350455090833532,
+    "incumbent_score": 2.365832375910829,
+    "new_incumbent_from_other_basin": false,
+    "experiment": "exp_000131"
+   },
+   {
+    "entry": {
+     "cell": "c1-2-3-0-1",
+     "experiment": "exp_000026",
+     "score": 2.3373180757263494,
+     "regime": "cold"
+    },
+    "program": "m00040",
+    "budget_s": 20.0,
+    "score_before": 2.3373180757263494,
+    "score_after": 2.359691354055864,
+    "incumbent_score": 2.365832375910829,
+    "new_incumbent_from_other_basin": false,
+    "experiment": "exp_000154"
+   }
+  ]
+ }
+}

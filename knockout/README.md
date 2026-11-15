@@ -264,6 +264,41 @@ need runs with the real LLM (experiments E1 to E3 of the brief), which wait for 
 record is claimed. The incumbent on circles-rectangle is the certificate, a certified KKT point (the seed returns
 it unchanged).
 
+### Campaign on Modal with the real LLM (2026-11-15, 11:08–12:05 PT)
+
+Arthur's go-ahead: up to 100 USD of OpenAI and 350 EUR of Modal, 1h15 at most. Two runs launched together from
+commit `f207602` (`knockout/launch_portfolio_{sol,astra}.yaml`), identical except for the model (`gpt-6.1-sol` or
+`gpt-6-astra` writes every program, reviews and edits the control arm). Settings: circles-rectangle, `--profile
+portfolio`, warm start = frozen certificate (2.3658323759098576 = live #1, ExoMind-TTS), 55 min, 48 USD cap per
+run, 16 children per batch. Ledgers: `knockout/results/20261115T190800Z-…-pf-sol/` and `…190815Z-…-pf-astra/`.
+Both replay without a mismatch (verified).
+
+| | `gpt-6.1-sol` | `gpt-6-astra` |
+|---|---|---|
+| Stop | budget (wall clock), 3,427 s | **Modal preemption of a worker after 1,484 s** (`RemoteError: Input aborted … Retries are disabled`); the ledger up to that point is complete |
+| LLM calls, spend (estimate) | 480, 20.9 USD | 154, 33.0 USD |
+| Main-arm batches: record / neighbour / cold | 5 / 6 / 11 | 1 / 2 / 3 |
+| Children that beat their parent: record / neighbour / cold | 0 of 76 / 32 of 93 / 82 of 163 | 0 of 16 / 14 of 31 / 25 of 44 |
+| Archive cells, deep polishes | 14, 10 (none above the incumbent) | 9, 6 (none above the incumbent) |
+| Gene verdicts | g0003 refuted, g0002 retired; none validated | g0002 refuted; none validated |
+| Best score, main / control | 2.3658323759108315 / 2.3658323759108297 | 2.365832375910829 / 2.3658323759108253 |
+| Arbiter (`selection/verify_claim.py`) on the best candidate | `valid_below_record`, +9.7e-13 over live #1 (needs 1e-10) | `valid_below_record`, +9.7e-13 over live #1 (needs 1e-10) |
+
+What this shows (verified numbers; readings are hypotheses):
+- **The portfolio gives the learning machinery a signal v1 never had.** From the record, 0 children beat their
+  parent, as in v1. From neighbour and cold starts, 34 % to 57 % of children do. The regime bandit learned it: in
+  the sol run Thompson picked `cold` 9 times out of 22 batches, and `record` only through its floor.
+- **Every basin leads back to the same optimum.** The best cold and neighbour programs reach the incumbent's value
+  on all their starts (normalized progress 1.0 in the sol run). Two astra deep polishes took basins at 2.3612 and
+  2.3559 up to exactly 2.365832375910829. No basin went above the certificate. The certificate is a certified KKT
+  point, and this is consistent with it being the global optimum for 21 circles (hypothesis).
+- **L1 is reached with the real LLM.** L2 is not reached (no gene validated in 55 min; the gate stays slow). L3 is
+  not reached in any meaningful sense: main leads control by 9.7e-13 and 7.8e-13 at equal spend, which is below
+  δ = 1e-10 and is float noise around the same point. L4 and L5 are not reached. **No record is claimed** and
+  nothing was submitted.
+- Per call, astra costs about 3× sol and is slower, so it ran far fewer batches before the preemption. Comparing
+  the two models needs a rerun of astra.
+
 Tests: `.venv/bin/python -m pytest tests/test_knockout_portfolio.py tests/test_knockout_portfolio_starts.py -q`
 (21 tests, about 45 s, of which 40 s is the recorded toy run).
 
