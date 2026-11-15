@@ -27,8 +27,8 @@ from knockout import filters as F
 from knockout.context import Evaluation, RunContext, source_hash
 from knockout.genes import Gene, GeneStore, render, similarity
 from knockout.llm import LLM
-from knockout.llm_editor import (OPERATORS, SCHEMA, SYSTEM, check_program, history_block, problem_brief, state_block,
-                                 strip_fence)
+from knockout.llm_editor import (OPERATORS, SCHEMA, SYSTEM, check_program, history_block, memory_section,
+                                 problem_brief, state_block, strip_fence)
 
 FIDELITIES = ("F0", "F1", "F2")
 MAIN_OPERATORS = {
@@ -304,6 +304,7 @@ class MainArm:
         batch_evals: list[tuple[Evaluation, str, dict, Member | None]] = []
         ref_scores = self._evaluate_f0(island, live, batch_evals)
         self._account(island, specs, live, ref_scores, batch_evals)
+        self._memory_batch(island, live)
         self._gate_results(island, specs)
         self._ladder(island, live, batch_evals)
         improved = self._update_best(island, live, batch_evals, ref_scores)
@@ -467,8 +468,10 @@ class MainArm:
                 parts += ["# Lines this lineage already deleted (do not bring them back)", "\n".join(notes)]
         if spec.operator == "hybridize" and spec.parent_b is not None:
             parts += ["# Second parent program", "```python\n" + spec.parent_b.source.rstrip() + "\n```"]
-        parts += ["# Evidence from this run",
-                  history_block(ctx, int(ctx.strategy.get("llm.history", 24)), "main", island.id),
+        n_hist = int(ctx.strategy.get("llm.history", 24))
+        parts += ["# Evidence from this run", history_block(ctx, n_hist, "main", island.id),
+                  *memory_section(ctx, "main", self.batches, f"{spec.operator} {getattr(spec.parent, 'hypothesis', '')}"
+                                  [:400], n_hist, island.id),
                   "# Your task", f"Operator `{spec.operator}`: {MAIN_OPERATORS[spec.operator]}",
                   "Write one new program that respects the contract and the hard rules."]
         return "\n\n".join(parts)
@@ -639,6 +642,11 @@ class MainArm:
                 save_solution=save, extra_config=self._cfg(target or island, s.member, s.operator, "F0", ref, s))
             self.evals += 1
             island.evals += 1
+            if ev.claim == "numerical_artifact" and ctx.memory is not None:
+                ctx.memory.write_fact("refuted", f"Numerical artifact: {s.hypothesis[:200]}",
+                                      f"Float score {ev.score!r} above the record was not confirmed by the independent "
+                                      "verifier.", arm="main", island=island.id, operator=s.operator, model=s.model,
+                                      experiment_ids=[s.exp_id], score=ev.score)
             if ev.claim == "numerical_artifact":
                 self._add_gene(island, "negative", "Numerical artifact: a float score above the record that the "
                                "independent verifier did not confirm. " + s.hypothesis[:200], "diff", [s.exp_id])
@@ -664,6 +672,33 @@ class MainArm:
             if len(self.model_arms) > 1:
                 self.model_arms = D.bandit_update(self.model_arms, s.model, succ, 0.0 if s.s else 1.0, disc)
         self._trim(island)
+
+    def _memory_batch(self, island: Island, live: list[Spec]) -> None:
+        """Shared memory (knockout/memory.py): one `win` fact per child that beat its parent, one aggregated
+        `failed_batch` fact for the others. Not one fact per child: 2 to 6 writes per batch."""
+        mem = self.ctx.memory
+        if mem is None or not mem.enabled:
+            return
+        sign, failed = D.sign(self.direction), []
+        for s in live:
+            ev = s.ev
+            gain = sign * (ev.score - s.ref) if ev is not None and ev.valid and s.ref is not None else None
+            mem.note_child("main", s.operator, bool(s.s))
+            if s.s:
+                added, removed = F.diff_lines(s.parent.source, s.source)
+                mem.write_fact("win", f"{s.operator}: {s.hypothesis[:300]}",
+                               f"Beat its parent by {gain:+.3e} at the same warm start (+{len(added)} / "
+                               f"-{len(removed)} lines).", arm="main", island=island.id, operator=s.operator,
+                               model=s.model, experiment_ids=[s.exp_id], gain=gain, ref_score=s.ref, score=ev.score)
+            else:
+                failed.append((s, gain))
+        if failed and mem.write_failed:
+            lines = [f"- {s.operator}: {s.hypothesis[:140]} ("
+                     + ("invalid" if g is None else f"gain {g:+.2e}") + ")" for s, g in failed[:8]]
+            mem.write_fact("failed_batch", f"Batch {self.batches} ({island.id}): {len(failed)} edits did not beat "
+                           "their parent", "\n".join(lines), arm="main", island=island.id,
+                           experiment_ids=[s.exp_id for s, _ in failed if s.exp_id],
+                           gain=max((g for _, g in failed if g is not None), default=None))
 
     def _mark_negative(self, island: Island, exp_id: str) -> None:
         for g in self.genes.of_island(island.id):
@@ -808,6 +843,11 @@ class MainArm:
                 gene.status = "refuted" if out["verdict"] == "refuted" else "validated"
             else:
                 gene.status = out["verdict"]
+            if gene.status == "refuted" and ctx.memory is not None:
+                ctx.memory.write_fact("refuted", f"Insight refuted at the knock-out gate: {gene.text[:300]}",
+                                      f"{gate.wins} wins / {gate.losses} losses in {gate.pairs} pairs.", arm="main",
+                                      island=island.id, gene=gene.id, experiment_ids=gate.evidence[-8:],
+                                      evidence={"wins": gate.wins, "losses": gate.losses, "pairs": gate.pairs})
             island.gate = None
             break
 
