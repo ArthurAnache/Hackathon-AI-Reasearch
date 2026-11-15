@@ -1,0 +1,87 @@
+{
+  "run_id": "20261115T021632Z-second-autocorrelation-inequality-26d8f15",
+  "problem": "second-autocorrelation-inequality",
+  "editor": "openai:gpt-6.1-sol",
+  "stop_reason": "budget",
+  "init_score": 0.963661562062085,
+  "baseline": 0.9636616117327188,
+  "best": 0.9636616139976134,
+  "best_arm": "main",
+  "best_experiment": "exp_000035",
+  "best_solution_path": "solutions/main/exp_000035.json",
+  "arms": {
+    "control": {
+      "best": 0.9636616137134393,
+      "best_experiment": "exp_000049",
+      "best_solution_path": "solutions/control/exp_000049.json",
+      "steps": 2,
+      "spend": 0.6064345650579152
+    },
+    "main": {
+      "best": 0.9636616139976134,
+      "best_experiment": "exp_000035",
+      "best_solution_path": "solutions/main/exp_000035.json",
+      "steps": 2,
+      "spend": 1.403878719758009,
+      "evaluations": 28
+    }
+  },
+  "program_incumbent": "p_fd7b0ec3b988",
+  "rounds": 2,
+  "wall_s": 849.0,
+  "budget": {
+    "elapsed_s": 856.0,
+    "wall_clock_s": 900.0,
+    "max_usd": 5.0,
+    "total_usd": 2.0103,
+    "compute_s": {
+      "control": 698.0,
+      "main": 986.2,
+      "gate": 401.9,
+      "meta": 0.0
+    },
+    "usd": {
+      "control": 0.6064,
+      "main": 0.8855,
+      "gate": 0.5059,
+      "meta": 0.0125
+    },
+    "llm_usd": {
+      "control": 0.5742,
+      "main": 0.8398,
+      "gate": 0.4873,
+      "meta": 0.0125
+    }
+  },
+  "control_curve": [
+    [
+      0.0021537510621297998,
+      0.9636616117327188
+    ],
+    [
+      0.31489421090366504,
+      0.963661613269721
+    ],
+    [
+      0.6064345650579152,
+      0.9636616137134393
+    ]
+  ],
+  "main_curve": [
+    [
+      0.0021326435380081997,
+      0.9636616116657574
+    ],
+    [
+      0.6833643473758944,
+      0.9636616129388604
+    ],
+    [
+      1.403878719758009,
+      0.9636616139976134
+    ]
+  ],
+  "best_known": 0.9636615620620852,
+  "record_claims": [],
+  "beats_record": false
+}

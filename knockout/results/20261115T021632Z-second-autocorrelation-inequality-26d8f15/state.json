@@ -1,0 +1,1070 @@
+{
+ "genes": [
+  {
+   "id": "g0001",
+   "type": "formulation",
+   "text": "Canonical formulation: `construct` returns the candidate directly in the verifier's own format.",
+   "status": "validated",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0002",
+   "type": "formulation",
+   "text": "Replace smooth-max ascent with sequential minimax optimization. Set c=f*f and Q=(2 sum c\u00b2+sum adjacent products)/3. Linearize log Q\u22122 log(sum f)\u2212log t, enforce c+2(f*\u03b4f)\u2264t and f+\u03b4f\u22650, and impose a trust region. Accept steps only when the exact verifier score improves.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0003",
+   "type": "numeric",
+   "text": "Use constraint generation for minimax subproblems: initially include convolution lags within 1e-7 of the maximum, solve the restricted problem, then scan every lag using FFT convolution. Add violated constraints and repeat. Retain previously binding lags across iterations to prevent cycling between competing peaks.",
+   "status": "refuted",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [
+    "exp_000013",
+    "exp_000014",
+    "exp_000015",
+    "exp_000016",
+    "exp_000017",
+    "exp_000018"
+   ],
+   "stats": {
+    "climb": [
+     0.0,
+     1.45545,
+     0
+    ]
+   },
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0004",
+   "type": "structure",
+   "text": "Optimize one multiplicative weight per existing nonzero run before optimizing individual cells. Preserve each run's internal profile and all zero gaps. Compute run-weight derivatives by summing cell derivatives weighted by the incumbent values, and periodically release only runs showing the largest predicted gains.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0005",
+   "type": "formulation",
+   "text": "Optimize selected amplitudes directly with nonnegative bounds instead of squaring unconstrained variables. Include currently zero cells adjacent to run boundaries, whose derivatives vanish under the squared parameterization. Restrict newly activated mass with a small aggregate budget, then increase that budget only after exact-score improvements.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0006",
+   "type": "numeric",
+   "text": "Choose LogSumExp sharpness from its observed approximation error rather than a fixed schedule. After normalizing the convolution maximum to one, increase sharpness until log(sum exp(beta*(c\u2212max c)))/beta is below 1e-8. Compare exact scores after every accepted iteration and restart from the best exact point after deterioration.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0007",
+   "type": "structure",
+   "text": "Search coordinated packet translations rather than isolated support moves. Select two to eight nonzero runs, propose opposing shifts that preserve their internal amplitudes and avoid overlap, and jointly reoptimize their weights. Rank proposals by predicted changes at near-maximal convolution lags before spending an exact FFT evaluation.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0008",
+   "type": "structure",
+   "text": "Build a multiresolution amplitude basis within each nonzero run: begin with one scaling coefficient, then add zero-sum left-versus-right contrasts recursively. Refine runs with the largest projected ascent derivatives. Preserve the original grid and zero gaps throughout; do not interpolate or resample the incumbent.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0009",
+   "type": "numeric",
+   "text": "Apply Hessian-vector products to the active-constraint tangent space to seek collective escape directions. Approximate products by gradient differences, constrain first-order changes of binding convolution peaks, and test both signs of leading positive-curvature directions. Use geometrically spaced step sizes and retain only exact-score gains.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0010",
+   "type": "formulation",
+   "text": "Estimate nonnegative multipliers on near-maximal convolution lags by minimizing the projected stationarity residual. Use the resulting Lagrangian gradient to rank inactive cells and entire runs, rather than using one arbitrary maximum lag. Test mass transfers between high- and low-reduced-gradient groups with exact-score line searches.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0011",
+   "type": "structure",
+   "text": "Run basin-hopping with support-preserving, correlated perturbations: multiply groups of neighboring runs by reciprocal random factors, renormalize, and locally polish each proposal. Sweep perturbation strengths from 1e-4 to 1e-1 in log amplitude. Maintain a separate best-exact archive even when temporarily accepting worse basins.",
+   "status": "candidate",
+   "origin": "seed",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 0
+  },
+  {
+   "id": "g0012",
+   "type": "formulation",
+   "text": "Represent the density losslessly by its nonzero indices and weights. Optimize relative weights of spatial/run-width packet classes using a linearized convolution-maximum epigraph, adding violated lag constraints. Backtrack each proposed direction against the frozen score; preserve the original density unless an exactly rescored improvement is found.",
+   "status": "validated",
+   "origin": "diff",
+   "island_id": "I2",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 8
+  },
+  {
+   "id": "g0013",
+   "type": "formulation",
+   "text": "Combine lossless sparse support storage with direct nonnegative packet amplitudes. Include zero cells bordering occupied runs as activation variables. Normalize total mass, jointly optimize packet weights and boundary activations, and backtrack against the exact convolution score. Preserve the original grid and retain an untouched incumbent.",
+   "status": "candidate",
+   "origin": "strategist",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 16
+  },
+  {
+   "id": "g0014",
+   "type": "numeric",
+   "text": "Estimate nonnegative multipliers over competing convolution peaks by minimizing the nonnegativity-projected stationarity residual. Use the resulting reduced gradient to rank boundary activations and packet mass transfers. Validate rankings by directional finite differences, then test geometrically spaced steps against the exact score rather than trusting a single-peak gradient.",
+   "status": "candidate",
+   "origin": "strategist",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 16
+  },
+  {
+   "id": "g0015",
+   "type": "structure",
+   "text": "Alternate packet-weight optimization with coordinated translations of several occupied runs, preserving each run's internal profile. Test shifts at multiple spatial scales, reject overlaps, and repolish weights after each translation. Keep a separate exploratory state and exact-best archive so temporary losses can cross support barriers without replacing the incumbent.",
+   "status": "candidate",
+   "origin": "strategist",
+   "island_id": "I1",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 16
+  },
+  {
+   "id": "g0016",
+   "type": "formulation",
+   "text": "Represent a candidate as baseline samples plus disjoint packet-fission operations. Each operation preserves a packet\u2019s ordered values but splits it into several teeth, borrowing bounded space from neighboring zero gaps. The adapter expands this structural representation into the verifier\u2019s dense nonnegative array; canonical candidates remain accepted unchanged.",
+   "status": "validated",
+   "origin": "diff",
+   "island_id": "I3",
+   "evidence": [],
+   "stats": {},
+   "linked": [],
+   "incompatible": [],
+   "usage": 0,
+   "born_at": 21
+  }
+ ],
+ "members": [
+  {
+   "id": "m00001",
+   "program_id": "p_2bb4682b6c26",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [],
+   "operator": "seed",
+   "model": null,
+   "born_at": 0,
+   "hypothesis": "baseline: the seed program as written",
+   "scores": {
+    "F0@0": 0.9636616116657574,
+    "F0@1": 0.9636616127732857,
+    "F0@2": 0.9636616134432019
+   },
+   "exp_ids": {
+    "F0@0": "exp_000002",
+    "F0@1": "exp_000012",
+    "F0@2": "exp_000031"
+   },
+   "fit": 5.043414574856797e-10,
+   "alive": true
+  },
+  {
+   "id": "m00002",
+   "program_id": "p_16110b5e2fd4",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [
+    "g0003"
+   ],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6.1-sol",
+   "born_at": 0,
+   "hypothesis": "Replacing smooth-max L-BFGS with a small gradient-subspace minimax search will find a positive exact-score improvement by coordinating changes across competing convolution peaks.",
+   "scores": {
+    "F0@1": 0.963661612662898,
+    "F0@2": 0.963661613796881
+   },
+   "exp_ids": {
+    "F0@1": "exp_000013",
+    "F0@2": "exp_000030"
+   },
+   "fit": 8.580205435038124e-10,
+   "alive": true
+  },
+  {
+   "id": "m00003",
+   "program_id": "p_c064e6cf37d5",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6.1-sol",
+   "born_at": 1,
+   "hypothesis": "Mass-whitened run-weight optimization will make coordinated support-preserving updates more efficiently than coordinate-wise square-root optimization, yielding a larger exact-score gain within the same time budget.",
+   "scores": {
+    "F0@1": 0.9636616127758586
+   },
+   "exp_ids": {
+    "F0@1": "exp_000014"
+   },
+   "fit": 1.1101012331593552e-09,
+   "alive": true
+  },
+  {
+   "id": "m00004",
+   "program_id": "p_7e4d3425dac8",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [
+    "g0003"
+   ],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6.1-sol",
+   "born_at": 2,
+   "hypothesis": "Increasing the initial smoothing sharpness from 1e9 to 1e11 will reduce plateau-induced smoothing bias and produce a positive exact-score gain on the order of 1e-9 or larger.",
+   "scores": {
+    "F0@1": 0.9636616126388275,
+    "F0@2": 0.9636616139976134
+   },
+   "exp_ids": {
+    "F0@1": "exp_000015",
+    "F0@2": "exp_000035"
+   },
+   "fit": 1.0587529741812318e-09,
+   "alive": true
+  },
+  {
+   "id": "m00005",
+   "program_id": "p_f91440e77a64",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6.1-sol",
+   "born_at": 3,
+   "hypothesis": "Restricting L-BFGS coordinates to the warm start's nonzero support will permit more iterations in the same budget and produce a larger exact-score gain than the dense-coordinate implementation.",
+   "scores": {
+    "F0@1": 0.9636616128412824,
+    "F0@2": 0.963661613580914
+   },
+   "exp_ids": {
+    "F0@1": "exp_000016",
+    "F0@2": "exp_000034"
+   },
+   "fit": 6.420535214601841e-10,
+   "alive": true
+  },
+  {
+   "id": "m00006",
+   "program_id": "p_bda80f2f4896",
+   "island_id": "I1",
+   "lineage": "L002",
+   "genome": [
+    "g0003"
+   ],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6.1-sol",
+   "born_at": 4,
+   "hypothesis": "A packet-weight minimax step with FFT-based constraint generation and retained binding lags will improve the warm start by at least 1e-5 without changing its support.",
+   "scores": {
+    "F0@1": 0.9636616116657574
+   },
+   "exp_ids": {
+    "F0@1": "exp_000017"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00007",
+   "program_id": "p_503c1948d1b8",
+   "island_id": "I1",
+   "lineage": "L003",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6.1-sol",
+   "born_at": 5,
+   "hypothesis": "Simultaneous minimax optimization of mass-quantile block weights will improve the warm start by at least 1e-5 while preserving its fine comb support.",
+   "scores": {
+    "F0@1": 0.9636616121755189
+   },
+   "exp_ids": {
+    "F0@1": "exp_000018"
+   },
+   "fit": 5.097615662918997e-10,
+   "alive": true
+  },
+  {
+   "id": "m00008",
+   "program_id": "p_a08385e5ee2c",
+   "island_id": "I1",
+   "lineage": "L004",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6.1-sol",
+   "born_at": 6,
+   "hypothesis": "A trust-region minimax optimization of coordinated mass-bin weights will improve the warm start by at least 1e-5 while preserving its support topology.",
+   "scores": {
+    "F0@1": 0.9636616118793149,
+    "F0@2": 0.9636616130962996
+   },
+   "exp_ids": {
+    "F0@1": "exp_000019",
+    "F0@2": "exp_000029"
+   },
+   "fit": 1.5743917280985897e-10,
+   "alive": true
+  },
+  {
+   "id": "m00009",
+   "program_id": "p_27c480c54820",
+   "island_id": "I1",
+   "lineage": "L005",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6.1-sol",
+   "born_at": 7,
+   "hypothesis": "A cutting-plane minimax optimization of coordinated packet weights will improve the warm start by at least 1e-5 without changing its support.",
+   "scores": {
+    "F0@1": 0.9636616116657574
+   },
+   "exp_ids": {
+    "F0@1": "exp_000020"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00010",
+   "program_id": "p_15dc9f1f3eab",
+   "island_id": "I2",
+   "lineage": "L006",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "reformulate",
+   "model": "gpt-6.1-sol",
+   "born_at": 8,
+   "hypothesis": "A packet-class minimax linear program will improve the warm start by at least 1e-8 by coordinating weight changes against the convolution's active maximum constraints.",
+   "scores": {
+    "F0@1": 0.9636616123801524
+   },
+   "exp_ids": {
+    "F0@1": "exp_000021"
+   },
+   "fit": 7.143949876109446e-10,
+   "alive": true
+  },
+  {
+   "id": "m00011",
+   "program_id": "p_c4875c02b04c",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6.1-sol",
+   "born_at": 9,
+   "hypothesis": "Optimizing mass-normalized packet amplitudes instead of millions of individual cells will improve conditioning enough to gain at least 1e-8 in exact score within the time budget.",
+   "scores": {
+    "F0@1": 0.9636616117220521
+   },
+   "exp_ids": {
+    "F0@1": "exp_000022"
+   },
+   "fit": 5.629474664203826e-11,
+   "alive": true
+  },
+  {
+   "id": "m00012",
+   "program_id": "p_c4d31bf22307",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6.1-sol",
+   "born_at": 10,
+   "hypothesis": "Optimizing only the nonzero warm-start coordinates will reduce L-BFGS overhead enough to produce a larger exact-score gain within 60 seconds than the full-coordinate implementation.",
+   "scores": {
+    "F0@1": 0.9636616129388604,
+    "F0@2": 0.963661613580914
+   },
+   "exp_ids": {
+    "F0@1": "exp_000023",
+    "F0@2": "exp_000032"
+   },
+   "fit": 6.420535214601841e-10,
+   "alive": true
+  },
+  {
+   "id": "m00013",
+   "program_id": "p_3a1c4a0c14df",
+   "island_id": "I1",
+   "lineage": "L007",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6.1-sol",
+   "born_at": 11,
+   "hypothesis": "A mass-balanced, blockwise minimax optimization with constraint generation can improve the warm start by at least 1e-5 through coordinated changes that individual-coordinate polishing misses.",
+   "scores": {
+    "F0@1": 0.9636616116657574
+   },
+   "exp_ids": {
+    "F0@1": "exp_000024"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00014",
+   "program_id": "p_a5be191942bf",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6.1-sol",
+   "born_at": 12,
+   "hypothesis": "Restricting L-BFGS to the warm start's nonzero coordinates will preserve the incumbent method while allowing more iterations, with an expected exact-score gain of at least 1e-9.",
+   "scores": {
+    "F0@1": 0.9636616128590928
+   },
+   "exp_ids": {
+    "F0@1": "exp_000025"
+   },
+   "fit": 1.1933354304716204e-09,
+   "alive": true
+  },
+  {
+   "id": "m00015",
+   "program_id": "p_4d87810c087a",
+   "island_id": "I1",
+   "lineage": "L008",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6.1-sol",
+   "born_at": 13,
+   "hypothesis": "A mass-preserving minimax update of 48 contiguous weight groups, with adaptive addition of newly binding convolution peaks, will improve the warm start by at least 1e-5.",
+   "scores": {
+    "F0@1": 0.9636616120847954
+   },
+   "exp_ids": {
+    "F0@1": "exp_000026"
+   },
+   "fit": 4.190380265001181e-10,
+   "alive": true
+  },
+  {
+   "id": "m00016",
+   "program_id": "p_2fd95719ca74",
+   "island_id": "I1",
+   "lineage": "L009",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6.1-sol",
+   "born_at": 14,
+   "hypothesis": "A cutting-plane minimax update of coordinated packet weights will improve the warm start by at least 1e-5 while preserving its support.",
+   "scores": {
+    "F0@1": 0.9636616116657574,
+    "F0@2": 0.9636616129388604
+   },
+   "exp_ids": {
+    "F0@1": "exp_000027",
+    "F0@2": "exp_000033"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00017",
+   "program_id": "p_836c5c78ce64",
+   "island_id": "I1",
+   "lineage": "L010",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "fresh",
+   "model": "gpt-6.1-sol",
+   "born_at": 15,
+   "hypothesis": "A trust-region minimax reweighting of coherent support blocks will improve the warm start by at least 1e-5 while preserving its comb geometry.",
+   "scores": {
+    "F0@1": 0.9636616116657574,
+    "F0@2": 0.9636616129388604
+   },
+   "exp_ids": {
+    "F0@1": "exp_000028",
+    "F0@2": "exp_000036"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00018",
+   "program_id": "p_084ce2c87ab2",
+   "island_id": "I1",
+   "lineage": "L004",
+   "genome": [
+    "g0004"
+   ],
+   "parents": [
+    "m00008"
+   ],
+   "operator": "refine",
+   "model": "gpt-6.1-sol",
+   "born_at": 16,
+   "hypothesis": "Replacing mass-quantile weight groups with individual nonzero runs will avoid splitting coherent packets and produce an exact-score gain exceeding 1e-9 within the same budget.",
+   "scores": {
+    "F0@2": 0.9636616130696626
+   },
+   "exp_ids": {
+    "F0@2": "exp_000037"
+   },
+   "fit": 1.308021468915399e-10,
+   "alive": true
+  },
+  {
+   "id": "m00019",
+   "program_id": "p_c7446925fd6e",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [
+    "g0004"
+   ],
+   "parents": [
+    "m00002",
+    "m00007"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6.1-sol",
+   "born_at": 17,
+   "hypothesis": "Combining run-wise optimization with mass-balanced envelope weights, then releasing cells and boundary locations only in the most promising runs, will improve the exact score by at least 1e-8.",
+   "scores": {
+    "F0@2": 0.9636616135193303
+   },
+   "exp_ids": {
+    "F0@2": "exp_000038"
+   },
+   "fit": 5.804698943734365e-10,
+   "alive": true
+  },
+  {
+   "id": "m00020",
+   "program_id": "p_96d80f5d1a8d",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00002",
+    "m00007"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6.1-sol",
+   "born_at": 18,
+   "hypothesis": "Jointly optimizing coherent packet transport, mass-bin weights, and smooth-gradient modes will escape the fixed-support kink and can produce an exact-score gain of at least 1e-5.",
+   "scores": {
+    "F0@2": 0.9636616129388604
+   },
+   "exp_ids": {
+    "F0@2": "exp_000039"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00021",
+   "program_id": "p_34748cfac7dc",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [
+    "g0004"
+   ],
+   "parents": [
+    "m00001",
+    "m00015"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6.1-sol",
+   "born_at": 19,
+   "hypothesis": "Run-level smooth optimization followed by selective cell-level refinement will produce a larger exact-score gain than either coarse block optimization or uniform coordinate polishing alone.",
+   "scores": {
+    "F0@2": 0.9636616129388607
+   },
+   "exp_ids": {
+    "F0@2": "exp_000040"
+   },
+   "fit": 2.220446049250313e-16,
+   "alive": true
+  },
+  {
+   "id": "m00022",
+   "program_id": "p_474d659a5e01",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001",
+    "m00015"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6.1-sol",
+   "born_at": 20,
+   "hypothesis": "Jointly optimizing run amplitudes and nonnegative one-cell run translations will open new support while coordinating packet weights, producing a larger exact-score gain than support-preserving polishing.",
+   "scores": {
+    "F0@2": 0.963661613016098
+   },
+   "exp_ids": {
+    "F0@2": "exp_000041"
+   },
+   "fit": 7.723754968935737e-11,
+   "alive": true
+  },
+  {
+   "id": "m00023",
+   "program_id": "p_1befdf183d82",
+   "island_id": "I3",
+   "lineage": "L011",
+   "genome": [],
+   "parents": [
+    "m00012"
+   ],
+   "operator": "reformulate",
+   "model": "gpt-6.1-sol",
+   "born_at": 21,
+   "hypothesis": "Splitting existing comb teeth into finer, locally mass-preserving packets will expose a better support topology and can improve the exact score by at least 1e-5.",
+   "scores": {
+    "F0@2": 0.9636616129388604
+   },
+   "exp_ids": {
+    "F0@2": "exp_000042"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00024",
+   "program_id": "p_cc16d3a95be3",
+   "island_id": "I1",
+   "lineage": "L009",
+   "genome": [],
+   "parents": [
+    "m00016",
+    "m00014"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6.1-sol",
+   "born_at": 22,
+   "hypothesis": "Combining packet-level reweighting with independently movable support-edge amplitudes and two-stage smooth-max optimization will escape the fixed-support kink and improve the exact score by at least 1e-5.",
+   "scores": {
+    "F0@2": 0.9636616129388604
+   },
+   "exp_ids": {
+    "F0@2": "exp_000043"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00025",
+   "program_id": "p_11309e966e43",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00001"
+   ],
+   "operator": "refine",
+   "model": "gpt-6.1-sol",
+   "born_at": 23,
+   "hypothesis": "Retaining the best exact-score point from every objective evaluation, rather than only stage endpoints, will recover transient improvements and increase the returned score by at least 1e-9.",
+   "scores": {
+    "F0@2": 0.963661613575404
+   },
+   "exp_ids": {
+    "F0@2": "exp_000044"
+   },
+   "fit": 6.365435956112719e-10,
+   "alive": true
+  },
+  {
+   "id": "m00026",
+   "program_id": "p_a8e1763cd5bd",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00005"
+   ],
+   "operator": "restructure",
+   "model": "gpt-6.1-sol",
+   "born_at": 24,
+   "hypothesis": "Replacing square-root coordinates with nonnegative amplitude coordinates and a low-to-high softmax continuation will permit support changes and improve the exact score by at least 1e-7.",
+   "scores": {
+    "F0@2": 0.9636616129388604
+   },
+   "exp_ids": {
+    "F0@2": "exp_000045"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00027",
+   "program_id": "p_c68ec7ddc2e9",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00005",
+    "m00001"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6.1-sol",
+   "born_at": 25,
+   "hypothesis": "Combining sparse square-root polishing with a bounded linear parameterization of selected zero coordinates will permit support-changing improvements that both parents exclude, while preserving every exact-score improvement found.",
+   "scores": {
+    "F0@2": 0.9636616129388604
+   },
+   "exp_ids": {
+    "F0@2": "exp_000046"
+   },
+   "fit": 0.0,
+   "alive": true
+  },
+  {
+   "id": "m00028",
+   "program_id": "p_00c0b0d64d66",
+   "island_id": "I1",
+   "lineage": "L001",
+   "genome": [],
+   "parents": [
+    "m00004",
+    "m00012"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6.1-sol",
+   "born_at": 26,
+   "hypothesis": "Combining support-restricted polishing with a high-sharpness phase that can activate selected zero coordinates will improve the exact score by at least 1e-8 while retaining the warm start if structural changes fail.",
+   "scores": {
+    "F0@2": 0.9636616138227792
+   },
+   "exp_ids": {
+    "F0@2": "exp_000047"
+   },
+   "fit": 8.839187159992434e-10,
+   "alive": true
+  },
+  {
+   "id": "m00029",
+   "program_id": "p_1f61d36003b5",
+   "island_id": "I1",
+   "lineage": "L010",
+   "genome": [],
+   "parents": [
+    "m00017",
+    "m00005"
+   ],
+   "operator": "hybridize",
+   "model": "gpt-6.1-sol",
+   "born_at": 27,
+   "hypothesis": "Jointly optimizing packet amplitudes and mass-preserving packet shifts, followed by sparse-coordinate polishing, will escape a support-fixed stationary point and gain at least 1e-8 in verified score.",
+   "scores": {
+    "F0@2": 0.9636616135100057
+   },
+   "exp_ids": {
+    "F0@2": "exp_000048"
+   },
+   "fit": 5.711452422119123e-10,
+   "alive": true
+  }
+ ],
+ "islands": [
+  {
+   "id": "I1",
+   "formulation": "g0001",
+   "canonical": true,
+   "evals": 28,
+   "best_score": 0.9636616138227792,
+   "pool": 27,
+   "arm": [
+    2.8499999999999996,
+    2.0
+   ],
+   "gate": {
+    "gene_id": "g0004",
+    "wins": 2,
+    "losses": 1,
+    "pairs": 3,
+    "audit": false,
+    "evidence": [
+     "exp_000037",
+     "exp_000038",
+     "exp_000039",
+     "exp_000040",
+     "exp_000041"
+    ]
+   },
+   "lineages": {
+    "L001": {
+     "frozen": false,
+     "since_improvement": 3
+    },
+    "L002": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L003": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L004": {
+     "frozen": false,
+     "since_improvement": 1
+    },
+    "L005": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L007": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L008": {
+     "frozen": false,
+     "since_improvement": 0
+    },
+    "L009": {
+     "frozen": false,
+     "since_improvement": 1
+    },
+    "L010": {
+     "frozen": false,
+     "since_improvement": 0
+    }
+   }
+  },
+  {
+   "id": "I2",
+   "formulation": "g0012",
+   "canonical": false,
+   "evals": 0,
+   "best_score": null,
+   "pool": 1,
+   "arm": [
+    1.0,
+    1.0
+   ],
+   "gate": null,
+   "lineages": {
+    "L006": {
+     "frozen": false,
+     "since_improvement": 0
+    }
+   }
+  },
+  {
+   "id": "I3",
+   "formulation": "g0016",
+   "canonical": false,
+   "evals": 0,
+   "best_score": null,
+   "pool": 1,
+   "arm": [
+    1.0,
+    1.0
+   ],
+   "gate": null,
+   "lineages": {
+    "L011": {
+     "frozen": false,
+     "since_improvement": 0
+    }
+   }
+  }
+ ],
+ "operator_arms": {
+  "refine": [
+   3.4856570503252726,
+   1.0266841665590094
+  ],
+  "restructure": [
+   1.0,
+   2.1493493300600353
+  ],
+  "hybridize": [
+   1.0,
+   1.0
+  ],
+  "reformulate": [
+   1.0,
+   1.3966745921874995
+  ],
+  "fresh": [
+   1.0,
+   6.697013214804969
+  ]
+ },
+ "model_arms": {
+  "gpt-6.1-sol": [
+   1.0,
+   1.0
+  ]
+ },
+ "evals": 28,
+ "batches": 2,
+ "epoch": 3,
+ "best_score": 0.9636616139976134,
+ "best_experiment": "exp_000035",
+ "best_member": "m00004",
+ "best_solution_path": "solutions/main/exp_000035.json",
+ "curve": [
+  [
+   0.0021326435380081997,
+   0.9636616116657574
+  ],
+  [
+   0.6833643473758944,
+   0.9636616129388604
+  ],
+  [
+   1.403878719758009,
+   0.9636616139976134
+  ]
+ ]
+}

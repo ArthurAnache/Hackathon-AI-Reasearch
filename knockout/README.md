@@ -7,6 +7,56 @@ Every decision is a logged event with evidence behind it.
 The full design brief is the team prompt "Knockout Evolution"; this README records what is built, how to run it,
 and the results. Status labels: **verified** (reproduced here), **hypothesis**, **limitation**.
 
+## Handover (2026-11-14, evening PT)
+
+For whoever continues this work. Arthur wrote v1 with Claude Code in one day; this section says where it stands.
+
+**State**
+- v1 (milestones M0 to M5 below) is built, tested (38 tests) and has run on Modal for one hour without a crash.
+- **No record.** The best verified score is 0.9636616161700385, a gain of 5.4e-8 over the live #1
+  (0.9636615620620852), where a record needs 1e-5. Every run stops between +5.2e-8 and +5.4e-8.
+- In the one long run with both arms, the plain control arm beat the gene arm at equal spend and at the end.
+- The next step is a redesign, not a longer run: **`docs/knockout_v2_brief.md`** is a self-contained prompt for a
+  coding agent. It lists what v1 showed, the diagnosis, the v2 architecture, calibration gates to run first, and
+  when to stop. Give it to the agent as its prompt, from a new branch off this one.
+
+**Results at a glance** (main problem, warm start = live #1; details under "Results")
+
+| Run | Where | Arms | Wall clock | Experiments | Best gain over live #1 | Cost (estimate) | Arbiter |
+|---|---|---|---|---|---|---|---|
+| `20261115T001337Z` | local | control, no LLM | 5 min | 26 | 5.26e-8 | 0 | not run |
+| `20261115T001854Z` | local | control, LLM | 7 min | 17 | 5.41e-8 | 0.39 USD | `VALID_BELOW_RECORD` |
+| `20261115T002756Z` | local | control, LLM | 60 min | 186 | 5.39e-8 | 6.44 USD | `VALID_BELOW_RECORD` |
+| `20261115T021632Z` | Modal | control + main | 15 min | 56 | 5.19e-8 | 2.0 USD | `VALID_BELOW_RECORD` |
+| `20261115T023802Z` | Modal | control + main | 60 min | 442 | 5.27e-8 (control arm) | 16.8 USD | `VALID_BELOW_RECORD` |
+
+**Where the evidence is**
+- `knockout/results/<run_id>/`: `experiments.jsonl`, `events.jsonl`, `summary.json`, `report.md`, `state.json`,
+  `strategy.yaml` and `llm_cache/` of the last three runs of the table. The two Modal runs replay:
+  `.venv/bin/python -m knockout.replay knockout/results/<run_id>`. Candidate solutions are not in the repository
+  (10 to 40 MB each).
+- Full Modal runs, solutions included: Modal Volume `knockout-runs` of Arthur's workspace
+  (`modal volume get knockout-runs <run_id> ./runs/`). Local runs live in `runs/` on Arthur's machine
+  (git-ignored).
+- Arbiter verdicts: `selection/claims.jsonl`.
+
+**To run it yourself**
+1. `python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt`
+2. `.env` with `OPENAI_API_KEY` (and `EXA_API_KEY` for the scout); see `.env.example`.
+3. `.venv/bin/python -m pytest tests/test_knockout_m0.py tests/test_knockout_m1_m5.py -q` (about 80 s).
+4. Locally: the command under "On the main problem, with the LLM editor". On Modal: `.venv/bin/modal token new`
+   once, edit `knockout/launch.yaml` (it holds the settings of the 1-hour campaign: 3600 s, 50 USD cap), then
+   `.venv/bin/modal run --detach -m knockout.modal_app::launch --source-commit $(git rev-parse --short HEAD)`.
+   Pushing a commit whose message contains `[ko-run]` does the same from GitHub, once the repository secrets
+   `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` and `OPENAI_API_KEY` exist (they do not yet).
+
+**Open decisions (Arthur and the team)**
+- The frozen certificate in `problems/` is solution 2782 (0.963638668); the live #1 has been solution 2783
+  (0.963661562) since 2026-11-14 22:41 UTC. v1 starts from the live #1 with `--init live`. Re-freezing is WS1's
+  call.
+- Whether to keep this problem or move to the backup `circles-rectangle`: see section 12 of the v2 brief.
+- The budget of any further campaign.
+
 ## Status
 
 | Milestone | Content | State |
