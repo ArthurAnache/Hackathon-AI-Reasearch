@@ -64,12 +64,15 @@ def test_a_changed_verifier_refuses_to_load(tmp_path):
 
 
 def test_invalid_candidates_get_no_score(handle):
-    too_long = {"values": [1.0] * (131072 + 1)}
+    too_long = {"values": [1.0] * 100_001}               # server schema: 1 to 100,000 values
+    doubled_live = {"values": [1.0] * (2 * 65536)}       # a x2 block repeat of the live #1 is not submittable
     for bad in ({"values": []}, {"values": [1.0, float("nan")]}, {"values": [1.0, -1.0]}, {"x": [1.0]},
-                {"values": [True, 2.0]}, [1.0, 2.0], too_long):
+                {"values": [True, 2.0]}, [1.0, 2.0], too_long, doubled_live):
         assert not handle.verify(bad)
         with pytest.raises(handle.invalid_exc):
             handle.score(bad)
+    P.scout_problem(SLUG).check({"values": [1.0] * 100_000})    # the largest accepted size passes the format check
+    assert "100,000" in handle.brief() and "131,072" in handle.brief()      # the LLM is told the limit
 
 
 def test_reference_is_the_best_of_live_claim_and_warm_start(handle):

@@ -125,7 +125,7 @@ class ScoutProblem:
     """An exploratory problem: selection/scout_problems/<slug>/ (meta.json + a copy of the pinned verifier).
 
     - `score` is the pinned verifier itself (the copy refuses to load if its sha256 differs from meta.json), behind
-      a format check and a loop-side size limit.
+      the format check of the server schema (for third-autocorrelation: 1 to 100,000 finite numbers).
     - `independent` is a second scorer with its own arithmetic (also sha256-checked).
     - `reference` is what the loop's promotion gate compares with: the best of the live #1 (read from the API),
       the claimed literature value and the score of the run's own warm start. A run that starts from an already
@@ -158,7 +158,7 @@ class ScoutProblem:
             raise ScoutInvalidSolution('candidate must be {"values": [numbers]}')
         values = candidate["values"]
         if not 1 <= len(values) <= self.max_values:
-            raise ScoutInvalidSolution(f"values must have 1..{self.max_values} entries (loop-side limit), "
+            raise ScoutInvalidSolution(f"values must have 1..{self.max_values} entries (server schema), "
                                        f"got {len(values)}")
         if not all(isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) for x in values):
             raise ScoutInvalidSolution("every value must be a finite number")

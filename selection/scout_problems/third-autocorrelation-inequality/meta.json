@@ -10,8 +10,9 @@
   "delta_source": "live API minImprovement (selection/registry_stage2.jsonl)",
   "solution_format": "{\"values\": [f_0, ..., f_{n-1}]}: n finite floats, the values of f on n equal cells; negative values are allowed.",
   "limits": {
-    "max_values": 131072,
-    "notes": "Loop-side limit, not a rule of the verifier: at most 131,072 values. The pinned verifier uses a direct O(n^2) convolution (0.2 s at 25,600 values, 1.2 s at 65,536, 4.7 s at 131,072). The sum of the values must not be close to zero."
+    "max_values": 100000,
+    "max_values_source": "server schema of the pinned commit: `values: z.array(num).min(1).max(100_000)` (web/src/lib/problems/third-autocorrelation-inequality.ts, line 39)",
+    "notes": "The server accepts 1 to 100,000 values and rejects anything longer, so a candidate above 100,000 values is invalid here too. 25,600 and 65,536 values are both fine; doubling a 65,536-value candidate (131,072) is NOT allowed, while doubling 25,600 (51,200) is. The pinned verifier uses a direct O(n^2) convolution (0.2 s at 25,600 values, 1.2 s at 65,536). The sum of the values must not be close to zero."
   },
   "verifier": {
     "file": "verifier_pinned.py",
@@ -43,9 +44,9 @@
   },
   "notes": [
     "[verified] The score is 2n * max_k (f*f)_k / (sum f)^2: scale-invariant, and the absolute value is outside the max.",
-    "[verified] Repeating every value k times (block repeat) keeps the score exactly; a finer grid only helps after re-optimization.",
+    "[verified] Repeating every value k times (block repeat) keeps the score exactly; a finer grid only helps after re-optimization, and the result must stay within 100,000 values.",
     "[verified] The live #1 (Atris, 65,536 values, score 1.449109789331911) has a third of its values negative.",
-    "[verified, scout] From the live #1: a 52 s cold polish of the log-sum-exp surrogate (T 1e-6 to 1e-9) gained nothing; a x2 block repeat with noise and a 75 s cooling ended 1.7e-6 worse; 12 re-melt hops (4 workers, 300 s) did not land once.",
+    "[verified, scout] From the live #1: a 52 s cold polish of the log-sum-exp surrogate (T 1e-6 to 1e-9) gained nothing; a x2 block repeat with noise and a 75 s cooling ended 1.7e-6 worse (and its 131,072 values are above the server limit); 12 re-melt hops (4 workers, 300 s) did not land once.",
     "[verified, scout] In another basin on 25,600 values (near 1.44883), one re-melt hop (additive noise 1e-3 of the mean |f|, cooling 1e-3 to 1e-8 in 14 stages, 420 s) gained 2.7e-6, and a x2 block repeat with noise 1e-4 and a 420 s cooling gained 2.8e-6. Direct cooling paths that differ only by their first temperature (1e-3 to 1e-1) end up to 4.5e-5 apart, without a monotonic trend.",
     "[claim] MILO (arXiv:2609.38349, App. E) reports 1.4488860143 on 25,600 values with: log-sum-exp surrogate, FFT gradient, L-BFGS stages on a geometric cooling ladder, a chain of re-melt hops with multiplicative jitter, 60 s runs. Its construction is not public.",
     "[claim, forum] On erdos-min-overlap a sequential minimax LP polish (linearize the active lags, solve an LP, repeat) improved a smoothed-max solution at the end."
