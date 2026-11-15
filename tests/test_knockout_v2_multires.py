@@ -59,6 +59,16 @@ def test_repeat_upsampling_keeps_the_frozen_verifiers_score():
     assert abs(rs.closed_form_score(rs.sum_pool(f, 2)) - base) > 1e-6
 
 
+def test_loss_terms_add_up_to_one_minus_the_score():
+    for seed, n in ((0, 57), (1, 300), (2, 1001)):
+        f = _comb(n, seed=seed)
+        terms = rs.loss_terms(f)
+        assert terms["plateau"] > 0 and terms["roughness"] > 0
+        assert terms["plateau"] + terms["roughness"] == pytest.approx(1.0 - rs.closed_form_score(f), abs=1e-13)
+    box = rs.loss_terms(np.ones(64))             # a box: triangle autoconvolution, 1 - C = 1/3 (+ O(1/n^2))
+    assert box["plateau"] + box["roughness"] == pytest.approx(1.0 / 3.0, abs=1e-3)
+
+
 def test_block_profile():
     f = _comb(400, seed=1)
     assert rs.block_masses(f, 50).sum() == pytest.approx(1.0)
@@ -111,6 +121,9 @@ def test_shift_rolls_blocks_and_other_kinds():
     uni = perturb.apply(f, {"kind": "uniform", "scale": 1e-8}, seed=1)
     assert np.all(uni > 0) and np.abs(uni - f).max() <= 1e-8 * f.max()
     assert np.array_equal(perturb.apply_all(f, (), 3), f)
+    sg = perturb.apply(f, {"kind": "sqrt_gauss", "sigma": 0.05}, seed=1)
+    assert np.array_equal(sg == 0, f == 0) and not np.allclose(sg, f)          # zero cells stay zero
+    assert np.abs(np.sqrt(sg) - np.sqrt(f)).max() < 0.05 * 6 * np.sqrt(f[f > 0].mean())
     g = np.array([0.0, 0.0, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.0, 1.0])
     assert np.allclose(perturb.apply(g, {"kind": "dilate", "radius": 1, "t": 0.5}, 0),
                        [0.0, 0.0, 1.0, 2.0, 4.0, 2.0, 0.0, 0.0, 0.5, 1.0])
@@ -164,11 +177,16 @@ def test_plans_build_and_estimate():
     assert [(b.name, b.start) for b in both] == [("e3b-edge-frozen", "frozen"), ("e3b-edge-live", "live")]
     assert both[1].rows[1].pre == ({"kind": "dilate", "radius": 1, "t": 1e-6},)
     deep = pl.build("vdeep", "live", 3000)[0]
-    assert deep.name == "e2b-v2-live" and deep.level_evals == (3000, 6000) and len(deep.rows) == 16
+    assert deep.name == "e2b-v2-live" and deep.level_evals == (3000, 3000) and len(deep.rows) == 16
+    assert pl.BatchSpec.from_dict(json.loads(json.dumps(deep.to_dict()))) == deep
     row = next(r for r in deep.rows if r.name == "phase-c3-f5")
     assert row.pre == ({"kind": "roll", "by": 1},)
     assert pl.stages(deep, row, 0)[0].beta == 1e3 and pl.stages(deep, row, 1)[0].beta == 1e5
-    assert pl.stages(deep, row, 1)[-1].beta == 1e11 and sch.total_evals(pl.stages(deep, row, 1)) == 6000
+    assert pl.stages(deep, row, 1)[-1].beta == 1e11 and sch.total_evals(pl.stages(deep, row, 1)) == 3000
+    kick = next(r for r in deep.rows if r.name == "advised-kick-s2")
+    assert kick.coarse == ({"kind": "sqrt_gauss", "sigma": 0.05},) and kick.post[0]["sigma"] == 0.03
+    assert [(s.beta, s.evals) for s in pl.stages(deep, kick, 1)] == [(1e7, 300), (1e8, 600), (1e9, 900), (1e10, 1200)]
+    assert pl.stages(deep, kick, 0)[0].beta == 1e3 and pl.stages(deep, kick, 0)[-1].beta == 1e9
     padded = rs.pad_right(_comb(95), 96)
     assert rs.closed_form_score(perturb.apply(padded, {"kind": "roll", "by": 1}, 0)) == pytest.approx(
         rs.closed_form_score(padded), abs=1e-13)

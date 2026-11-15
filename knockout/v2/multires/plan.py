@@ -44,18 +44,22 @@ class RowSpec:
     per_decade: float = 3.0
     polish_share: float = 0.25
     hypothesis: str = ""
+    coarse: tuple = ()                # perturbations of the pooled vector, before level 0
+    fine_stages: tuple = ()           # explicit (beta, share of the evaluations) stages after an upsampling
 
     def to_dict(self) -> dict:
         d = asdict(self)
-        d["pre"] = [dict(p) for p in self.pre]
-        d["post"] = [dict(p) for p in self.post]
+        for key in ("pre", "post", "coarse"):
+            d[key] = [dict(p) for p in getattr(self, key)]
+        d["fine_stages"] = [list(s) for s in self.fine_stages]
         return d
 
     @staticmethod
     def from_dict(d: dict) -> "RowSpec":
         d = dict(d)
-        d["pre"] = tuple(dict(p) for p in d.get("pre", ()))
-        d["post"] = tuple(dict(p) for p in d.get("post", ()))
+        for key in ("pre", "post", "coarse"):
+            d[key] = tuple(dict(p) for p in d.get(key, ()))
+        d["fine_stages"] = tuple((float(b), float(s)) for b, s in d.get("fine_stages", ()))
         return RowSpec(**d)
 
 
@@ -118,6 +122,11 @@ def stages(batch: BatchSpec, row: RowSpec, level: int) -> tuple:
     the polish-only control."""
     evals = batch.level_evals[level]
     last = level == len(batch.level_evals) - 1
+    if level > 0 and row.fine_stages:
+        total = sum(share for _, share in row.fine_stages)
+        counts = [max(1, int(evals * share / total)) for _, share in row.fine_stages]
+        counts[-1] += evals - sum(counts)
+        return tuple(sch.Stage(float(b), c) for (b, _), c in zip(row.fine_stages, counts))
     beta0 = row.beta0_up if level > 0 and row.beta0_up else row.beta0
     if not last:
         return sch.anneal(beta0, row.beta1, row.per_decade, evals)
@@ -279,9 +288,15 @@ def plan_vdeep(start: str, evals: int, pools=(2,)) -> list[BatchSpec]:
     """E2b, thorough V-cycles, set after E1: at a coarse level a cooling from beta = 1e3 ends far above one from
     1e5 (pool 2: 0.96354 against 0.96239), and at 2,000,000 cells a cooling from 1e4 or higher loses little
     (knockout/v2/gpu: -1.3e-6 from 1e4, -7e-8 from 1e5 on the incumbent). So each row cools from a low beta at the
-    coarse level and from a higher one after every upsampling; the finest level gets twice the evaluations.
-    Rows also vary the pooling phase (the start rolled by one cell, which is score-neutral: the padded last cell
-    is zero), the cooling speed, and a log-normal noise after the upsampling."""
+    coarse level and from a higher one after every upsampling. Rows also vary the pooling phase (the start rolled
+    by pool / 2 cells, which is score-neutral: the padded last cell is zero), the cooling speed, and a log-normal
+    noise after the upsampling.
+
+    Five rows follow the recipe a second model proposed to the team (unverified advice, relayed by the
+    coordinator): kick the coarse vector in square-root coordinates (sigma 0.05), optimize it, repeat, kick on the
+    fine grid (sigma 0.03), then a fine schedule beta = 1e7, 1e8, 1e9, 1e10 with 10 / 20 / 30 / 40 % of the
+    evaluations. One row uses that fine schedule without any kick."""
+    advised = ((1e7, 0.1), (1e8, 0.2), (1e9, 0.3), (1e10, 0.4))
     out = []
     for pool in pools:
         ups = _doublings(pool)
@@ -298,19 +313,25 @@ def plan_vdeep(start: str, evals: int, pools=(2,)) -> list[BatchSpec]:
             for f0 in (1e4, 1e5, 1e6):
                 add("plain", c0, f0)
         add("plain", 1e1, 1e4)
-        add("plain", 1e1, 1e5)
         roll = ({"kind": "roll", "by": pool // 2},)
-        for c0 in (1e2, 1e3):
-            for f0 in (1e4, 1e5):
-                add("phase", c0, f0, pre=roll, note=f"; pooling phase shifted by {pool // 2} cell(s)")
-        for seed in (1, 2):
-            add(f"ln0.1-s{seed}", 1e3, 1e4, seed=seed, post=({"kind": "lognormal", "sigma": 0.1},),
-                note=f"; log-normal noise of width 0.1 after every upsampling (seed {seed})")
+        for f0 in (1e4, 1e5):
+            add("phase", 1e3, f0, pre=roll, note=f"; pooling phase shifted by {pool // 2} cell(s)")
+        add("ln0.1-s1", 1e3, 1e4, seed=1, post=({"kind": "lognormal", "sigma": 0.1},),
+            note="; log-normal noise of width 0.1 after every upsampling (seed 1)")
         add("slow", 1e3, 1e4, per_decade=6.0, note="; 6 stages per decade")
-        add("slow", 1e3, 1e5, per_decade=6.0, note="; 6 stages per decade")
+        rows.append(_row("advised-fine-c3", beta0=1e3, fine_stages=advised,
+                         hypothesis=f"{what}: cooling from beta = 1e3 at the coarsest level, then the advised "
+                                    f"fine schedule (beta 1e7 to 1e10, growing stages), no kick"))
+        for seed in (1, 2, 3, 4):
+            rows.append(_row(f"advised-kick-s{seed}", seed, beta0=1e3, fine_stages=advised,
+                             coarse=({"kind": "sqrt_gauss", "sigma": 0.05},),
+                             post=({"kind": "sqrt_gauss", "sigma": 0.03},),
+                             hypothesis=f"{what}, advised recipe: Gaussian kick in square-root coordinates on "
+                                        f"the coarse vector (sigma 0.05, seed {seed}), cooling from beta = 1e3, "
+                                        f"repeat, kick on the fine grid (sigma 0.03), advised fine schedule"))
         tag = start.replace("vol:", "").replace("/", "_").replace(".npy", "")[-24:]
-        out.append(BatchSpec(f"e2b-v{pool}-{tag}", "E2b", start, pool, ups,
-                             (evals,) * len(ups) + (2 * evals,), tuple(rows)))
+        out.append(BatchSpec(f"e2b-v{pool}-{tag}", "E2b", start, pool, ups, (evals,) * (len(ups) + 1),
+                             tuple(rows)))
     return out
 
 
@@ -318,28 +339,30 @@ def plan_grow(start: str, evals: int, pools=(1, 2, 4)) -> list[BatchSpec]:
     """E3c, gradient-guided support growth, in cycles at full resolution. Level 0 polishes at beta = 1e9; then,
     three times: compute the gain d log C_beta / d f_i of every zero cell at the current point, open the zero
     cells within `radius` cells of the support whose gain is positive (at t times the neighbouring value), and
-    polish again. This is the active-set step that a chain with f = w^2 cannot take; unlike the blind opening of
-    E3b it adds mass only where the smoothed objective says it helps. The last level polishes up to 1e11."""
+    cool again from the beta at which the gain was taken. This is the active-set step that a chain with f = w^2
+    cannot take; unlike the blind opening of E3b it adds mass only where the smoothed objective says it helps.
+    Measured on CPU on solution 2782: the gain must be taken at beta <= 1e7 (at 1e8 and above every edge cell
+    has a positive gain, because the smoothed maximum then follows a handful of lags, and opening them all costs
+    as much as the blind opening); at beta = 1e6 it selects 9,550 of the 32,499 cells next to the support, and
+    opening them at t = 1e-4 costs 8e-7 where the blind opening costs 1.3e-4."""
     rows = [_row("control", beta0=1e9, beta1=1e9, hypothesis="control: the same four polish levels, no opening")]
 
-    def add(radius, t, up=1e9, top=1.0):
-        tag = (f"grow{radius}-t{t:g}" + (f"-top{top:g}" if top < 1 else "")
-               + (f"-b{int(round(math.log10(up)))}" if up < 1e9 else ""))
-        how = "polish at beta = 1e9" if up >= 1e9 else f"cooling from beta = {up:.0e}"
-        rows.append(_row(tag, post=({"kind": "grow", "radius": radius, "t": t, "top": top},), beta0=1e9,
-                         beta0_up=up, hypothesis=f"support growth: zero cells within {radius} cells of the "
-                                                 f"support with a positive gain ({top:.0%} of them) open at "
-                                                 f"{t:g} of the neighbouring value, then {how}; three cycles"))
+    def add(radius, t, at):
+        tag = f"grow{radius}-t{t:g}-g{int(round(math.log10(at)))}"
+        rows.append(_row(tag, post=({"kind": "grow", "radius": radius, "t": t, "beta": at},), beta0=1e9,
+                         beta0_up=at, hypothesis=f"support growth: zero cells within {radius} cells of the "
+                                                 f"support with a positive gain at beta = {at:.0e} open at "
+                                                 f"{t:g} of the neighbouring value, then cooling from that "
+                                                 f"beta; three cycles"))
 
-    for radius in pools:
-        for t in (1e-3, 1e-2, 1e-1):
-            add(radius, t)
+    for at in (1e6, 1e7):
+        for radius in pools:
+            for t in (1e-5, 1e-4):
+                add(radius, t, at)
     mid = pools[min(1, len(pools) - 1)]
-    for t in (1e-3, 1e-2, 1e-1):
-        add(mid, t, up=1e7)
-    add(2 * pools[-1], 1e-2)
-    add(mid, 1e-2, top=0.1)
-    add(mid, 1.0)
+    add(mid, 1e-3, 1e6)
+    add(mid, 1e-3, 1e7)
+    add(mid, 1e-4, 1e5)
     tag = start.replace("vol:", "").replace("/", "_").replace(".npy", "")[-24:]
     return [BatchSpec(f"e3c-grow-{tag}", "E3c", start, 1, (1, 1, 1), (evals,) * 4, tuple(rows[:16]))]
 

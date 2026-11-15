@@ -2,6 +2,9 @@
 row is the same on any device. A perturbation is a dict {"kind": ..., parameters}:
 
     {"kind": "lognormal", "sigma": s}                    f_i <- f_i exp(s N(0, 1)); keeps the support
+    {"kind": "sqrt_gauss", "sigma": s}                   additive Gaussian kick in square-root coordinates on the
+                                                         support: w_i <- w_i + s rms(w) N(0, 1), f = w^2; zero
+                                                         cells stay zero (the empty band stays empty)
     {"kind": "uniform", "scale": a}                      f_i <- f_i + U(0, a max f): every cell opens
     {"kind": "blend", "block": k, "t": t}                f <- (1 - t) f + t smooth_blocks(f, k): partial V-cycle,
                                                          block masses kept exactly, no random draw
@@ -28,7 +31,8 @@ import numpy as np
 
 from knockout.v2.multires.resample import pad_to_multiple, smooth_blocks
 
-KINDS = ("lognormal", "uniform", "blend", "dilate", "grow", "roll", "shuffle", "shift", "resample", "redraw")
+KINDS = ("lognormal", "sqrt_gauss", "uniform", "blend", "dilate", "grow", "roll", "shuffle", "shift", "resample",
+         "redraw")
 
 
 def local_max(f: np.ndarray, radius: int) -> np.ndarray:
@@ -95,6 +99,12 @@ def apply(f: np.ndarray, spec: dict, seed: int, gain: np.ndarray | None = None) 
         if not 0.0 <= t <= 1.0:
             raise ValueError("blend needs 0 <= t <= 1")
         return (1.0 - t) * f + t * smooth_blocks(f, int(spec["block"]))
+    if kind == "sqrt_gauss":
+        w = np.sqrt(f)
+        live = f > 0.0
+        rms = float(np.sqrt(f[live].mean())) if live.any() else 0.0
+        w[live] += float(spec["sigma"]) * rms * rng.standard_normal(int(live.sum()))
+        return w * w
     if kind == "roll":
         return np.roll(f, int(spec["by"]))
     if kind == "dilate":

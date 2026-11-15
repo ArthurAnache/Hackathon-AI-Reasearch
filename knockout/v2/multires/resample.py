@@ -70,6 +70,23 @@ def closed_form_score(f: np.ndarray) -> float:
     return float(exact_score(np, f[None, :], fft_length(f.size))[0])
 
 
+def loss_terms(f: np.ndarray) -> dict:
+    """1 - C split exactly in two terms. With z = c / max c (c the autoconvolution, z = 0 beyond both ends):
+
+        1 - C = [ sum_k z_k (1 - z_k)  +  (1/6) sum_k (z_{k+1} - z_k)^2 ] / sum_k z_k
+
+    "plateau" is the first term (lags below the maximum), "roughness" the second (steps between neighbouring
+    lags, the two end steps included)."""
+    f = np.asarray(f, dtype=np.float64)
+    n, m = f.size, fft_length(f.size)
+    spec = np.fft.rfft(f, m)
+    c = np.fft.irfft(spec * spec, m)[: 2 * n - 1]
+    z = c / c.max()
+    dz = np.diff(np.concatenate(([0.0], z, [0.0])))
+    total = z.sum()
+    return {"plateau": float((z * (1.0 - z)).sum() / total), "roughness": float((dz * dz).sum() / (6.0 * total))}
+
+
 def repeat_invariance_gap(f: np.ndarray, k: int) -> float:
     """|score(repeat(f, k)) - score(f)| in closed form; the driver asserts it is at rounding level."""
     return abs(closed_form_score(repeat_upsample(f, k)) - closed_form_score(f))

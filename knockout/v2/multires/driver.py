@@ -23,12 +23,13 @@ REPEAT_TOL = 1e-11        # |score(repeat(f, k)) - score(f)| allowed on the devi
 
 
 def level_start(batch: pl.BatchSpec, start: np.ndarray) -> np.ndarray:
-    """Rows of level 0 (B, pad_to / pool): the start zero-padded, perturbed per row (`pre`), then sum-pooled."""
+    """Rows of level 0 (B, pad_to / pool): the start zero-padded, perturbed per row (`pre`), sum-pooled, then
+    perturbed on the coarse grid (`coarse`)."""
     from knockout.v2.multires.resample import pad_right, sum_pool
 
     base = pad_right(np.maximum(np.asarray(start, dtype=np.float64), 0.0), batch.pad_to)
-    rows = [perturb.apply_all(base, r.pre, r.seed) for r in batch.rows]
-    return np.stack([sum_pool(r, batch.pool) for r in rows])
+    rows = [sum_pool(perturb.apply_all(base, r.pre, r.seed), batch.pool) for r in batch.rows]
+    return np.stack([perturb.apply_all(row, r.coarse, r.seed + 500) for row, r in zip(rows, batch.rows)])
 
 
 def next_level(batch: pl.BatchSpec, level: int, f_end: np.ndarray, gain: np.ndarray | None = None) -> np.ndarray:
@@ -119,8 +120,10 @@ def run_ladder(xp, batch: pl.BatchSpec, f0: np.ndarray, *, to_xp, to_np, history
             del coarse, fine
             gain = None
             if any(perturb.needs_gain(r.post) for r in batch.rows):
-                betas = to_xp(np.array([[pl.stages(batch, r, level)[-1].beta] for r in batch.rows]))
-                gain = to_np(support_gain(xp, f_end_x, betas, m))
+                # the gain is taken at the beta the "grow" perturbation names (default: the row's last beta)
+                betas = [next((s["beta"] for s in r.post if s["kind"] == "grow" and s.get("beta")),
+                              pl.stages(batch, r, level)[-1].beta) for r in batch.rows]
+                gain = to_np(support_gain(xp, f_end_x, to_xp(np.array(betas, dtype=np.float64)[:, None]), m))
             del f_end_x
             f = next_level(batch, level, f_end, gain)
     return {"levels": infos, "stopped_early": stopped, "f": f}

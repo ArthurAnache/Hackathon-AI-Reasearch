@@ -25,7 +25,7 @@ from knockout.v2.gpu import schedule as sch
 from knockout.v2.gpu.worker import PROBLEM_URL, _env, _start_path, score_in_subprocess
 from knockout.v2.multires import driver, perturb
 from knockout.v2.multires import plan as pl
-from knockout.v2.multires.resample import profile_l1
+from knockout.v2.multires.resample import loss_terms, profile_l1
 
 EVIDENCE = [PROBLEM_URL, "https://github.com/justinkang221/second-autocorrelation-inequality",
             "https://arxiv.org/abs/2508.02803", "https://arxiv.org/abs/2506.16750"]
@@ -144,10 +144,13 @@ def run_job(vol: Path, spec: dict, commit=lambda: None, xp=None, to_xp=None, to_
                          sch.experiment_id(run_id, chains[i].name, f"L{level - 1}")}
                 for key in ("accepted", "rejected", "restarts"):
                     extra[key] = info[key][i] if info.get(key) is not None else None
-                if res["n"] == batch.pad_to and res["valid"]:      # the envelope, against both reference solutions
+                if res["valid"]:
                     sol = np.load(item["path"])
-                    for name, ref in refs.items():
-                        extra[f"profile_l1_{PROFILE_BLOCK}_vs_{name}"] = profile_l1(sol, ref, PROFILE_BLOCK)
+                    terms = loss_terms(sol)                        # 1 - score = plateau + roughness (exact)
+                    extra["loss_plateau"], extra["loss_roughness"] = terms["plateau"], terms["roughness"]
+                    if res["n"] == batch.pad_to:                   # the envelope, against both reference solutions
+                        for name, ref in refs.items():
+                            extra[f"profile_l1_{PROFILE_BLOCK}_vs_{name}"] = profile_l1(sol, ref, PROFILE_BLOCK)
                 rec = sch.make_record(
                     run_id=run_id, chain=chains[i], step=f"L{level}", score=res["score"], valid=res["valid"],
                     gpu_objective=info["smooth"][i], gpu_exact=info["exact"][i], start_score=start_score,
