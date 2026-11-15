@@ -164,10 +164,12 @@ class RunMemory:
         if ck in self._cache:
             return self._cache[ck]
         q1 = f"[scope {self.scope}] {self.slug} {query_hint}".strip()[:500]
-        q2 = f"[scope {self.scope}] refuted ideas and failed edits for {self.slug}"
+        q2 = (f"[scope {self.scope}] refuted ideas, failed batch: edits and children that did not gain, "
+              f"for {self.slug}")
         ident = self.identity(arm)
         r1 = self._retry("recall", lambda: self.store.recall(q1, ident, self.recall_k, self.since))[1] or []
-        r2 = self._retry("recall", lambda: self.store.recall(q2, ident, self.recall_k, self.since))[1] or []
+        # twice the candidates for the "do not retry" query: refuted ideas and failed edits must not be crowded out
+        r2 = self._retry("recall", lambda: self.store.recall(q2, ident, 2 * self.recall_k, self.since))[1] or []
         r2 = [f for f in r2 if (f.get("metadata") or {}).get("kind") in ("refuted", "failed_batch")]
         facts = self._filter(r1 + r2, set(visible_ids))
         block = self._render(facts)
@@ -209,33 +211,50 @@ class RunMemory:
             out.append(f)
         return out
 
+    LINE_MAX = 200
+    MAX_WINS = 3
+    MAX_LESSONS = 2
+
     def _render(self, facts: list[dict]) -> str:
+        """Refuted ideas and failed edits first (alternating, so neither crowds out the other), then at most 3 past
+        wins and 2 lessons. One compact line per fact; the block stops before `max_chars`."""
         if not facts:
             return ""
 
+        def kind(f):
+            return (f.get("metadata") or {}).get("kind")
+
         def line(f) -> str:
             m = f.get("metadata") or {}
-            ts = str(m.get("timestamp") or f.get("timestamp") or "")[:16].replace("T", " ")
-            who = m.get("author") or f.get("author") or "?"
-            head = m.get("headline") or f.get("content", "").split("\n")[0]
+            ts = str(m.get("timestamp") or "")[:10]
+            who = str(m.get("author") or f.get("author") or "?").split("@")[0]
+            run = str(m.get("run_id") or "?")[:16]
+            head = " ".join(str(m.get("headline") or f.get("content", "").split("\n")[0]).split())
+            head = head.replace(f"[scope {self.scope}] ", "")
             gain = m.get("gain")
-            g = f" (gain {gain:+.2e})" if isinstance(gain, (int, float)) else ""
-            when = f"{ts}, " if ts else ""
-            return f"- [{when}{who}, run {m.get('run_id', '?')}] {head}{g}"
+            g = f" (gain {gain:+.2e})" if isinstance(gain, (int, float)) and gain != 0 else ""
+            text = f"- [{ts + ', ' if ts else ''}{who}, run {run}] {head}"
+            room = self.LINE_MAX - len(g)
+            return (text if len(text) <= room else text[: room - 1] + "…") + g
 
+        refuted = [f for f in facts if kind(f) == "refuted"]
+        failed = [f for f in facts if kind(f) == "failed_batch"]
+        tried = [x for pair in zip(refuted, failed) for x in pair] + refuted[len(failed):] + failed[len(refuted):]
         groups = [("Already tried and refuted — do not propose these again unless you change the idea materially:",
-                   [f for f in facts if (f.get("metadata") or {}).get("kind") in ("refuted", "failed_batch")]),
-                  ("Past wins on this problem:", [f for f in facts if (f.get("metadata") or {}).get("kind") == "win"]),
-                  ("Lessons from earlier runs:",
-                   [f for f in facts if (f.get("metadata") or {}).get("kind") in ("lesson", "loop")])]
+                   tried),
+                  ("Past wins on this problem:", [f for f in facts if kind(f) == "win"][: self.MAX_WINS]),
+                  ("Lessons from earlier runs:", [f for f in facts if kind(f) in ("lesson", "loop")][: self.MAX_LESSONS])]
         out = [HEADER]
         for title, fs in groups:
             if not fs:
                 continue
-            lines = [title] + [line(f) for f in fs]
-            for ln in lines:
+            if len("\n".join(out + [title, line(fs[0])])) > self.max_chars:
+                break
+            out.append(title)
+            for f in fs:
+                ln = line(f)
                 if len("\n".join(out + [ln])) > self.max_chars:
-                    return "\n".join(out)
+                    break
                 out.append(ln)
         return "\n".join(out) if len(out) > 1 else ""
 

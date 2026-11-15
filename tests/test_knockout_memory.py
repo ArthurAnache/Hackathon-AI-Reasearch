@@ -21,6 +21,12 @@ ROOT = Path(__file__).resolve().parent.parent
 SLUG = "toy-circles-26"
 
 
+@pytest.fixture(autouse=True)
+def _offline(monkeypatch):
+    """Tests never reach past.dev, even when PAST_API_KEY is set in .env: the store is always the local one."""
+    monkeypatch.setattr("knockout.pastdev.api_key", lambda: "")
+
+
 def _ctx(tmp_path, run_id="runA", slug=SLUG, **mem):
     st = Strategy({"memory": {"enabled": True, "recall_k": 8, "max_chars": 2500, "timeout_s": 1,
                               "write_failed_batches": True, "agent_name": "tester", **mem}})
@@ -148,6 +154,23 @@ def test_block_is_capped(tmp_path):
     assert 0 < len(block) <= 400
 
 
+def test_many_small_wins_do_not_crowd_out_refuted_ideas_or_failed_edits(tmp_path):
+    a = _ctx(tmp_path, "runA", recall_k=8)
+    m = RunMemory(a)
+    for i in range(30):
+        m.write_fact("win", f"refine variant {i}: a tiny polish gain", "x" * 400, arm="main", gain=1e-11 * (i + 1))
+    for i in range(3):
+        m.write_fact("refuted", f"refuted idea {i} about epigraph constraints", arm="main")
+        m.write_fact("failed_batch", f"Batch {i}: 6 edits did not beat their parent", arm="main")
+    m.close()
+    block = RunMemory(_ctx(tmp_path, "runB", recall_k=8)).recall_block("main", 0, "refine polish")
+    tried = block.split("Already tried and refuted", 1)[1].split("Past wins", 1)[0]
+    assert tried.count("refuted idea") == 3 and tried.count("did not beat their parent") == 3
+    wins = block.split("Past wins on this problem:", 1)[1] if "Past wins" in block else ""
+    assert wins.count("refine variant") <= 3
+    assert all(len(x) <= 200 for x in block.splitlines()[1:]) and len(block) <= 2500
+
+
 class _BrokenStore:
     name = "broken"
 
@@ -217,14 +240,21 @@ def two_runs(tmp_path_factory):
         def __init__(self, ctx):
             super().__init__(ctx, client=client)
 
+    import knockout.pastdev as pastdev
+    real_key, pastdev.api_key = pastdev.api_key, (lambda: "")     # module-scoped: the autouse patch is not active yet
     real_make, run_module.make_editor = run_module.make_editor, (lambda ctx: Editor(ctx))
     try:
         s1 = run("toy", runs_root=tmp, run_id="run1", overrides=overrides, on_round=lambda *_: None)
         split = len(prompts)
         s2 = run("toy", runs_root=tmp, run_id="run2", overrides=overrides, on_round=lambda *_: None)
     finally:
-        run_module.make_editor, knockout.meta.scout = real_make, real_scout
+        run_module.make_editor, knockout.meta.scout, pastdev.api_key = real_make, real_scout, real_key
     return tmp, s1, s2, (prompts[:split], prompts[split:])
+
+
+def test_tests_use_the_local_store(two_runs):
+    tmp, s1, s2, _ = two_runs
+    assert s1["memory"]["store"] == s2["memory"]["store"] == "local"
 
 
 def test_run2_recalls_facts_written_by_run1_and_replays(two_runs):

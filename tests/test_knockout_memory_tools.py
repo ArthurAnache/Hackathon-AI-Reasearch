@@ -32,13 +32,14 @@ def test_backfill_is_deterministic_and_refutes_gene_and_operator(tmp_path: Path)
     assert any(f["metadata"]["operator"] == "fresh" for f in refuted)
 
 
-def test_push_without_memory_client_exits_two_with_guidance(tmp_path: Path) -> None:
+def test_push_without_memory_client_exits_two_with_guidance(tmp_path: Path, monkeypatch, capsys) -> None:
+    # Since the merge with feature/ws2-pastdev-memory the client exists, so its absence is simulated in-process
+    # (a subprocess would now really push, and must never reach past.dev from a test).
     facts_path = tmp_path / "facts.jsonl"
     facts_path.write_text("", encoding="utf-8")
-    proc = subprocess.run([sys.executable, "-m", "knockout.memory_backfill", "--push", str(facts_path)],
-                          cwd=ROOT, text=True, capture_output=True, check=False)
-    assert proc.returncode == 2
-    assert "run --push after merging feature/ws2-pastdev-memory" in proc.stderr
+    monkeypatch.setitem(sys.modules, "knockout.pastdev", None)
+    assert push_facts(facts_path) == 2
+    assert "run --push after merging feature/ws2-pastdev-memory" in capsys.readouterr().err
 
 
 def test_push_uses_agent_one_store_signature_and_metadata(tmp_path: Path, monkeypatch) -> None:
