@@ -1,0 +1,53 @@
+{
+ "2783_vs_2782": {
+  "relative_l1": 0.22514645138476458,
+  "support_old": 485079,
+  "support_new": 482716,
+  "support_common": 459525,
+  "born_cells": 23191,
+  "born_mass_share": 0.007726692916214919,
+  "dead_cells": 25554,
+  "dead_mass_share": 0.00703875518287732,
+  "autoconvolution_relative_l1": 0.001914013796443171,
+  "lags_within_1e-7_of_max": {
+   "old": 384530,
+   "new": 373674,
+   "common": 275390
+  },
+  "profile_l1_1000": 0.008556888735046644
+ },
+ "vcycle_vs_2782": {
+  "relative_l1": 0.18005037439782953,
+  "support_old": 485079,
+  "support_new": 505492,
+  "support_common": 485079,
+  "born_cells": 20413,
+  "born_mass_share": 0.011124092657798785,
+  "dead_cells": 0,
+  "dead_mass_share": 0.0,
+  "autoconvolution_relative_l1": 0.0012818452111059654,
+  "lags_within_1e-7_of_max": {
+   "old": 384530,
+   "new": 213685,
+   "common": 183003
+  },
+  "profile_l1_1000": 0.0028879840428487936
+ },
+ "vcycle_vs_2783": {
+  "relative_l1": 0.2465609895219668,
+  "support_old": 482716,
+  "support_new": 505492,
+  "support_common": 468391,
+  "born_cells": 37101,
+  "born_mass_share": 0.017558884822666883,
+  "dead_cells": 14325,
+  "dead_mass_share": 0.003912015698427312,
+  "autoconvolution_relative_l1": 0.0020399728011167035,
+  "lags_within_1e-7_of_max": {
+   "old": 373674,
+   "new": 213685,
+   "common": 166306
+  },
+  "profile_l1_1000": 0.0069988454067481335
+ }
+}

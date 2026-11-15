@@ -135,7 +135,34 @@ def loss_table(out_path: str, named_paths: list[str]) -> list[dict]:
     return out
 
 
+LINE_T = (-0.3, -0.1, -0.05, -0.02, -0.01, -0.005, 0.0, 0.005, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.97,
+          0.99, 1.0, 1.005, 1.01, 1.02, 1.05, 1.1)
+
+
+def line_scan(out_path: str, path_a: str, path_b: str, ts=LINE_T) -> list[dict]:
+    """The exact score, before any optimization, along the line from solution a (t = 0) to solution b (t = 1),
+    masses normalized and negative cells clipped (the "mix" perturbation). Both are .npy files."""
+    a, b = np.load(path_a), np.load(path_b)
+    n = max(a.size, b.size)
+    a, b = rs.pad_right(a, n), rs.pad_right(b, n)
+    a, b = a / a.sum(), b / b.sum()
+    sa, sb = rs.closed_form_score(a), rs.closed_form_score(b)
+    out = []
+    for t in ts:
+        s = rs.closed_form_score(np.maximum(0.0, (1.0 - t) * a + t * b))
+        out.append({"t": t, "score": s, "minus_a": s - sa, "minus_b": s - sb})
+    with open(out_path, "w") as fh:
+        json.dump({"a": path_a.rsplit("/", 1)[-1], "b": path_b.rsplit("/", 1)[-1], "score_a": sa, "score_b": sb,
+                   "relative_l1": float(np.abs(a - b).sum()), "profile_l1_1000": rs.profile_l1(a, b, 1000),
+                   "line": out}, fh, indent=1)
+    return out
+
+
 if __name__ == "__main__":
+    if sys.argv[1] == "--line":
+        for row in line_scan(sys.argv[2], sys.argv[3], sys.argv[4]):
+            print(f"t {row['t']:+.3f} score {row['score']:.9f} vs a {row['minus_a']:+.3e} vs b {row['minus_b']:+.3e}")
+        raise SystemExit(0)
     if sys.argv[1] == "--loss":
         for row in loss_table(sys.argv[2], sys.argv[3:]):
             print(f"{row['solution']:<42} n {row['n']:<8} score {row['score']:.9f} plateau {row['plateau']:.6f} "
