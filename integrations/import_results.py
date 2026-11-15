@@ -13,7 +13,9 @@ turn a kept config into a hint, exactly as for live runs.
 
 Guarantees:
 - Idempotent: each fact gets a stable id derived from (git_commit, variant,
-  experiment_id, timestamp). Re-importing replaces instead of duplicating.
+  experiment_id, timestamp). Re-importing replaces instead of duplicating. An import
+  under a --scope other than the default adds that scope to the id, so it creates its
+  own facts and never moves the ones of the default scope.
 - Namespaced: experiment ids are stored as "<variant>/<experiment_id>", so two
   workers that both produced exp_0000 do not collide.
 - Machine-specific warm-start paths (config INIT, solution_path) are not used as hints.
@@ -48,10 +50,14 @@ def load_records(path: str = None, git_ref: str = None, git_path: str = None) ->
     return [json.loads(l) for l in text.splitlines() if l.strip()]
 
 
-def fact_for(r: Dict, source: str, author: str):
+def fact_for(r: Dict, source: str, author: str, scope_key: str = None):
+    """scope_key: set when the import goes to a scope other than the file's default one,
+    so the same records under two scopes are two facts (a second scope never moves the first)."""
     variant = r.get("variant") or "default"
     eid = "%s/%s" % (variant, r.get("experiment_id"))
     key = "|".join(str(r.get(k)) for k in ("git_commit", "variant", "experiment_id", "timestamp"))
+    if scope_key:
+        key += "|scope=" + scope_key
     fact_id = "import-" + hashlib.sha256(key.encode()).hexdigest()[:16]
     cfg = {k: v for k, v in (r.get("config") or {}).items() if k != INIT_KEY}
     # No braces in the text: FeedbackAgent's EvidenceHints parses the first {...} as a hint,
@@ -83,7 +89,8 @@ def main(argv=None) -> int:
 
     source = "%s:%s" % (a.git_ref, a.git_path) if a.git_ref else a.path
     records = load_records(a.path, a.git_ref, a.git_path)
-    scope = a.scope or "import-" + Path(a.git_path or a.path).stem[:40]
+    default_scope = "import-" + Path(a.git_path or a.path).stem[:40]
+    scope = a.scope or default_scope
     memory = None if a.dry_run else get_memory()
     if memory is not None:
         scope_start(scope)
@@ -92,7 +99,7 @@ def main(argv=None) -> int:
     for r in records:
         if r.get("status") == "void":
             continue
-        fact_id, text, meta = fact_for(r, source, a.author)
+        fact_id, text, meta = fact_for(r, source, a.author, None if scope == default_scope else scope)
         print("  %s  %s" % (fact_id, text[:150]))
         if memory is not None:
             memory.write(text, author=a.author, kind="experiment",

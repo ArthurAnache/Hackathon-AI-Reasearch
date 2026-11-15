@@ -31,8 +31,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ._common import (REPO_ROOT, STATE_DIR, AdapterError, KeyPool, append_jsonl, http_json,
-                      load_env, utc_now)
+from ._common import (REPO_ROOT, STATE_DIR, AdapterError, KeyPool, append_jsonl, atomic_write_text,
+                      file_lock, http_json, load_env, utc_now)
 
 LOG_PATH = Path(os.environ.get("PASTDEV_LOG_PATH", REPO_ROOT / "logs" / "pastdev_log.jsonl"))
 
@@ -169,14 +169,33 @@ class LocalMemory(Memory):
 
     def write(self, content, author, kind="note", label="", metadata=None, wait=True, scope=None,
               fact_id=None):
-        if fact_id and self.path.exists() and any(
-                json.loads(l).get("fact_id") == fact_id for l in self.path.read_text().splitlines() if l.strip()):
-            return fact_id                               # same id already stored: no duplicate
-        fact_id = fact_id or "%s-%s" % (kind, uuid.uuid4().hex[:10])
         meta = _meta(metadata, author, kind, scope)
-        append_jsonl(self.path, {"fact_id": fact_id, "content": content, "author": author,
-                                 "kind": kind, "label": label, "metadata": meta, "ts": utc_now()})
-        _log(tool="local.write", author=author, fact_id=fact_id, kind=kind, scope=scope, content=content[:300])
+        replaced = False
+        # One lock for appends and replaces: a replace rewrites the file, and an append
+        # landing between its read and its rename would be lost.
+        with file_lock(self.path):
+            rows = []
+            if fact_id and self.path.exists():
+                rows = [json.loads(l) for l in self.path.read_text().splitlines() if l.strip()]
+            for i, row in enumerate(rows):
+                if row.get("fact_id") != fact_id:
+                    continue
+                # same id: replace in place, as past.dev does (no duplicate)
+                fresh = dict(row, content=content, author=author, kind=kind, label=label, metadata=meta)
+                if fresh == row:
+                    return fact_id
+                # like past.dev, a rewritten fact is dated now (so `since` filters agree between backends)
+                rows[i] = dict(fresh, ts=utc_now(), first_ts=row.get("first_ts") or row.get("ts"))
+                atomic_write_text(self.path, "".join(
+                    json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in rows))
+                replaced = True
+                break
+            if not replaced:
+                fact_id = fact_id or "%s-%s" % (kind, uuid.uuid4().hex[:10])
+                append_jsonl(self.path, {"fact_id": fact_id, "content": content, "author": author,
+                                         "kind": kind, "label": label, "metadata": meta, "ts": utc_now()})
+        _log(tool="local.write", author=author, fact_id=fact_id, kind=kind, scope=scope, content=content[:300],
+             **({"replaced": True} if replaced else {}))
         return fact_id
 
     def read(self, query, reader, limit=10, scope=None, since=None):

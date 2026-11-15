@@ -6,6 +6,7 @@ Secrets are never written to any log: keys appear only as their labels.
 """
 from __future__ import annotations
 
+import contextlib
 import http.client
 import json
 import os
@@ -44,6 +45,45 @@ def append_jsonl(path: Path, entry: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a") as f:
         f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+
+
+try:
+    import fcntl
+except ImportError:                      # not POSIX: no advisory lock, single writer assumed
+    fcntl = None
+
+
+@contextlib.contextmanager
+def file_lock(path: Path):
+    """Exclusive lock for one read-modify-write of `path`, shared by every process
+    that writes it (advisory flock on "<path>.lock"). Not reentrant: never nest it
+    for the same path."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path.with_name(path.name + ".lock"), "a") as f:
+        if fcntl is not None:
+            fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Write through a unique temp file in the same directory, then rename over `path`."""
+    import tempfile
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
 
 
 def read_json(path: Path, default):
