@@ -27,15 +27,17 @@ def rows(root: Path) -> list[dict]:
 
 
 def table(root: Path) -> str:
-    head = ("| Run | Chain | Start | beta start -> end (stages) | Floor | Evaluations | Deepest stage end vs start "
-            "| Final exact score | Final vs start | Final vs live #1 | Best seen vs start |\n"
-            "|---|---|---|---|---|---|---|---|---|---|---|\n")
+    head = ("| Run | Chain | Start | beta start -> end (stages) | Floor | Kick | Evaluations "
+            "| Lowest stage end vs start | Final exact score | Final vs start | Final vs live #1 "
+            "| Best seen vs start |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n")
     lines = []
     for r in rows(root):
         final = "n/a" if r["final_score"] is None else f"{r['final_score']:.16f}"
+        start = r["start"] if len(r["start"]) < 24 else "…" + r["start"][-22:]
         lines.append(
-            f"| `{r['run_id'][:16]}` | {r['chain']} | {r['start']} | {r['beta_start']:.0e} -> {r['beta_end']:.0e} "
-            f"({r['stages']}) | {r['floor']:g} | {r['evals']} | {_g(r['min_exact_seen_minus_start'])} | {final} "
+            f"| `{r['run_id'][:16]}` | {r['chain']} | {start} | {r['beta_start']:.0e} -> {r['beta_end']:.0e} "
+            f"({r['stages']}) | {r['floor']:g} | {r.get('jitter', 0.0):g} | {r['evals']} "
+            f"| {_g(r['min_exact_seen_minus_start'])} | {final} "
             f"| {_g(r['final_gain_over_start'])} | {_g(r['final_gain_over_live'])} "
             f"| {_g(r['best_gain_over_start'])} |")
     return head + "\n".join(lines)

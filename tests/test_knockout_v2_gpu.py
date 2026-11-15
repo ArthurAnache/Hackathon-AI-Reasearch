@@ -61,6 +61,11 @@ def test_plans_share_one_budget_and_roundtrip():
             for c in chains:
                 assert sch.ChainSpec.from_dict(c.to_dict()) == c
                 assert c.stages[-1].beta >= 1e9          # every chain ends sharp
+    kicks = sch.build_plan("kick16", "live", 6000)
+    assert len(kicks) == 16 and kicks[0].jitter == 0 and all(c.jitter > 0 for c in kicks[1:])
+    assert len({(c.jitter, c.seed, c.stages[0].beta, c.floor) for c in kicks}) == 16
+    with pytest.raises(ValueError):
+        sch.check_batch([sch.ChainSpec("a", "live", (sch.Stage(1e9, 5),), jitter=-0.1)])
     deep = {c.name: c for c in sch.build_plan("deep", "live", 6000)}
     assert deep["control"].stages[0].beta == 1e9 and deep["control"].floor == 0
     assert deep["b4-slow"].stages[0].beta == 1e4 and deep["b4-open"].floor > 0

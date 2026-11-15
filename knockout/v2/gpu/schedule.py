@@ -35,6 +35,7 @@ class ChainSpec:
     floor: float = 0.0              # added to f before the chain, in units of the start's mean non-zero value
     seed: int = 0
     hypothesis: str = ""
+    jitter: float = 0.0             # kick before the chain: f_i <- f_i * exp(jitter * N(0, 1)), drawn from `seed`
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -45,7 +46,8 @@ class ChainSpec:
     def from_dict(d: dict) -> "ChainSpec":
         stages = tuple(Stage(float(b), int(e)) for b, e in d["stages"])
         return ChainSpec(name=d["name"], start=d["start"], stages=stages, floor=float(d.get("floor", 0.0)),
-                         seed=int(d.get("seed", 0)), hypothesis=d.get("hypothesis", ""))
+                         seed=int(d.get("seed", 0)), hypothesis=d.get("hypothesis", ""),
+                         jitter=float(d.get("jitter", 0.0)))
 
 
 def geometric(beta_start: float, beta_end: float, n: int) -> list[float]:
@@ -108,8 +110,8 @@ def check_batch(chains: list[ChainSpec]) -> int:
     if len(set(names)) != len(names):
         raise ValueError("chain names must be distinct")
     for c in chains:
-        if c.floor < 0:
-            raise ValueError("floor must be >= 0")
+        if c.floor < 0 or c.jitter < 0:
+            raise ValueError("floor and jitter must be >= 0")
     return totals.pop()
 
 
@@ -262,7 +264,32 @@ def plan_deep16(start: str, evals: int) -> list[ChainSpec]:
     return chains
 
 
-PLANS = {"smoke": plan_smoke, "deep": plan_deep, "deep16": plan_deep16}
+def plan_kick16(start: str, evals: int) -> list[ChainSpec]:
+    """Stochastic reheat. Solutions 2782 and 2783 have the same envelope (mass per block of 1,024 cells within
+    1 %) and differ like weakly correlated cell-level noise (log-ratio quartiles 0.79 / 1.24). So: kick every
+    cell by a log-normal factor of width sigma, then cool slowly from a moderate beta. Several seeds per sigma
+    show the spread of the basins reached; a polish-only control shares the budget."""
+    chains = [ChainSpec("control", start, anneal(1e9, 1e11, 2, evals),
+                        hypothesis="control: no kick, polish from beta = 1e9 to 1e11 with the same budget")]
+
+    def kick(sigma, b0, seed, floor=0.0):
+        tag = f"k{sigma:g}-b{int(round(math.log10(b0)))}-s{seed}" + ("-open3" if floor else "")
+        opened = f", zero cells opened (floor {floor:g})" if floor else ""
+        return ChainSpec(tag, start, _with_polish(b0, 1e9, 3, evals, 0.25), floor=floor, seed=seed, jitter=sigma,
+                         hypothesis=f"log-normal cell kick of width {sigma:g} (seed {seed}){opened}, then one "
+                                    f"slow cooling from beta = {b0:.0e} to 1e9 and a polish to 1e11")
+
+    chains += [kick(0.03, 1e5, 1)]
+    chains += [kick(0.1, 1e5, s) for s in (1, 2, 3)]
+    chains += [kick(0.3, 1e5, s) for s in (1, 2, 3)]
+    chains += [kick(1.0, 1e5, s) for s in (1, 2)]
+    chains += [kick(0.3, 1e4, s) for s in (1, 2)]
+    chains += [kick(0.3, 1e6, s) for s in (1, 2)]
+    chains += [kick(0.1, 1e5, 4, floor=1e-3), kick(0.3, 1e5, 4, floor=1e-3)]
+    return chains
+
+
+PLANS = {"smoke": plan_smoke, "deep": plan_deep, "deep16": plan_deep16, "kick16": plan_kick16}
 
 
 def build_plan(name: str, start: str, evals: int) -> list[ChainSpec]:

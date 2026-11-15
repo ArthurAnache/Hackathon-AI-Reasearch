@@ -232,11 +232,16 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
         raise ValueError(f"chains of one batch need starts of the same length, got {sorted(sizes)}")
     n = sizes.pop()
     m = fft_length(n, spec.get("fft", "smooth"))
-    f0 = torch.from_numpy(np.stack([np.maximum(arrays[c.start], 0.0) for c in chains])).to(dev)
+    rows = [np.maximum(arrays[c.start], 0.0) for c in chains]
+    start_exact_gpu = exact_score(torch, torch.from_numpy(np.stack(rows)).to(dev), m).tolist()
+    for i, c in enumerate(chains):
+        if c.jitter > 0:      # the kick is drawn on CPU from the chain's seed, so it is the same on any device
+            rows[i] = rows[i] * np.exp(c.jitter * np.random.default_rng(c.seed).standard_normal(n))
+    f0 = torch.from_numpy(np.stack(rows)).to(dev)
+    del rows
     kappa = kappa_for(torch, f0, m)
     floors = torch.tensor([[c.floor] for c in chains], dtype=torch.float64, device=dev)
     w0 = initial_w(torch, f0, kappa, floors)
-    start_exact_gpu = exact_score(torch, f0, m).tolist()
     del f0
     start_scores = {}
     for name, fut in start_futures.items():
@@ -324,6 +329,7 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
         best = next((r for r in mine if r.get("best")), None)
         table.append({
             "chain": c.name, "start": c.start, "start_score": start_scores[c.start], "floor": c.floor,
+            "jitter": c.jitter, "seed": c.seed,
             "beta_start": c.stages[0].beta, "beta_end": c.stages[-1].beta, "stages": len(c.stages),
             "evals": out["evals"], "final_id": final and final["experiment_id"],
             "final_score": final and final["score"], "final_gain_over_start": final and final["gain_over_start"],
