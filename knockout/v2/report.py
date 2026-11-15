@@ -1,6 +1,6 @@
 """Markdown tables from episode tables (the JSONL written by `finalize`).
 
-    .venv/bin/python -m knockout.v2.report knockout/v2/results/moves_cpu/<run_id>.jsonl [more.jsonl ...]
+    .venv/bin/python -m knockout.v2.report knockout/v2/results/moves_cpu/<run_id>.jsonl [more.jsonl ...] [--holds]
 """
 from __future__ import annotations
 
@@ -53,6 +53,43 @@ def baselines(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def reheats(rows: list[dict]) -> str:
+    """Schedule x budget for the episodes without a move: value against polish alone, and where the schedule
+    itself ended (exact score at the end of its last but one stage, minus the start; the polisher's answer is the
+    best point seen, so a schedule that ends below its start returns the start and shows the value of "no gain")."""
+    done = [r for r in rows if r["family"] == "reheat" and r.get("value") is not None]
+    budgets = sorted({r["budget"] for r in done})
+    lines = ["| schedule | " + " | ".join(f"{b} evaluations" for b in budgets) + " |", "|---|" + "---|" * len(budgets)]
+    for schedule in sorted({r["schedule"] for r in done}):
+        cells = []
+        for budget in budgets:
+            r = next((r for r in done if r["schedule"] == schedule and r["budget"] == budget), None)
+            if r is None:
+                cells.append("not run")
+                continue
+            ends = [s["exact_at_end"] for s in r["stages"] if s.get("exact_at_end") is not None]
+            end = f"{ends[-1] - r['moved_score']:+.2e}" if ends else "n/a"
+            cells.append(f"{r['score'] - r['moved_score']:+.2e} (value {_fmt(r['value'])}, ends at {end})")
+        lines.append(f"| {schedule} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
+def holds(rows: list[dict]) -> str:
+    """Per stage of the hold schedules: gain of the smoothed objective inside the stage, exact score at its end."""
+    lines = ["| episode | beta | evaluations so far | smoothed gain in the stage | exact score at the end, minus the start |",
+             "|---|---|---|---|---|"]
+    for r in sorted((r for r in rows if r["schedule"].lstrip("f:").startswith("h")),
+                    key=lambda r: (r["start"], r["schedule"], r["budget"])):
+        for s in r["stages"]:
+            if "smooth_first" not in s:
+                continue
+            exact = s.get("exact_at_end")
+            lines.append(f"| {r['experiment_id']} | {s['beta']:.0e} | {s['calls']:.0f} | "
+                         f"{s['smooth_first'] - s['smooth_best']:.2e} | "
+                         f"{'n/a' if exact is None else format(exact - r['moved_score'], '+.2e')} |")
+    return "\n".join(lines)
+
+
 def best(rows: list[dict], k: int = 10) -> str:
     done = sorted((r for r in rows if r.get("value") is not None and not r.get("is_baseline")),
                   key=lambda r: -r["value"])[:k]
@@ -64,7 +101,7 @@ def best(rows: list[dict], k: int = 10) -> str:
 
 
 def main() -> None:
-    rows = load(sys.argv[1:])
+    rows = load(a for a in sys.argv[1:] if not a.startswith("--"))
     spend = sum(r.get("usd_estimate", 0.0) for r in rows)
     print(f"{len(rows)} episodes, {sum(r['calls'] for r in rows):.0f} evaluations, estimated spend {spend:.2f} USD\n")
     print("Polish alone\n\n" + baselines(rows) + "\n")
@@ -73,7 +110,10 @@ def main() -> None:
         print(f"From {start}, per family\n\n" + table(sub, ("family",)) + "\n")
         print(f"From {start}, per family and strength\n\n" + table(sub, ("family", "strength")) + "\n")
         print(f"From {start}, per family, schedule and budget\n\n" + table(sub, ("family", "schedule", "budget")) + "\n")
+        print(f"From {start}, no move: score gain over the start, per schedule and budget\n\n" + reheats(sub) + "\n")
         print(f"From {start}, best episodes\n\n" + best(sub) + "\n")
+    if "--holds" in sys.argv:
+        print("Hold schedules, stage by stage\n\n" + holds(rows) + "\n")
 
 
 if __name__ == "__main__":
