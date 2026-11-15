@@ -189,6 +189,28 @@ def test_promotion_gate_flags_a_numerical_artifact(tmp_path):
     assert rec["decision"] == "numerical_artifact" and not rec["beats_record"]
 
 
+def test_no_record_claim_against_a_stale_snapshot(monkeypatch):
+    """If the leaderboard cannot be read, the frozen catalog serves its snapshot; nothing may beat a snapshot."""
+    from integrations import einstein_arena as ea
+    from knockout.problems_api import load_problem
+    from problems.catalog import load
+
+    slug = "second-autocorrelation-inequality"
+    frozen = load(slug)._P
+    handle = load_problem(slug)
+
+    def offline(*args, **kwargs):
+        raise ConnectionError("offline")
+
+    monkeypatch.setattr(ea, "get_leaderboard", offline)
+    monkeypatch.setattr(frozen, "_best_cache", None)
+    info = handle.record_info()
+    assert info["live"] is False
+    assert frozen.beats_record(0.99) and not handle.beats_record(0.99)      # above snapshot + delta, still no claim
+    monkeypatch.setattr(frozen, "_best_cache", {**info, "live": True, "_t": __import__("time").time()})
+    assert handle.beats_record(0.99) and not handle.beats_record(info["value"] + 1e-6)
+
+
 # ------------------------------------------------------------------ recorded toy run: both arms, fake LLM
 class _FakeLLMClient:
     """Deterministic stand-in for the OpenAI client. Programs wrap the seed program and scale its radii: by 1.0

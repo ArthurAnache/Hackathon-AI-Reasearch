@@ -32,6 +32,7 @@ class ProblemHandle:
     independent: Callable[[Any], dict] | None = None   # {"score", "fraction", "tolerance_abs", "method"}
     initial_candidate: Callable[[], Any] | None = None
     beats_record_fn: Callable[[float], bool] | None = None
+    record_info: Callable[[], dict] | None = None      # {"value", "agent", "live", "source", "read_at"}
     evidence_urls: list[str] = field(default_factory=list)
 
     def sign(self) -> float:
@@ -79,6 +80,12 @@ def _catalog(slug: str) -> ProblemHandle:
     from problems.catalog import load
 
     p = load(slug)
+
+    def beats_record(score: float) -> bool:
+        # The frozen catalog falls back to its snapshot when the leaderboard cannot be read. The snapshot can be
+        # stale (it was on 2026-11-14), so a record is only ever claimed against a live read.
+        return bool(p.best_known_score().get("live")) and bool(p.beats_record(score))
+
     return ProblemHandle(
         id=p.SLUG, direction=p.DIRECTION, min_margin=float(p.DELTA), verify=p.verify, score=p.score,
         invalid_exc=p.InvalidSolution if hasattr(p, "InvalidSolution") else ValueError,
@@ -86,7 +93,7 @@ def _catalog(slug: str) -> ProblemHandle:
         best_known=lambda: float(p.best_known_score()["value"]),
         best_known_source=f"EinsteinArena live #1 for {slug}",
         independent=p.independent_score, initial_candidate=p.certificate,
-        beats_record_fn=lambda s: p.beats_record(s), evidence_urls=[p.URL],
+        beats_record_fn=beats_record, evidence_urls=[p.URL], record_info=p.best_known_score,
     )
 
 

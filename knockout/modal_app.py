@@ -29,19 +29,25 @@ import yaml
 REPO = Path(__file__).resolve().parent.parent
 _CFG = yaml.safe_load((Path(__file__).with_name("strategy.yaml")).read_text())["modal"]
 _IGNORE = ["**/__pycache__", "**/*.pyc", "**/.DS_Store"]
+IMAGE_ROOT = "/root"
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
     # Same versions as the local .venv, so the CPU re-score on Modal matches the local one.
     .pip_install("numpy==2.5.4", "scipy==1.18.1", "cma==4.5.0", "pyyaml==6.0.3", "pydantic==2.14.3",
                  "mpmath==1.3.0", "sympy==1.14.0", "requests==2.34.2", "python-dotenv==1.2.4", "openai==3.51.0")
-    .env({"PYTHONPATH": "/root/repo", "PYTHONDONTWRITEBYTECODE": "1"})
-    .add_local_dir(REPO / "knockout", "/root/repo/knockout", ignore=_IGNORE)
-    .add_local_dir(REPO / "problems", "/root/repo/problems", ignore=_IGNORE)
-    # integrations/ is needed only for the read-only leaderboard lookup (best_known_score). No key is in the image.
-    .add_local_dir(REPO / "integrations", "/root/repo/integrations", ignore=_IGNORE)
+    # One root for everything, /root, laid out like the repository: the code finds problems/, integrations/ and
+    # docs/ next to knockout/ (Path(__file__).parent.parent), in the orchestrator and in the sandboxed child alike.
+    # (First Modal run, 2026-11-14: the data sat under /root/repo while Modal mounted the package at
+    # /root/knockout, so problems/<slug>/meta.json was not found.)
+    .env({"PYTHONPATH": IMAGE_ROOT, "PYTHONDONTWRITEBYTECODE": "1"})
+    .add_local_dir(REPO / "knockout", f"{IMAGE_ROOT}/knockout", ignore=_IGNORE)
+    .add_local_dir(REPO / "problems", f"{IMAGE_ROOT}/problems", ignore=_IGNORE)
+    # integrations/ is needed only for the read-only EinsteinArena reads (live #1, leaderboard). No key is in the
+    # image.
+    .add_local_dir(REPO / "integrations", f"{IMAGE_ROOT}/integrations", ignore=_IGNORE)
     # Curated forum knowledge, quoted in the LLM prompts as data (knockout/llm_editor.py: problem_brief).
-    .add_local_file(REPO / "docs" / "ws1_knowledge.jsonl", "/root/repo/docs/ws1_knowledge.jsonl")
+    .add_local_file(REPO / "docs" / "ws1_knowledge.jsonl", f"{IMAGE_ROOT}/docs/ws1_knowledge.jsonl")
 )
 
 
@@ -59,7 +65,8 @@ def _llm_key() -> str:
 # Attached to the orchestrator only. Inside a container this resolves to the value Modal injected at launch.
 llm_secret = modal.Secret.from_dict({"OPENAI_API_KEY": _llm_key()})
 
-app = modal.App(_CFG["app_name"], image=image)
+# include_source=False: the image above already holds the whole package, at the same place Modal would mount it.
+app = modal.App(_CFG["app_name"], image=image, include_source=False)
 volume = modal.Volume.from_name(_CFG["volume"], create_if_missing=True)
 
 

@@ -139,10 +139,14 @@ def run(problem_id: str, *, runs_root: str | Path = "runs", run_id: str | None =
 
         main = MainArm(ctx, ctx.llm, seed_source, np.random.default_rng(int(strategy["run.seed"]) + 1))
         strategist = Strategist(main)
+    record = problem.record_info() if problem.record_info else None
+    if record is not None and not record.get("live"):
+        on_round(f"WARNING: the leaderboard could not be read ({record.get('source')}). The record shown is the "
+                 f"frozen snapshot, so this run will not log any record_claim.")
     ledger.event("run_start", seed=int(strategy["run.seed"]), problem=problem.id, executor=executor.name,
                  source_commit=source_commit, host=host_info(), arms=["control"] + (["main"] if main else []),
                  editor=editor.name, best_known=ctx.best_known(), best_known_source=problem.best_known_source,
-                 init={**init_info, "score": init_score})
+                 record=record, init={**init_info, "score": init_score})
     t0 = time.monotonic()
     stop_reason = "error"
     steps = {"control": 0, "main": 0}
