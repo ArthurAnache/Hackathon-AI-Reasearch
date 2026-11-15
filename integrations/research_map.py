@@ -119,7 +119,7 @@ def reference_live(slug: str, catalog_root: Optional[str] = None) -> verdicts.Re
     best = got["best"]
     ref = verdicts.Reference(problem=slug, direction=got["direction"], delta=float(got["delta"]))
     if best.get("live"):
-        ref.record, ref.record_read_at = float(best["value"]), str(best.get("read_at"))
+        ref.record, ref.record_read_at, ref.live = float(best["value"]), str(best.get("read_at")), True
         ref.source = "live #1 by %s, read %s" % (best.get("agent"), best.get("read_at"))
     else:
         ref.source = "live read failed, the catalog only has its snapshot of %s; record not read" % best.get("read_at")
@@ -423,12 +423,14 @@ def render(m: Dict[str, Any]) -> str:
         gain = _delta(vd.get("best_gain_over_delta")) if has_delta else _num(vd.get("best_gain"))
         if vd.get("criterion") == "claimed_value":
             gain = "reached %s of claimed %s" % (_e(repr(vd.get("best_score"))), _e(repr(vd.get("claimed_value"))))
-        rulings = "<br>".join("%s (%s vs record %s read %s)" % (
+        rulings = "<br>".join("%s (%s vs record %s read %s; run %s; from %s)" % (
             _e(r["verdict"]), _delta(r.get("gain_over_delta")), _e(repr(r.get("record_value"))),
-            _e(r.get("record_read_at"))) for r in n.get("referee") or []) or "–"
-        retest = n.get("retest")
-        note = '<div class="cites"><span class="cite">reopened by %s: %s</span></div>' % (
-            _e(retest.get("by")), _e(retest.get("reason"))) if retest else ""
+            _e(r.get("record_read_at")), _e(r.get("experiment_id")), _e(r.get("claims_file")))
+            for r in n.get("referee") or []) or "–"
+        log = (n.get("retest") or {}).get("log") or []
+        note = '<div class="cites"><span class="cite">%d manual decisions: %s</span></div>' % (
+            len(log), _e("; ".join("%s by %s (%s)" % (x.get("action"), x.get("by"), x.get("reason")) for x in log))
+        ) if log else ""
         rows.append([_idea_cell(n) + note, _e(n["kind"].replace("_", " ")),
                      _badge(n["claimed_status"]) + " → " + _badge(vd["status"]),
                      exp_list(vd.get("experiments") or []), gain,

@@ -60,7 +60,8 @@ PY = sys.executable
 SLUG = "second-autocorrelation-inequality"
 RECORD, DELTA = 0.9636615620620852, 1e-5
 REF = verdicts.Reference(problem=SLUG, delta=DELTA, record=RECORD, record_read_at="2026-11-14T22:41:00Z",
-                         source="test")
+                         source="test", live=True)                      # the record as read from the leaderboard
+TYPED = verdicts.Reference(problem=SLUG, delta=DELTA, record=RECORD, source="typed, not read")
 NO_RECORD = verdicts.Reference(problem=SLUG, delta=DELTA, source="test, record not read")
 LONG = 1300.0                          # seconds: three such negative runs exceed the default fair budget (3600 s)
 # WS2's own tag regex (research/knowledge.py on feature/ws2-autoresearch-loop), copied to prove
@@ -168,7 +169,8 @@ def rec(idea, score, best_before, status=None, dur=60.0, problem=SLUG, cfg=None,
     tags = "strategy=refine; parent=exp_0000" + ("; idea=%s" % idea if idea else "") + "; best exp_0000"
     r = {"experiment_id": eid or "exp_%04d" % _N[0], "problem": problem, "status": status, "score": score,
          "best_before": best_before, "duration_s": dur, "config": cfg or {"K": _N[0]}, "seed": 42,
-         "budget_s": 60.0, "agent": "feedback@test", "optimizer": "optimizers/x.py", "algorithm_version": "abc",
+         "budget_s": max(60.0, dur), "agent": "feedback@test", "optimizer": "optimizers/x.py",
+         "algorithm_version": "abc",
          "rationale": tags, "timestamp": "2026-11-14T23:00:00+00:00", "solution_path": None, "hypothesis": "h",
          "valid": score is not None, "error": None, "evidence": [], "beats_record": False, "git_commit": None}
     r.update(extra)
@@ -322,48 +324,51 @@ def test_runner_has_one_writer_and_a_fair_budget():
 def test_a_referee_ruling_is_read_from_the_arbiters_file_never_typed():
     d = _fresh("referee")
     store = _store(d)
+    sol = os.path.join(d, "sol.json")
+    open(sol, "wb").write(b"candidate")
     sha = hashlib.sha256(b"candidate").hexdigest()
+    hist = [rec("ws1-017", RECORD + 2e-6, RECORD, eid="exp_a", solution_path="sol.json"),
+            rec("ws1-017", RECORD + 3e-6, RECORD + 2e-6, eid="exp_b", solution_path="missing.json")]
+    verdicts.update_verdict(store, "ws1-017", hist, REF, hash_root=Path(d))
+    assert store.get("ws1-017")["verdict"]["runs"][0]["solution_sha256"] == sha
     claim = {"timestamp": "2026-11-15T01:00:00+00:00", "slug": SLUG, "candidate_file": "/tmp/c.json",
              "candidate_sha256": sha, "delta": DELTA, "pinned": {"ok": True, "score": RECORD + 2e-6},
              "independent": {"ok": True, "score": RECORD + 2e-6},
              "live_best": {"value": RECORD, "read_at": "2026-11-15T01:00:01Z"},
              "beats_record_by": 2e-6, "verdict": "valid_below_record"}
-    lines = [json.dumps(dict(claim, slug="circles-rectangle", candidate_sha256="cd" * 32, timestamp="t-other")),
-             json.dumps(claim), "{torn",
-             json.dumps(dict(claim, verdict="verified", candidate_sha256="ef" * 32, timestamp="t-word"))]
-    claims = os.path.join(d, "claims.jsonl")
+    lines = [json.dumps(dict(claim, slug="circles-rectangle", timestamp="t-other")),
+             json.dumps(claim), "{torn", json.dumps(dict(claim, verdict="verified", timestamp="t-word"))]
+    os.makedirs(os.path.join(d, "selection"))
+    claims = os.path.join(d, "selection", "claims.jsonl")
     open(claims, "w").write("\n".join(lines) + "\n")
-    node = store.add_referee("ws1-017", claims, sha256=sha)
-    assert node["status"] == "idea"                                        # a ruling never moves the status
+    # a file that merely looks like the arbiter's log is not the arbiter's log
+    e = _raises(ideas.InvalidIdea, store.add_referee, "ws1-017", claims, "exp_a", sha256=sha)
+    assert "not the arbiter's log" in str(e)
+    handmade = os.path.join(d, "my_claims.jsonl")
+    shutil.copy(claims, handmade)
+    open(os.path.join(d, "selection", "verify_claim.py"), "w").write("# the arbiter\n")
+    _raises(ideas.InvalidIdea, store.add_referee, "ws1-017", handmade, "exp_a", sha256=sha)
+    node = store.add_referee("ws1-017", claims, "exp_a", sha256=sha, timestamp=claim["timestamp"])
+    assert node["status"] == "reproduced"                                  # from our runs; a ruling never moves it
     r = node["referee"][0]
     assert r["verdict"] == "valid_below_record" and abs(r["gain_over_delta"] - 0.2) < 1e-9
-    assert r["candidate_sha256"] == sha and r["record_value"] == RECORD
+    assert r["candidate_sha256"] == sha and r["record_value"] == RECORD and r["experiment_id"] == "exp_a"
     assert r["record_read_at"] == "2026-11-15T01:00:01Z" and r["pinned_score"] == r["independent_score"]
     assert r["claims_file"] == str(Path(claims).resolve())
     assert r["claim_line_sha256"] == hashlib.sha256(lines[1].encode()).hexdigest()
-    assert len(store.add_referee("ws1-017", claims, timestamp=claim["timestamp"])["referee"]) == 1   # stored once
-    # nothing that is not in the file can become a ruling
-    for kw in ({"sha256": "ab" * 32}, {"timestamp": "never"}, {},                # no such line / nothing asked
-               {"sha256": "cd" * 32},                                            # a ruling about another problem
-               {"sha256": "ef" * 32}):                                           # a word the arbiter never prints
-        _raises(ideas.InvalidIdea, store.add_referee, "ws1-017", claims, **kw)
-    _raises(ideas.InvalidIdea, store.add_referee, "ws1-017", os.path.join(d, "no-such-file.jsonl"), sha256=sha)
-    # tied to a run: the ruled candidate must be that run's saved solution
-    sol = os.path.join(d, "sol.json")
-    open(sol, "wb").write(b"candidate")
-    hist = [rec("ws1-017", RECORD + 2e-6, RECORD, eid="exp_a", solution_path="sol.json"),
-            rec("ws1-017", RECORD + 3e-6, RECORD + 2e-6, eid="exp_b", solution_path="missing.json")]
-    verdicts.update_verdict(store, "ws1-017", hist, REF, hash_root=Path(d))
-    assert store.get("ws1-017")["verdict"]["runs"][0]["solution_sha256"] == sha
-    _raises(ideas.InvalidIdea, store.add_referee, "ws1-017", claims, sha256=sha, experiment_id="exp_b")
-    _raises(ideas.InvalidIdea, store.add_referee, "ws1-017", claims, sha256=sha, experiment_id="exp_zzz")
+    assert len(store.add_referee("ws1-017", claims, "exp_a", timestamp=claim["timestamp"])["referee"]) == 1   # once
+    # nothing that is not in the file, and nothing about another candidate, run, problem or word
+    for exp, kw in (("exp_a", {"sha256": "ab" * 32}), ("exp_a", {"timestamp": "never"}), ("exp_a", {}),
+                    ("exp_a", {"timestamp": "t-other"}), ("exp_a", {"timestamp": "t-word"}),
+                    ("exp_b", {"sha256": sha}), ("exp_zzz", {"sha256": sha}), ("", {"sha256": sha})):
+        _raises(ideas.InvalidIdea, store.add_referee, "ws1-017", claims, exp, **kw)
+    _raises(ideas.InvalidIdea, store.add_referee, "ws1-018", claims, "exp_a", sha256=sha)   # not that idea's run
     open(claims, "a").write(json.dumps(dict(claim, timestamp="t2", verdict="beats_record")) + "\n")
     assert ideas.main(["--ideas", str(store.path), "--memory", "none", "referee", "ws1-017", "--claims", claims,
                        "--timestamp", "t2", "--experiment", "exp_a"]) == 0
     node = store.get("ws1-017")
-    assert [(x["verdict"], x["experiment_id"]) for x in node["referee"]] == [("valid_below_record", None),
+    assert [(x["verdict"], x["experiment_id"]) for x in node["referee"]] == [("valid_below_record", "exp_a"),
                                                                              ("beats_record", "exp_a")]
-    assert node["status"] == "reproduced"                                  # from our runs, not from the ruling
     assert "Referee: valid_below_record, beats_record." in ideas.fact_for(node)[1]
 
 
@@ -892,7 +897,7 @@ def test_gain_is_measured_in_delta_against_the_best_we_had():
     assert v["best_experiment"] == recs[2]["experiment_id"] and abs(v["best_gain_over_delta"] - 0.29998) < 1e-4
     assert (v["trials"], v["valid"], v["failed"], v["compute_s"]) == (4, 3, 1, 185.0)
     assert v["reference"] == {"record": RECORD, "record_read_at": "2026-11-14T22:41:00Z", "delta": DELTA,
-                              "direction": "maximize", "source": "test"}
+                              "direction": "maximize", "source": "test", "live": True}
     assert v["decided_by"].startswith("integrations.verdicts@")
     assert v["rule"] == {"min_gain_over_delta": 0.01, "refute_after": 3, "min_compute_s": 3600.0}
     for k in ("experiment_id", "store", "problem", "valid", "score", "seed", "budget_s", "solution_path",
@@ -905,9 +910,11 @@ def test_gain_is_measured_in_delta_against_the_best_we_had():
     assert abs(first["gain_over_delta"] - 1.2) < 1e-6
     # the bar includes what OTHER ideas reached in the same store: matching them is not a gain
     others = [rec(None, b, None), rec("ws1-018", b + 5e-6, b), rec("ws1-017", b + 5e-6, b), rec("ws1-017", b + 6e-6, b)]
-    rows = verdicts.observe(node, others, NO_RECORD)
+    rows = verdicts.observe(node, others, REF)
     assert [x["evidence"] for x in rows] == ["baseline", "positive"] and rows[0]["bar_source"] == "best of the other ideas"
     assert abs(rows[1]["gain_over_delta"] - 0.1) < 1e-6
+    # with no record at all, beating the other ideas is progress, never a gain
+    assert _evidence(node, others, NO_RECORD) == ["baseline", "progress"]
 
 
 def test_improving_only_on_itself_is_progress_never_a_gain():
@@ -933,9 +940,26 @@ def test_improving_only_on_itself_is_progress_never_a_gain():
     # with delta unknown, float noise is still not a gain (relative floor)
     noise = [rec(None, 1.0, None), rec("ws1-017", 1.0 + 2e-16, 1.0), rec("ws1-017", 1.0 + 4e-16, 1.0)]
     assert _evidence(node, noise, verdicts.Reference(problem=SLUG)) == ["baseline", "negative"]
-    real = [rec(None, 1.0, None), rec("ws1-017", 1.5, 1.0)]
-    row = verdicts.observe(node, real, verdicts.Reference(problem=SLUG))[0]
-    assert row["evidence"] == "positive" and row["gain"] == 0.5 and row["gain_over_delta"] is None
+    # no record read: nothing is a gain, whatever else is in the store (an untagged run, another idea,
+    # an extra start_score field, an external log), for a normal idea and for a dead end, max or min
+    low = [rec(None, 0.30, None), rec("ws1-018", 0.30, None)]
+    for kind_node, tag in ((node, "ws1-017"), (dead, "ws1-010")):
+        for ref in (NO_RECORD, verdicts.Reference(problem=SLUG)):
+            assert _evidence(kind_node, low + [rec(tag, 0.50, 0.30)], ref) == ["baseline"]
+            assert _evidence(kind_node, [rec(tag, 0.50, None, start_score=0.50), rec(tag, 0.60, 0.50, start_score=0.50)],
+                             ref) == ["baseline", "progress"]
+            ext = verdicts.normalise_record({"experiment_id": "x", "idea": tag, "score": 0.60, "start_score": 0.50,
+                                             "status": "DONE"}, 1.0, SLUG)
+            assert _evidence(kind_node, [ext], ref) == ["baseline"]
+    lower = verdicts.Reference(problem=SLUG, direction="minimize")
+    assert _evidence(dead, [rec(None, 9.0, None), rec("ws1-010", 1.6, 9.0, status="keep")], lower) == ["baseline"]
+    row = verdicts.observe(node, [rec(None, 1.0, None), rec("ws1-017", 1.5, 1.0)], verdicts.Reference(problem=SLUG))[0]
+    assert row["evidence"] == "baseline" and row["gain"] == 0.5 and row["gain_over_delta"] is None
+    # a record that was typed, or is a constant, is enough for a normal idea but never revives a dead end
+    win = RECORD + 5e-6
+    assert _evidence(node, [rec("ws1-017", win, RECORD)], TYPED) == ["positive"]
+    assert _evidence(dead, [rec("ws1-010", win, RECORD)], TYPED) == ["baseline"]
+    assert _evidence(dead, [rec("ws1-010", win, RECORD)], REF) == ["positive"]         # read live: it is back
 
 
 def test_refuting_needs_three_fair_negatives_and_a_fair_budget():
@@ -960,6 +984,10 @@ def test_refuting_needs_three_fair_negatives_and_a_fair_budget():
     v = verdicts.compute_verdict(node, quick, REF)
     assert v["status"] == "inconclusive" and len(v["contradicting"]) == 7 and v["negative_compute_s"] == 7.0
     assert verdicts.compute_verdict(node, quick, REF, min_compute_s=5.0)["status"] == "refuted"
+    # a run counts for at most its own budget, whatever duration its record claims
+    liar = [rec("ws1-018", b - 1e-4 * (i + 1), b, dur=99999.0, budget_s=60.0) for i in range(4)]
+    v = verdicts.compute_verdict(node, liar, REF)
+    assert v["status"] == "inconclusive" and v["negative_compute_s"] == 180.0
     # the runner declares the idea's own fair budget, and it wins over the default
     patient = dict(node, runner={"optimizer": "optimizers/x.py", "config": {}, "min_compute_s": 10000.0})
     v = verdicts.compute_verdict(patient, recs + [rec("ws1-018", b - 4e-4, b, dur=LONG)], REF)
@@ -986,7 +1014,9 @@ def test_a_human_can_reopen_a_refuted_idea():
     _raises(ideas.InvalidIdea, verdicts.retest, store, "ws1-017", "no runs yet", "Murilo")
     node = verdicts.retest(store, "ws1-018", "only ran the default comb", "Murilo")
     assert node["status"] == "idea" and ideas.is_frontier(node) and node["verdict"]["status"] == "inconclusive"
-    assert node["retest"]["forgiven"] == ["e1", "e2", "e3"] and node["retest"]["by"] == "Murilo"
+    assert node["retest"]["forgiven"] == ["e1", "e2", "e3"] and node["retest"]["log"][0]["by"] == "Murilo"
+    # no forgiving in advance: an idea that is not refuted cannot be reopened again
+    _raises(ideas.InvalidIdea, verdicts.retest, store, "ws1-018", "just in case", "agent-x")
     assert [x["evidence"] for x in node["verdict"]["runs"]] == ["baseline", "forgiven", "forgiven", "forgiven"]
     # recomputing from the same experiments does not refute it again: the forgiven runs stay forgiven
     assert verdicts.update_verdict(store, "ws1-018", hist, REF)["status"] == "idea"
@@ -997,7 +1027,10 @@ def test_a_human_can_reopen_a_refuted_idea():
     node = verdicts.update_verdict(store, "ws1-018", more, REF)
     assert node["status"] == "refuted" and node["verdict"]["contradicting"] == ["n0", "n1", "n2"]
     assert verdicts.main(["--ideas", str(store.path), "retest", "ws1-018", "--reason", "new runner", "--by", "Marie"]) == 0
-    assert ideas.is_frontier(store.get("ws1-018")) and len(store.get("ws1-018")["retest"]["forgiven"]) == 6
+    node = store.get("ws1-018")
+    assert ideas.is_frontier(node) and len(node["retest"]["forgiven"]) == 6
+    assert [(e["action"], e["by"], e["reason"]) for e in node["retest"]["log"]] == [
+        ("retest", "Murilo", "only ran the default comb"), ("retest", "Marie", "new runner")]   # nothing overwritten
     # a dead end reported by its source is not reopened by a switch: only a run that gains does that
     dead = [rec("ws1-010", b - 1e-4 * (i + 1), b, dur=LONG) for i in range(4)]
     assert verdicts.update_verdict(store, "ws1-010", dead, REF)["status"] == "reproduced"
@@ -1138,10 +1171,45 @@ def test_two_experiment_stores_never_erase_each_others_runs():
     assert store.get("ws1-018")["status"] == "refuted"
     arm_a.append(rec("ws1-018", b + 8e-6, b, eid="exp_0002"))
     assert store.get("ws1-018")["status"] == "reproduced" and len(store.get("ws1-018")["verdict"]["runs"]) == 5
+    # the same file seen under a second label (copied, moved) adds nothing: each run is counted once
+    before = store.get("ws1-017")["verdict"]
+    node = verdicts.update_verdict(store, "ws1-017", verdicts.labelled(arm_b.read(), "copy-of-arm-b"), REF)
+    v = node["verdict"]
+    assert [x["evidence"] for x in v["runs"] if x["store"] == "copy-of-arm-b"] == ["copy"] * 4
+    assert (v["trials"], v["negative_compute_s"], len(v["contradicting"])) == (
+        before["trials"], before["negative_compute_s"], len(before["contradicting"]))
+    assert verdicts.forget_store(store, "copy-of-arm-b", "a copy", "Murilo", idea_id="ws1-017") == {"ws1-017": 4}
     # a store that no longer holds an idea's runs takes only ITS runs out of the verdict
     node = verdicts.update_verdict(store, "ws1-017", verdicts.labelled([], arm_b.label) or
                                    [dict(rec(None, b, None), _store=arm_b.label)], REF)
     assert {r["store"] for r in node["verdict"]["runs"]} == {arm_a.label}
+
+
+def test_a_positive_does_not_outlive_the_record_it_was_measured_against():
+    d = _fresh("stale")
+    store = _store(d)
+    old_record = 0.963638667992813
+    then = verdicts.Reference(problem=SLUG, delta=DELTA, record=old_record, record_read_at="15:35Z", live=True)
+    win = [rec("ws1-010", old_record + 1.5e-5, old_record, eid="e0")]      # +1.5 delta over the OLD record
+    node = verdicts.update_verdict(store, "ws1-010", verdicts.labelled(win, "old"), then)
+    assert node["status"] == "refuted" and not ideas.is_dead(node)         # the dead end was back, rightly, then
+    # the record moves by 2.29 delta; a new store reports under the live record; "old" is not given again
+    new = [rec("ws1-010", RECORD - 1e-6, RECORD, eid="n0"), rec("ws1-010", RECORD - 2e-6, RECORD, eid="n1")]
+    node = verdicts.update_verdict(store, "ws1-010", verdicts.labelled(new, "new"), REF)
+    v = node["verdict"]
+    assert [(x["key"], x["evidence"]) for x in v["runs"]] == [("old/e0", "outdated"), ("new/n0", "baseline"),
+                                                              ("new/n1", "negative")]
+    assert node["status"] == "claim" and ideas.is_dead(node) and not v["gained"]
+    assert v["runs"][0]["record"] == RECORD and v["runs"][0]["gain"] < 0   # judged again, against today's record
+    # a store that is gone can be taken out for good, and the node says who did it and why
+    _raises(ideas.InvalidIdea, verdicts.forget_store, store, "old", "", "Murilo")
+    assert verdicts.forget_store(store, "old", "store deleted", "Murilo") == {"ws1-010": 1}
+    node = store.get("ws1-010")
+    assert [x["key"] for x in node["verdict"]["runs"]] == ["new/n0", "new/n1"]
+    assert node["retest"]["log"] == [dict(node["retest"]["log"][0], action="forget", store="old", runs=["old/e0"],
+                                          reason="store deleted", by="Murilo")]
+    assert verdicts.main(["--ideas", str(store.path), "forget", "--store", "new", "--reason", "r", "--by", "b"]) == 0
+    assert verdicts.forget_store(store, "new", "again", "x") == {}
 
 
 def test_logs_written_outside_the_loop_count_through_normalise_record():
@@ -1169,10 +1237,10 @@ def test_logs_written_outside_the_loop_count_through_normalise_record():
     v = verdicts.compute_verdict(node, [r, killed, running], REF)
     assert v["experiments"] == ["b0_live_w2", "r1"] and v["status"] == "inconclusive"
     assert abs(v["best_gain_over_delta"] - 0.0052) < 1e-6 and v["compute_s"] == 1800.0 and v["failed"] == 1
-    # an explicit starting score is an external bar even when the record was not read
-    assert _evidence(ideas.make_node(BY_ID["ws1-017"]),
-                     [verdicts.normalise_record(dict(brasa, idea="ws1-017", score=b + 2e-6), 1.0, SLUG)],
-                     NO_RECORD) == ["positive"]
+    # a start score is part of the bar; with the record read, beating both is a gain
+    won = [verdicts.normalise_record(dict(brasa, idea="ws1-017", score=b + 2e-6), 1.0, SLUG)]
+    assert _evidence(ideas.make_node(BY_ID["ws1-017"]), won, REF) == ["positive"]
+    assert _evidence(ideas.make_node(BY_ID["ws1-017"]), won, NO_RECORD) == ["baseline"]
     # four polish runs from two different starting points: a higher score that only reflects a better
     # start is not progress of the idea
     runs = [verdicts.normalise_record(dict(brasa, experiment_id=e, score=s, start_score=s0, config={"run": e}),
@@ -1230,9 +1298,16 @@ def test_the_record_is_never_taken_from_a_node():
         DELTA = 1e-5
 
     class Problem:
-        id, direction, best_known, best_known_source, _m = "x", "maximize", RECORD, "EinsteinArena #1 (live)", Module
+        id, direction, best_known, _m = "x", "maximize", RECORD, Module
+        best_known_source = "EinsteinArena #1 MLAI_YONSEI (live, 2026-11-15T00:30:00Z); a new record needs gain >= delta"
     live = verdicts.reference_from_problem(Problem)
-    assert (live.record, live.delta, live.source) == (RECORD, 1e-5, "EinsteinArena #1 (live)") and live.record_read_at
+    assert (live.record, live.delta, live.live, live.record_read_at) == (RECORD, 1e-5, True, "2026-11-15T00:30:00Z")
+    # a snapshot, or a constant in a WS2 module, is a record nobody read: said so, and never "read <now>"
+    for source in ("EinsteinArena #1 MLAI_YONSEI (snapshot, 2026-11-14T15:35Z)", "Matolcsi-Vinuesa 2010", ""):
+        Problem.best_known_source = source
+        const = verdicts.reference_from_problem(Problem)
+        assert const.record == RECORD and const.live is False and const.record_read_at is None
+        assert const.source.startswith("constant in the problem module, not a live read")
 
 
 # ====================================================================== 5. the idea chooser
@@ -1429,6 +1504,12 @@ def test_page_renders_escaped_and_never_shows_a_stale_record():
     argv = ["--ideas", str(store.path), "--experiments", path, "--out", out]
     before = store.path.read_text()
     assert research_map.main(argv) == 0
+    blind = open(out, encoding="utf-8").read()
+    # the node says #1 = 0.963638667992813, which is stale: the page does not present it as the record to
+    # beat, and with no record read nothing is called a gain
+    assert "The record was not read" in blind and "Record to beat" not in blind and "Send to the referee" not in blind
+    assert "reproduced by us" not in blind and "refuted by us" in blind
+    assert research_map.main(argv + ["--record", repr(RECORD)]) == 0
     page = open(out, encoding="utf-8").read()
     assert store.path.read_text() == before                                # rendering writes nothing but the page
     for needle in ("Research map: " + SLUG, "Dead ends</h3>", "Tested by us</h3>", "Where the compute went</h3>",
@@ -1440,8 +1521,6 @@ def test_page_renders_escaped_and_never_shows_a_stale_record():
         assert needle in page, needle
     assert "<script>alert" not in page and "&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;" in page
     assert "<b>t32</b>" not in page and "&lt;b&gt;t32&lt;/b&gt;" in page
-    # the node says #1 = 0.963638667992813, which is stale: the page must not present it as the record to beat
-    assert "The record was not read" in page and "Record to beat" not in page and "Send to the referee" not in page
     assert page.count("<table>") == page.count("</table>") and page.strip().endswith("</html>")
     # a typed record is shown as typed, never as read
     assert research_map.main(argv + ["--record", repr(RECORD), "--alias", "1a=" + SLUG]) == 0
@@ -1451,10 +1530,12 @@ def test_page_renders_escaped_and_never_shows_a_stale_record():
     assert research_map.main(argv + ["--record", repr(RECORD - 2e-5), "--alias", "1a=" + SLUG,
                                      "--record-read-at", "2026-11-14T15:35Z"]) == 0
     page = open(out, encoding="utf-8").read()
-    assert "Send to the referee" in page and "This is not a record until" in page
-    assert page.count("record TYPED on the command line, said to be read 2026-11-14T15:35Z") == 2   # header and banner
+    # 2.24 delta above a TYPED record: shown as such in the header, and never offered to the referee,
+    # because only a record read live can back that
+    assert "record TYPED on the command line, said to be read 2026-11-14T15:35Z" in page
+    assert "Send to the referee" not in page
     # --save-verdicts writes the recomputed verdicts back; an empty map is an error, not an empty page
-    assert research_map.main(argv + ["--save-verdicts"]) == 0
+    assert research_map.main(argv + ["--save-verdicts", "--record", repr(RECORD)]) == 0
     assert store.get("ws1-018")["status"] == "refuted" and store.get("ws1-017")["status"] == "reproduced"
     assert research_map.main(argv) == 0 and store.get("ws1-017")["verdict"]["experiments"] == [
         verdicts.store_label(path) + "/exp_0001", verdicts.store_label(path) + "/exp_0002"]

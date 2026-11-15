@@ -236,6 +236,10 @@ def read_claim(claims_path: Any, sha256: Optional[str] = None, timestamp: Option
     With several matches the last one wins (the arbiter's latest word on that candidate)."""
     if not sha256 and not timestamp:
         raise InvalidIdea("say which ruling: the candidate sha256, the claim timestamp, or both")
+    path = Path(claims_path).resolve()
+    if path.name != "claims.jsonl" or path.parent.name != "selection" or not (path.parent / "verify_claim.py").is_file():
+        raise InvalidIdea("%s is not the arbiter's log: a ruling is read only from <checkout>/selection/claims.jsonl, "
+                          "next to selection/verify_claim.py" % claims_path)
     try:
         lines = Path(claims_path).read_text(encoding="utf-8").splitlines()
     except OSError as e:
@@ -343,7 +347,8 @@ def _stored(raw: Any) -> Dict[str, Any]:
     node["referee"] = referee
     node["trusted"] = raw.get("trusted") is True
     retest = raw.get("retest")
-    if retest is not None and not (isinstance(retest, dict) and isinstance(retest.get("forgiven"), list)):
+    if retest is not None and not (isinstance(retest, dict) and isinstance(retest.get("forgiven"), list)
+                                   and isinstance(retest.get("log"), list)):
         raise InvalidIdea("%s: malformed retest" % node["id"])
     node["retest"] = retest
     return with_verdict(node, raw.get("verdict"))
@@ -526,23 +531,25 @@ class IdeaStore:
             raise InvalidIdea("%s: claimed_value must be a finite number" % idea_id)
         return self.update(idea_id, lambda n: dict(n, claimed_value=value))
 
-    def add_referee(self, idea_id: str, claims_path: Any, sha256: Optional[str] = None,
-                    timestamp: Optional[str] = None, experiment_id: Optional[str] = None) -> Dict[str, Any]:
-        """Attach a ruling of selection/verify_claim.py. The ruling is READ from the
-        arbiter's own log (claims_path), never typed. With experiment_id, the ruled
-        candidate must be that run's saved solution (same sha256). It never changes
+    def add_referee(self, idea_id: str, claims_path: Any, experiment_id: str, sha256: Optional[str] = None,
+                    timestamp: Optional[str] = None) -> Dict[str, Any]:
+        """Attach a ruling of selection/verify_claim.py to one run of an idea. The ruling
+        is READ from the arbiter's own log (<checkout>/selection/claims.jsonl), never
+        typed, and the ruled candidate must be that run's saved solution (same sha256):
+        a ruling about some other candidate cannot be hung on an idea. It never changes
         `status`. The same ruling (candidate hash + timestamp) is stored once."""
+        if not experiment_id:
+            raise InvalidIdea("a ruling is attached to one run: give its experiment id")
         claim, line_sha = read_claim(claims_path, sha256, timestamp)
 
         def change(n):
             entry = referee_entry(claim, n["problem"], experiment_id, str(Path(claims_path).resolve()), line_sha)
-            if experiment_id is not None:
-                runs = [r for r in (n["verdict"] or {}).get("runs", []) if experiment_id in (run_key(r), r["experiment_id"])]
-                if not runs:
-                    raise InvalidIdea("%s has no run %s" % (idea_id, experiment_id))
-                if entry["candidate_sha256"] not in {r.get("solution_sha256") for r in runs}:
-                    raise InvalidIdea("the ruled candidate (%s...) is not the saved solution of run %s"
-                                      % (entry["candidate_sha256"][:12], experiment_id))
+            runs = [r for r in (n["verdict"] or {}).get("runs", []) if experiment_id in (run_key(r), r["experiment_id"])]
+            if not runs:
+                raise InvalidIdea("%s has no run %s" % (idea_id, experiment_id))
+            if entry["candidate_sha256"] not in {r.get("solution_sha256") for r in runs}:
+                raise InvalidIdea("the ruled candidate (%s...) is not the saved solution of run %s"
+                                  % (entry["candidate_sha256"][:12], experiment_id))
             key = (entry["candidate_sha256"], entry["claim_timestamp"])
             if any((x.get("candidate_sha256"), x.get("claim_timestamp")) == key for x in n["referee"]):
                 return n
@@ -642,7 +649,8 @@ def main(argv=None) -> int:
     s.add_argument("--claims", required=True, help="path of the arbiter's selection/claims.jsonl")
     s.add_argument("--sha", help="candidate_sha256 of the ruling")
     s.add_argument("--timestamp", help="timestamp of the ruling")
-    s.add_argument("--experiment", help="the run this candidate came from (its solution sha256 must match)")
+    s.add_argument("--experiment", required=True,
+                   help="the run this candidate came from (its solution sha256 must match)")
     a = ap.parse_args(argv)
     store = IdeaStore(a.ideas)
     try:
@@ -669,7 +677,7 @@ def main(argv=None) -> int:
             node = store.set_claimed_value(a.id, a.value)
             print("%s claimed value: %r" % (node["id"], node["claimed_value"]))
         else:
-            node = store.add_referee(a.id, a.claims, a.sha, a.timestamp, a.experiment)
+            node = store.add_referee(a.id, a.claims, a.experiment, a.sha, a.timestamp)
             print("%s referee rulings: %s" % (node["id"], ", ".join(r["verdict"] for r in node["referee"])))
     except (ValueError, KeyError) as e:
         print("error: %s" % (e.args[0] if e.args else e), file=sys.stderr)
