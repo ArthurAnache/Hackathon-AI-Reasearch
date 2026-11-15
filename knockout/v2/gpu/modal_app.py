@@ -100,6 +100,8 @@ def gpu_job(kind: str, spec: dict) -> dict:
             out = worker.bench(Path(VOL_PATH), spec)
         elif kind == "anneal":
             out = worker.anneal(Path(VOL_PATH), spec)
+        elif kind == "hop":
+            out = worker.hop(Path(VOL_PATH), spec)
         else:
             raise ValueError(f"unknown job {kind!r}")
     finally:
@@ -111,19 +113,50 @@ def gpu_job(kind: str, spec: dict) -> dict:
 @app.local_entrypoint()
 def launch(job: str = "anneal", plan: str = "deep", start: str = "frozen", evals: int = 0,
            s_per_eval: float = 0.0, max_usd: float = 0.0, source_commit: str = "", tag: str = "",
-           fft: str = "smooth", history: int = 8, only: str = "", wait: bool = False):
+           fft: str = "smooth", history: int = 8, only: str = "", wait: bool = False, generations: int = 0,
+           sigmas: str = "", seed: int = 0):
     if job == "prepare":
         print(json.dumps(prepare.remote(), indent=1))
         return
     if job == "bench":
         print(json.dumps(gpu_job.remote("bench", {"history": history}), indent=1))
         return
-    if job != "anneal":
+    if job not in ("anneal", "hop"):
         raise SystemExit(f"unknown job {job!r}")
     if evals <= 0 or s_per_eval <= 0:
-        raise SystemExit("anneal needs --evals and --s-per-eval (seconds per batched evaluation, from E0)")
+        raise SystemExit("needs --evals and --s-per-eval (seconds per batched evaluation, from E0)")
     if not 0 < max_usd <= MAX_USD_PER_LAUNCH:
         raise SystemExit(f"--max-usd must be in (0, {MAX_USD_PER_LAUNCH}]")
+    if job == "hop":
+        # --evals is the budget of one generation: a short polish from beta = 1e8 to 1e11
+        if generations <= 0:
+            raise SystemExit("hop needs --generations")
+        sig = [float(x) for x in (sigmas or "0,0.001,0.001,0.003,0.003,0.003,0.01,0.01,0.01,0.01,0.03,0.03,"
+                                            "0.03,0.03,0.1,0.1").split(",")]
+        parts = sch.split_evals(evals, 20)
+        shares = (4, 7, 5, 4)
+        stages, k = [], 0
+        for beta, share in zip((1e8, 1e9, 1e10, 1e11), shares):
+            stages.append([beta, sum(parts[k:k + share])])
+            k += share
+        rate = sch.container_usd_per_s(GPU, GPU_CPU, GPU_MEMORY_MB / 1024)
+        est = sch.estimate(evals * generations, s_per_eval, usd_per_s=rate)
+        budget_s = min(max_usd / rate, GPU_TIMEOUT_S - 300)
+        print(f"estimate: {est['wall_s']:.0f} s, {est['usd']:.2f} USD at {rate * 3600:.2f} USD/h; "
+              f"cap {max_usd:.2f} USD = {budget_s:.0f} s of wall clock (the generations stop there)")
+        if est["usd"] > max_usd:
+            raise SystemExit("the estimate is above --max-usd: lower --generations or raise the cap")
+        commit = (source_commit or "nogit")[:12]
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        run_id = f"{stamp}-{tag or 'hop'}-{start.replace('vol:', '').replace('/', '_').replace('.npy', '')[-40:]}" \
+                 f"-{commit[:7]}"
+        spec = {"run_id": run_id, "source_commit": commit, "start": start, "generations": generations,
+                "sigmas": sig, "stages": stages, "seed": seed, "budget_s": budget_s, "max_usd": max_usd,
+                "usd_per_s": rate, "fft": fft, "history": history, "s_per_eval": s_per_eval}
+        print(f"run_id={run_id} sigmas={sig} stages={stages}")
+        call = gpu_job.spawn("hop", spec)
+        print(f"spawned {call.object_id}; results: modal volume get {sch.VOLUME} {run_id}/summary.json")
+        return
     chains = sch.build_plan(plan, start, evals)
     if only:
         wanted = set(only.split(","))

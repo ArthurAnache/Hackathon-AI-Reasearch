@@ -13,7 +13,9 @@ from pathlib import Path
 
 
 def _g(x) -> str:
-    return "n/a" if x is None else f"{x:+.3e}"
+    if x is None:
+        return "n/a"
+    return "0" if abs(x) < 1e-12 else f"{x:+.3e}"       # below 1e-12: float64 rounding of the same point
 
 
 def rows(root: Path) -> list[dict]:
@@ -28,8 +30,8 @@ def rows(root: Path) -> list[dict]:
 
 def table(root: Path) -> str:
     head = ("| Run | Chain | Start | beta start -> end (stages) | Floor | Kick | Reopen | Evaluations "
-            "| Lowest stage end vs start | Final exact score | Final vs start | Final vs live #1 "
-            "| Best seen vs start |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+            "| Lowest stage end vs start | Final exact score | Final vs start | Final vs live #1 |\n"
+            "|---|---|---|---|---|---|---|---|---|---|---|---|\n")
     lines = []
     for r in rows(root):
         final = "n/a" if r["final_score"] is None else f"{r['final_score']:.16f}"
@@ -39,8 +41,7 @@ def table(root: Path) -> str:
             f"({r['stages']}) | {r['floor']:g} | {r.get('jitter', 0.0):g} | {r.get('reopen', 0.0):g} "
             f"| {r['evals']} "
             f"| {_g(r['min_exact_seen_minus_start'])} | {final} "
-            f"| {_g(r['final_gain_over_start'])} | {_g(r['final_gain_over_live'])} "
-            f"| {_g(r['best_gain_over_start'])} |")
+            f"| {_g(r['final_gain_over_start'])} | {_g(r['final_gain_over_live'])} |")
     return head + "\n".join(lines)
 
 

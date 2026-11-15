@@ -352,3 +352,119 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=1))
     commit()
     return summary
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Basin hopping with selection: small kicks, a short polish, keep the best row, repeat
+
+def hop(vol: Path, spec: dict, commit=lambda: None) -> dict:
+    """Generations of spec["sigmas"] trials in one batched tensor. Each trial kicks the incumbent (log-normal
+    cell noise of its sigma; sigma = 0 is the unkicked control), then runs spec["stages"]. The row with the best
+    exact score becomes the incumbent if it beats it. Every accepted incumbent is stored and re-scored on CPU
+    with the frozen verifier (one record in chains.jsonl); every generation gets one line in hop.jsonl."""
+    import torch
+
+    t0 = time.monotonic()
+    torch.set_grad_enabled(False)
+    dev = torch.device("cuda")
+    run_id = spec["run_id"]
+    budget_s = float(spec["budget_s"])
+    deadline = t0 + budget_s - float(spec.get("reserve_s", 150.0))
+    run_dir = vol / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    env = _env(torch)
+    meta = json.loads((vol / "starts" / "meta.json").read_text())
+    best_known = float(meta["live"]["score"])
+    (run_dir / "spec.json").write_text(json.dumps({**spec, "env": env, "started_at": _now(),
+                                                   "best_known_score": best_known}, indent=1))
+    pool = ThreadPoolExecutor(max_workers=2)
+    start = spec["start"]
+    start_future = pool.submit(score_in_subprocess, str(_start_path(vol, start)))
+    cur = np.maximum(np.load(_start_path(vol, start)), 0.0)
+    n = cur.size
+    m = fft_length(n, spec.get("fft", "smooth"))
+    sigmas = [float(s) for s in spec["sigmas"]]
+    stages = tuple(sch.Stage(float(b), int(e)) for b, e in spec["stages"])
+    per_generation = sch.total_evals(stages)
+    cur_exact = float(exact_score(torch, torch.from_numpy(cur[None, :]).to(dev), m)[0])
+    start_exact = cur_exact
+    start_res = start_future.result()
+    if not start_res["valid"]:
+        raise RuntimeError(f"start {start!r} is rejected by the frozen verifier: {start_res['error']}")
+    start_score = start_res["score"]
+    pending, records, log = [], [], []
+    evals = 0
+    stopped_early = False
+    for g in range(int(spec["generations"])):
+        if time.monotonic() + per_generation * float(spec.get("s_per_eval", 0.035)) > deadline:
+            stopped_early = True
+            break
+        rows = []
+        for i, sigma in enumerate(sigmas):
+            if sigma > 0:
+                rng = np.random.default_rng([int(spec.get("seed", 0)), g, i])
+                rows.append(cur * np.exp(sigma * rng.standard_normal(n)))
+            else:
+                rows.append(cur)
+        f0 = torch.from_numpy(np.stack(rows)).to(dev)
+        del rows
+        kappa = kappa_for(torch, f0, m)
+        w0 = initial_w(torch, f0, kappa, torch.zeros((len(sigmas), 1), dtype=torch.float64, device=dev))
+        del f0
+        out = run_chains(torch, w0, kappa, m, [stages] * len(sigmas), history=int(spec.get("history", 8)),
+                         deadline=deadline)
+        evals += out["evals"]
+        trial = out["best_exact"].tolist()
+        winner = max(range(len(sigmas)), key=lambda i: trial[i])
+        accepted = (not out["stopped_early"]) and trial[winner] > cur_exact + 1e-13
+        line = {"generation": g, "wall_s": time.monotonic() - t0, "evals": evals,
+                "incumbent_minus_start": cur_exact - start_exact, "sigmas": sigmas,
+                "trial_minus_incumbent": [t - cur_exact for t in trial], "winner": winner,
+                "winner_sigma": sigmas[winner], "accepted": accepted}
+        if accepted:
+            cur = (out["best_w"][winner] ** 2).cpu().numpy()
+            cur_exact = trial[winner]
+            step = f"g{g:03d}"
+            chain = sch.ChainSpec("hop", start, stages, seed=int(spec.get("seed", 0)), jitter=sigmas[winner],
+                                  hypothesis="basin hopping with selection: log-normal cell kicks of several "
+                                             "widths, a short polish, keep the best row")
+            path = vol / sch.solution_path(sch.experiment_id(run_id, "hop", step))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            np.save(path, cur)
+            pending.append((chain, step, dict(line), pool.submit(score_in_subprocess, str(path))))
+        log.append(line)
+        with (run_dir / "hop.jsonl").open("a") as fh:
+            fh.write(json.dumps(line) + "\n")
+        print(f"[{run_id}] generation {g} wall {line['wall_s']:.0f}s incumbent-start {cur_exact - start_exact:+.3e} "
+              f"winner sigma {sigmas[winner]:g} accepted {accepted} trials "
+              + " ".join(f"{t:+.1e}" for t in line["trial_minus_incumbent"]), flush=True)
+        if out["stopped_early"]:
+            stopped_early = True
+            break
+    for chain, step, line, fut in pending:
+        res = fut.result()
+        rec = sch.make_record(
+            run_id=run_id, chain=chain, step=step, score=res["score"], valid=res["valid"], gpu_objective=None,
+            gpu_exact=line["trial_minus_incumbent"][line["winner"]] + line["incumbent_minus_start"] + start_exact,
+            start_score=start_score, best_known_score=best_known, env=env, wall_s=line["wall_s"],
+            budget_s=budget_s, source_commit=spec.get("source_commit", ""), evidence_urls=[PROBLEM_URL],
+            extra={"generation": line["generation"], "evals_done": line["evals"], "n": res["n"],
+                   "nonzero": res["nonzero"], "verifier_error": res["error"], "fft_len": m,
+                   "trial_minus_incumbent": line["trial_minus_incumbent"], "sigmas": sigmas})
+        records.append(rec)
+        with (run_dir / "chains.jsonl").open("a") as fh:
+            fh.write(json.dumps(rec) + "\n")
+    pool.shutdown()
+    last = records[-1] if records else None
+    summary = {"run_id": run_id, "finished_at": _now(), "env": env, "n": n, "fft_len": m, "kind": "hop",
+               "generations_done": len(log), "accepted": sum(1 for x in log if x["accepted"]),
+               "evals_done": evals, "stopped_early": stopped_early, "wall_s": time.monotonic() - t0,
+               "batch": len(sigmas), "best_known_score": best_known, "start": start, "start_score": start_score,
+               "final_id": last["experiment_id"] if last else start,
+               "final_score": last["score"] if last else start_score,
+               "final_gain_over_start": last["gain_over_start"] if last else 0.0,
+               "final_gain_over_live": (last["score"] if last else start_score) - best_known,
+               "gpu_incumbent_minus_start": cur_exact - start_exact, "records": len(records), "table": []}
+    (run_dir / "summary.json").write_text(json.dumps(summary, indent=1))
+    commit()
+    return summary
