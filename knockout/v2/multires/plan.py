@@ -321,16 +321,19 @@ PLANS = {"smoke": plan_smoke, "e1": plan_e1, "e2": plan_e2, "e2-blend": plan_e2_
 def build(names, start: str, evals: int, pools=None) -> list[BatchSpec]:
     """The batches of the plans `names` (comma-separated string or list), checked. A plan may carry its own
     factors after colons, e.g. "e1,e2:64:4" (E1 with its default factors, then V-cycles of depth 64 and 4);
-    `pools` applies to the plans that carry none."""
+    `pools` applies to the plans that carry none. A plan may also carry its own start after "@", e.g.
+    "edge@frozen,edge@live"."""
     if isinstance(names, str):
         names = [x for x in names.split(",") if x]
     out = []
     for token in names:
+        token, _, own_start = token.partition("@")
         name, *own = token.split(":")
         if name not in PLANS:
             raise ValueError(f"unknown plan {name!r} (known: {sorted(PLANS)})")
         factors = tuple(int(x) for x in own) or pools
-        out += PLANS[name](start, evals, factors) if factors else PLANS[name](start, evals)
+        begin = own_start or start
+        out += PLANS[name](begin, evals, factors) if factors else PLANS[name](begin, evals)
     seen = [b.name for b in out]
     if len(set(seen)) != len(seen):
         raise ValueError("batch names must be distinct")

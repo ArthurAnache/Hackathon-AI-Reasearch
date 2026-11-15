@@ -160,6 +160,9 @@ def test_plans_build_and_estimate():
     mixed = pl.build("e1:2:4,e2:64:4", "frozen", 2000)
     assert [b.name for b in mixed] == ["e1-p2", "e1-p4", "e2-v64", "e2-v4"] and len(mixed[2].level_evals) == 7
     assert len(pl.build("e3", "frozen", 2000)[0].rows) == 16
+    both = pl.build("edge@frozen,edge:1:2@live", "frozen", 3000)
+    assert [(b.name, b.start) for b in both] == [("e3b-edge-frozen", "frozen"), ("e3b-edge-live", "live")]
+    assert both[1].rows[1].pre == ({"kind": "dilate", "radius": 1, "t": 1e-6},)
     deep = pl.build("vdeep", "live", 3000)[0]
     assert deep.name == "e2b-v2-live" and deep.level_evals == (3000, 6000) and len(deep.rows) == 16
     row = next(r for r in deep.rows if r.name == "phase-c3-f5")
