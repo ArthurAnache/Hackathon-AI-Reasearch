@@ -374,3 +374,19 @@ Cited from the team brief, **not yet verified** by us: arXiv 2602.16805 (simple 
 2609.25510 (Hill Sampling), 2606.10402 (reformulations behind EinsteinArena records), 2605.20086 (what evolutionary
 coding agents evolve), 2510.21614 (Huxley-Gödel Machine), 2605.09018 (evolutionary ensemble of agents), 2611.14326
 (falsification-gated self-evolution), 2604.18005 (communication density and convergence), 2602.23413 (EvoX).
+
+## v2, loop 1 — deep annealing chains on a GPU (2026-11-14, late evening PT)
+
+Branch `feature/ws2-v2-anneal-gpu`, code in `knockout/v2/gpu/`, results and method in
+**`knockout/v2/results/anneal_gpu/README.md`**. No LLM is involved: batched float64 L-BFGS chains on a Modal H100,
+every stored solution re-scored on CPU by the frozen verifier.
+
+- **Question:** does a long "reheat then cool" optimization from the live #1 (solution 2783) or from the previous
+  #1 (solution 2782) land in a better basin? **Answer: no** (verified, 108 chains of 20,000 to 30,000 evaluations).
+- **Best exact score:** 0.9636616210553628, the polish of solution 2783, 5.899e-8 above the live #1. Arbiter:
+  `VALID_BELOW_RECORD`. A record needs 1e-5. No record is claimed.
+- **Measured (E0):** one value-and-gradient evaluation at n = 2M takes 1.14 ms on an H100 against 0.295 s on a CPU
+  core; a full anneal of one candidate costs about 0.08 USD.
+- **What it tells v2:** the polish of v1 is the exact local maximum, not a stalled optimizer; perturbing the
+  incumbent (reheat, opening cells, kicks) always ends below it; solutions 2782 and 2783 share their envelope and
+  differ in the fine pattern. Use the GPU harness as the polisher of candidates built elsewhere.

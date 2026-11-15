@@ -41,6 +41,7 @@ class ChainSpec:
     masked: bool = False            # coarsen inside the support only (zero cells stay zero)
     block: int = 0                  # the kick keeps the mass of every block of this many cells; 0 = free kick
     along: float = 0.0              # start moved by this many steps "solution 2782 -> solution 2783" (starts.py)
+    sqrt_window: int = 0            # > 0: the kick is additive in sqrt(f) on windows of this size (starts.py)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -54,7 +55,8 @@ class ChainSpec:
                          seed=int(d.get("seed", 0)), hypothesis=d.get("hypothesis", ""),
                          jitter=float(d.get("jitter", 0.0)), reopen=float(d.get("reopen", 0.0)),
                          coarsen=int(d.get("coarsen", 0)), masked=bool(d.get("masked", False)),
-                         block=int(d.get("block", 0)), along=float(d.get("along", 0.0)))
+                         block=int(d.get("block", 0)), along=float(d.get("along", 0.0)),
+                         sqrt_window=int(d.get("sqrt_window", 0)))
 
 
 def geometric(beta_start: float, beta_end: float, n: int) -> list[float]:
@@ -436,9 +438,37 @@ def plan_directed16(start: str, evals: int) -> list[ChainSpec]:
     return chains
 
 
+def plan_sqrtkick12(start: str, evals: int) -> list[ChainSpec]:
+    """Round 4, ideas of a second model relayed by the coordinator (unverified when written): a kick that is
+    additive in sqrt(f) on windows of 16 to 128 cells, zero cells included, window masses restored; and its
+    schedule beta = 1e7, 1e8, 1e9, 1e10 on 10 / 20 / 30 / 40 % of the budget. Eight chains use our cooling from
+    beta = 1e4 instead, because rounds 2 and 3 showed that a kicked chain cooled from 1e6 or above does not come
+    back. Twelve chains, so a step is faster than with sixteen."""
+    def ours(window, sigma):
+        return ChainSpec(f"q{sigma:g}-w{window}-b4", start, _with_polish(1e4, 1e9, 3, evals, 0.25), seed=1,
+                         jitter=sigma, sqrt_window=window,
+                         hypothesis=f"additive kick of width {sigma:g} in sqrt(f) on windows of {window} cells "
+                                    f"(zero cells included, window masses restored), then one slow cooling from "
+                                    f"beta = 1e4 to 1e9 and a polish to 1e11")
+
+    def theirs(window, sigma):
+        parts = split_evals(evals, 10)
+        stages = (Stage(1e7, parts[0]), Stage(1e8, sum(parts[1:3])), Stage(1e9, sum(parts[3:6])),
+                  Stage(1e10, sum(parts[6:])))
+        return ChainSpec(f"q{sigma:g}-w{window}-adv", start, stages, seed=1, jitter=sigma, sqrt_window=window,
+                         hypothesis=f"additive kick of width {sigma:g} in sqrt(f) on windows of {window} cells "
+                                    f"(zero cells included, window masses restored), then the suggested "
+                                    f"schedule beta = 1e7, 1e8, 1e9, 1e10 on 10 / 20 / 30 / 40 % of the budget")
+
+    chains = [ours(w, s) for w in (16, 64) for s in (0.15, 0.35, 0.70)]
+    chains += [ours(32, 0.35), ours(128, 0.35)]
+    chains += [theirs(64, 0.15), theirs(64, 0.35), theirs(16, 0.15), theirs(128, 0.15)]
+    return chains
+
+
 PLANS = {"smoke": plan_smoke, "deep": plan_deep, "deep16": plan_deep16, "kick16": plan_kick16,
          "reopen16": plan_reopen16, "coarse16": plan_coarse16, "blockkick16": plan_blockkick16,
-         "blockkick8": plan_blockkick8, "directed16": plan_directed16}
+         "blockkick8": plan_blockkick8, "directed16": plan_directed16, "sqrtkick12": plan_sqrtkick12}
 
 
 def build_plan(name: str, start: str, evals: int) -> list[ChainSpec]:

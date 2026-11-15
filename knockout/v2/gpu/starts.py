@@ -28,6 +28,26 @@ def kick(f: np.ndarray, sigma: float, seed: int, block: int = 0) -> np.ndarray:
     return out
 
 
+def sqrt_kick(f: np.ndarray, sigma: float, seed: int, window: int) -> np.ndarray:
+    """Additive kick in square-root coordinates, zero cells included, with the mass of every window restored:
+    f_i <- (sqrt(f_i) + sigma * sqrt(mu_b) * N(0, 1))^2, mu_b the mean value of the window of `window` cells.
+    Unlike the multiplicative kick it opens the zero cells of every window that holds mass; windows with no
+    mass stay empty. (Suggested by a second model through the coordinator, 2026-11-14; not our own idea.)"""
+    if sigma <= 0 or window <= 0:
+        return f
+    n = f.size
+    pad = (-n) % window
+    blocks = (np.concatenate([f, np.zeros(pad)]) if pad else f).reshape(-1, window)
+    mass = blocks.sum(1, keepdims=True)
+    xi = np.random.default_rng(seed).standard_normal(blocks.shape)
+    out = (np.sqrt(blocks) + sigma * np.sqrt(mass / window) * xi) ** 2
+    if pad:
+        out[-1, window - pad:] = 0.0
+    after = out.sum(1, keepdims=True)
+    out = out * np.where(after > 0, mass / np.where(after > 0, after, 1.0), 0.0)
+    return out.reshape(-1)[:n]
+
+
 def along_records(f: np.ndarray, older: np.ndarray, newer: np.ndarray, t: float) -> np.ndarray:
     """f moved by t times the step between two records: f/sum(f) + t (newer/sum - older/sum), clipped at 0.
 

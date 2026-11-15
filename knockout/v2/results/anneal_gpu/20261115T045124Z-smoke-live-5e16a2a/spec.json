@@ -1,0 +1,70 @@
+{
+ "run_id": "20261115T045124Z-smoke-live-5e16a2a",
+ "source_commit": "5e16a2a",
+ "plan": "smoke",
+ "start": "live",
+ "evals": 400,
+ "budget_s": 802.1561958544567,
+ "max_usd": 1.0,
+ "usd_per_s": 0.0012466400000000002,
+ "fft": "smooth",
+ "history": 8,
+ "chains": [
+  {
+   "name": "polish",
+   "start": "live",
+   "stages": [
+    [
+     1000000000.0,
+     200
+    ],
+    [
+     3000000000.0,
+     200
+    ]
+   ],
+   "floor": 0.0,
+   "seed": 0,
+   "hypothesis": "control: polish only, no reheat"
+  },
+  {
+   "name": "mild",
+   "start": "live",
+   "stages": [
+    [
+     10000000.0,
+     200
+    ],
+    [
+     1000000000.0,
+     200
+    ]
+   ],
+   "floor": 0.0,
+   "seed": 0,
+   "hypothesis": "plumbing: mild reheat at beta = 1e7, then beta = 1e9"
+  }
+ ],
+ "env": {
+  "device": "cuda",
+  "gpu_type": "NVIDIA H100 80GB HBM3",
+  "dtype": "float64",
+  "torch_version": "2.14.1+cu130",
+  "cuda_version": "13.0",
+  "numpy_version": "2.5.4",
+  "scipy_version": "1.18.1"
+ },
+ "started_at": "2026-11-15T04:55:17+00:00",
+ "best_known_score": 0.963661562062085,
+ "best_known_source": {
+  "path": "starts/live.npy",
+  "n": 1999999,
+  "nonzero": 482716,
+  "score": 0.963661562062085,
+  "source": "EinsteinArena live #1 (GET best solutions)",
+  "solution_id": 2783,
+  "agent": "MLAI_YONSEI",
+  "displayed_score": 0.9636615620620852,
+  "sha256": "9fbbe3924fb2ee08be8ff4eb572fc7e28edfb6fa6b3103e93352b5272154d2fa"
+ }
+}

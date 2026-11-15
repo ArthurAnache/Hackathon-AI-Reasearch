@@ -13,7 +13,7 @@ from knockout.v2.gpu import schedule as sch
 from knockout.v2.gpu.chain import initial_w, reopen_cells, run_chains
 from knockout.v2.gpu.lbfgs import BatchedLBFGS
 from knockout.v2.gpu.objective import autoconvolution, evaluate, exact_score, fft_length, kappa_for
-from knockout.v2.gpu.starts import along_records, coarsen_blocks, kick
+from knockout.v2.gpu.starts import along_records, coarsen_blocks, kick, sqrt_kick
 
 
 def _start(n=60, rows=2, seed_=0, sparse=True):
@@ -291,6 +291,15 @@ def test_start_changes_keep_block_masses():
     assert coarsen_blocks(f, 1, True) is f
     spec = sch.ChainSpec("x", "live", (sch.Stage(1e9, 5),), jitter=1.0, block=100, coarsen=4, masked=True)
     assert sch.ChainSpec.from_dict(spec.to_dict()) == spec
+    q = sqrt_kick(f, 0.35, 5, 10)
+    assert q.size == f.size and (q >= 0).all() and block_mass(q, 10) == pytest.approx(block_mass(f, 10), rel=1e-12)
+    assert (q[40:50] == 0).all()                               # a window with no mass stays empty
+    assert ((q > 0) & (f == 0)).any()                          # zero cells of the other windows open
+    assert sqrt_kick(f, 0.0, 5, 10) is f and (sqrt_kick(f, 0.35, 5, 10) == q).all()
+    sq = sch.build_plan("sqrtkick12", "live", 20000)
+    assert len(sq) == 12 and all(c.sqrt_window > 0 and c.jitter > 0 for c in sq)
+    assert [s.evals for s in sq[-1].stages] == [2000, 4000, 6000, 8000]
+    assert [s.beta for s in sq[-1].stages] == [1e7, 1e8, 1e9, 1e10]
     older, newer = f, kick(f, 0.2, 9, block=10)
     assert along_records(newer, older, newer, 0.0) is newer
     assert along_records(older, older, newer, 1.0) == pytest.approx(newer / newer.sum(), abs=1e-15)

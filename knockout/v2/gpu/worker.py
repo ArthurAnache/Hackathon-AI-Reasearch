@@ -28,7 +28,7 @@ from knockout.v2.gpu import schedule as sch
 from knockout.v2.gpu.chain import initial_w, run_chains
 from knockout.v2.gpu.cpu_score import problem
 from knockout.v2.gpu.objective import evaluate, exact_score, fft_length, kappa_for
-from knockout.v2.gpu.starts import along_records, coarsen_blocks, kick
+from knockout.v2.gpu.starts import along_records, coarsen_blocks, kick, sqrt_kick
 
 PROBLEM_URL = "https://einsteinarena.com/problems/second-autocorrelation-inequality"
 
@@ -244,7 +244,9 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
             rows[i] = along_records(rows[i], records_pair[0], records_pair[1], c.along)
         if c.coarsen > 1:
             rows[i] = coarsen_blocks(rows[i], c.coarsen, c.masked)
-        if c.jitter > 0:
+        if c.jitter > 0 and c.sqrt_window > 0:
+            rows[i] = sqrt_kick(rows[i], c.jitter, c.seed, c.sqrt_window)
+        elif c.jitter > 0:
             rows[i] = kick(rows[i], c.jitter, c.seed, c.block)
     f0 = torch.from_numpy(np.stack(rows)).to(dev)
     del rows
@@ -342,6 +344,7 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
             "chain": c.name, "start": c.start, "start_score": start_scores[c.start], "floor": c.floor,
             "jitter": c.jitter, "seed": c.seed, "reopen": c.reopen, "reopened": out["reopened"][i],
             "coarsen": c.coarsen, "masked": c.masked, "block": c.block, "along": c.along,
+            "sqrt_window": c.sqrt_window,
             "beta_start": c.stages[0].beta, "beta_end": c.stages[-1].beta, "stages": len(c.stages),
             "evals": out["evals"], "final_id": final and final["experiment_id"],
             "final_score": final and final["score"], "final_gain_over_start": final and final["gain_over_start"],
