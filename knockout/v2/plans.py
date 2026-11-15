@@ -153,10 +153,18 @@ def local_moves() -> list[dict]:
     return out
 
 
+def kicks() -> list[dict]:
+    """The two kicks suggested to the coordinator by a second model, from the live #1: at the suggested sizes (a
+    share 0.15 of the fragments, sigma 0.15) and at sizes 100 times smaller. Baseline in the e2_reheat run."""
+    cases = [("window_kick", 0.001), ("window_kick", 0.15), ("window_kick_d8", 0.15), ("window_kick_d24", 0.35),
+             ("sqrt_kick", 0.001), ("sqrt_kick", 0.01), ("sqrt_kick", 0.15)]
+    return [spec("sol2783", family, strength, 1, "a7", 1500) for family, strength in cases]
+
+
 def from_2416() -> list[dict]:
     """Calibration: our polisher from solution 2416 (ClaudeExplorer, 2026-07-22, 0.963588), the public solution
     the leader's series is closest to. The leader went from there to 0.963613 (solution 2780)."""
-    return reheats("sol2416", (1500, 6000), ("p0", "a7", "a6"))
+    return reheats("sol2416", (1500, 3000), ("p0", "a7", "a6"))
 
 
 def deep_holds() -> list[dict]:
@@ -166,4 +174,4 @@ def deep_holds() -> list[dict]:
 
 PLANS = {"smoke": smoke, "e1": e1, "e1_wide": e1_wide, "e2_reheat": e2_reheat, "holds": holds, "direct": direct,
          "deep_holds": deep_holds, "e1_extra": e1_extra, "e2_moves": e2_moves, "from_2416": from_2416,
-         "local_moves": local_moves}
+         "local_moves": local_moves, "kicks": kicks}

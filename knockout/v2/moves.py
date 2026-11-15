@@ -26,6 +26,8 @@ Families and the meaning of `strength`:
 | `block_noise` | log-normal noise, then each block of 256 cells is rescaled to its old mass | sigma |
 | `jitter_runs` | shifts single runs by one cell | share of runs shifted |
 | `neighbour_transfer` | moves mass between two neighbouring runs, pair mass kept | share of the lighter run's mass |
+| `window_kick` (`_d8`, `_d24`) | translates run fragments by up to 2 (8, 24) cells inside windows of 64 cells | share of fragments moved |
+| `sqrt_kick` | additive noise on sqrt(f), zero cells included, window masses restored | sigma, relative to the window mean |
 
 `region_noise` and `swap_support` come from comparing solutions 2782 and 2783 (the previous and the current #1 of
 the same team): 25,554 small cells holding 0.7 % of the mass disappeared, 23,191 cells appeared, and on common
@@ -255,6 +257,39 @@ def neighbour_transfer(f, rng, strength):
     return out
 
 
+def window_kick(f, rng, strength, window: int = 64, d: int = 2):
+    """Run-geometry kick: runs are cut at the boundaries of windows of `window` cells; a share `strength` of the
+    fragments is translated by a uniform integer in [-d, d], wrapping inside its window; amplitudes add where
+    fragments collide. The mass of every window is kept."""
+    n = len(f)
+    cells = np.flatnonzero(f > 0)
+    win = cells // window
+    first = np.ones(len(cells), dtype=bool)
+    first[1:] = (np.diff(cells) != 1) | (np.diff(win) != 0)
+    fragment = np.cumsum(first) - 1
+    n_fragments = int(fragment[-1]) + 1
+    shift = np.where(rng.random(n_fragments) < strength, rng.integers(-d, d + 1, n_fragments), 0)
+    start = win * window
+    width = np.minimum(window, n - start)              # the last window may be shorter
+    target = start + (cells - start + shift[fragment]) % width
+    return np.bincount(target, weights=f[cells], minlength=n)
+
+
+def sqrt_kick(f, rng, strength, window: int = 64):
+    """Additive kick in square-root coordinates, zero cells included: f_i <- (sqrt(f_i) + strength * sqrt(mu) *
+    N(0, 1))^2 with mu the mean amplitude of the cell's window, then every window is rescaled to its old mass.
+    Unlike a multiplicative kick it opens zero cells (in windows that hold mass)."""
+    n = len(f)
+    edges = np.arange(0, n, window)
+    counts = np.diff(np.append(edges, n))
+    mass = np.add.reduceat(f, edges)
+    mu = np.repeat(mass / counts, counts)
+    out = (np.sqrt(f) + strength * np.sqrt(mu) * rng.standard_normal(n)) ** 2
+    new = np.add.reduceat(out, edges)
+    scale = np.where(new > 0, mass / np.where(new > 0, new, 1.0), 1.0)
+    return out * np.repeat(scale, counts)
+
+
 MOVES = {
     "reheat": reheat,
     "lognormal": lognormal,
@@ -272,6 +307,10 @@ MOVES = {
     "block_noise": block_noise,
     "jitter_runs": jitter_runs,
     "neighbour_transfer": neighbour_transfer,
+    "window_kick": window_kick,
+    "window_kick_d8": lambda f, rng, strength: window_kick(f, rng, strength, d=8),
+    "window_kick_d24": lambda f, rng, strength: window_kick(f, rng, strength, d=24),
+    "sqrt_kick": sqrt_kick,
 }
 
 # Moves that read other solutions: they get `references`, a dict name -> solution.

@@ -177,6 +177,20 @@ class MovesTest(unittest.TestCase):
         for i in range(0, len(starts) - 1, 2):
             self.assertAlmostEqual(pair(moved, i), pair(f, i), places=10)
 
+    def test_kicks_keep_the_window_masses(self):
+        f = comb(4096)
+        windows = lambda g: g.reshape(64, 64).sum(1)  # noqa: E731
+        kicked = MOVES["window_kick"](f, np.random.default_rng(2), 0.7)
+        self.assertFalse(np.array_equal(kicked, f))
+        np.testing.assert_allclose(windows(kicked), windows(f), rtol=1e-12)
+        np.testing.assert_array_equal(MOVES["window_kick"](f, np.random.default_rng(2), 0.0), f)
+        far = MOVES["window_kick_d24"](f, np.random.default_rng(2), 0.7)
+        np.testing.assert_allclose(windows(far), windows(f), rtol=1e-12)
+        noisy = MOVES["sqrt_kick"](f, np.random.default_rng(2), 0.3)
+        np.testing.assert_allclose(windows(noisy), windows(f), rtol=1e-12)
+        self.assertGreater(np.count_nonzero(noisy), np.count_nonzero(f))      # zero cells were opened
+        self.assertGreaterEqual(noisy.min(), 0.0)
+
     def test_broken_move_is_rejected(self):
         MOVES["_bad"] = lambda f, rng, s: -f
         try:

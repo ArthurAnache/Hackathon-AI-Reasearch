@@ -368,6 +368,20 @@ saved solution):
   in the image (CLAUDE.md WS3 rule 8).
 - The Modal path is tested with a fake `.remote` only; it has not run on Modal yet (no token on this machine).
 
+## v2, loop 1: moves on CPU (`knockout/v2/`, 2026-11-14 evening)
+
+First brick of the v2 brief (`docs/knockout_v2_brief.md`): no LLM yet, only the trusted parts. `knockout/v2/`
+holds the objective with an evaluation counter, a polisher driven by an evaluation budget, 18 hand-written move
+families, the episode value ("move then polish" minus "polish alone"), and a CPU fleet on Modal (Volume
+`knockout-v2`). Tests: `tests/test_knockout_v2_moves.py`.
+
+Result (**verified**, details and tables in `knockout/v2/results/moves_cpu/README.md`): in 257 episodes (190 with
+a move, budgets of 300 to 12,000 evaluations, from solution 2782 and from the live #1), no move followed by a
+polish ends above "polish alone". The best exact score is 0.9636616198579508, +5.78e-8 over the live #1, arbiter
+verdict `VALID_BELOW_RECORD`. The smoothed objective is already stationary at the leader's solutions for every
+beta from 1e6 up. The leader's four solutions of 2026-11-14 show a steady gain of about 3e-6 per hour that keeps
+the envelope and re-draws the fine structure; this loop does not reproduce it. No record is claimed.
+
 ## Design references
 
 Cited from the team brief, **not yet verified** by us: arXiv 2602.16805 (simple baselines vs code evolution),
