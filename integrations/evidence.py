@@ -32,6 +32,7 @@ from typing import List, Optional
 
 from . import exa_client
 from ._common import utc_now
+from .ideas import idea_of
 from .pastdev_client import Memory, get_memory
 
 INIT_KEY = "INIT"   # warm-start path: machine-specific, never shared as a hint
@@ -179,7 +180,8 @@ class PastDevMirrorStore:
                               metadata={"problem": result.get("problem"),
                                         "experiment_id": result.get("experiment_id"),
                                         "status": result.get("status"), "score": result.get("score"),
-                                        "beats_record": result.get("beats_record"), "config": cfg},
+                                        "beats_record": result.get("beats_record"), "config": cfg,
+                                        "idea": idea_of(result)},
                               wait=False, scope=self.scope)
         except Exception:
             pass                                     # mirroring must never break the loop
