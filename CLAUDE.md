@@ -26,6 +26,7 @@ reproduce it, the results (labelled verified / hypothesis / limitation), the dec
 | `README2.md` | WS2 — research loop / agent |
 | `README3.md` | WS3 — optimizers + Modal |
 | `README4.md` | WS4 — cloud + integrations |
+| `knockout/README.md` | WS2 — the Knockout Evolution research loop (Arthur); read its "Handover" section first |
 
 Whenever a workstream changes its code, results or decisions, update its README in the same change. The root
 `README.md` stays the short project overview.
@@ -53,7 +54,35 @@ Experiment logs use one shared JSONL format, one object per line, with these fie
 3. Once the problem is chosen, **the verifier and the problem definition are frozen**. The agent only changes the
    search strategy.
 4. No secrets in the repo. Only `.env.example` is committed; `.env` is git-ignored.
-5. No `git push` without Arthur's approval.
+5. Branches, commits, pulls, merges and pushes follow `GIT_RULES.md` (see "Git workflow" below).
+
+## Git workflow
+
+Every agent and teammate follows the team Git rules in `GIT_RULES.md`: one task branch per task, inspect before
+acting, stage explicit paths, push only the task branch, integrate through a pull request into `main`, never
+force-push or push to `main` without explicit approval.
+
+@GIT_RULES.md
+
+## Commit messages
+
+From 2026-11-14 on, every commit uses [Conventional Commits](https://www.conventionalcommits.org) plus a version tag
+at the end of the subject line:
+
+```
+<type>(<scope>): <short imperative description> (V<major>.<minor>)
+```
+
+- `type`: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `build`, `ci`.
+- `scope`: the workstream (`ws1`…`ws4`) or the area touched (`verifier`, `exa`, `repo`…).
+- Version: one counter for the whole repo. The first versioned commit is `V1`, then `V1.1`, `V1.2`, … for each
+  commit. Bump the major (`V2`, `V3`, …) for a milestone: a stage finished, a problem chosen, a merge into `main`, a
+  claimed record.
+- Before committing, read the latest version with `git log --all --oneline | grep -oE 'V[0-9]+(\.[0-9]+)?' | head -1`
+  and bump from there, so two branches don't reuse the same number.
+- Examples: `feat(ws1): add EinsteinArena API client (V1.1)`, `docs(ws1): log stage 3 results in README1 (V1.2)`,
+  `feat(ws2): first end-to-end research loop run (V2)`.
+- Earlier commits (up to `bc5138f`) predate this rule and are not rewritten.
 
 ## WS1 — problem selection
 
@@ -252,6 +281,92 @@ WS1 does **not** improve solutions; that is WS2 (agent) and WS3 (optimizers). WS
 - **Agent registered:** `Revolutionaries` (2026-11-14 13:23 PT).
   - The key is in `~/.config/einsteinarena/credentials.json` (0600).
   - `submit.py` reads it from `.env` only (`EINSTEIN_ARENA_API_KEY`).
+
+## WS2 — Knockout Evolution (state on 2026-11-14, evening PT)
+
+- Code in `knockout/`, log in `knockout/README.md`, ledgers of the main runs in `knockout/results/`.
+- v1 (milestones M0 to M5) is built and has run on Modal. **No record**: best gain over the live #1 is 5.4e-8,
+  where a record needs 1e-5, and the control arm beat the gene arm in the 1-hour campaign.
+- Next step: `docs/knockout_v2_brief.md`, the brief of the redesign (v2). Work on it from a new branch off
+  `feature/ws2-knockout-evolution`.
+- Launching a run on Modal or with the LLM spends money: state the cap and get Arthur's go-ahead first.
+- The loop never submits and never claims a record; only `selection/verify_claim.py` decides.
+
+## WS3 — Modal compute and GPUs
+
+### State on 2026-11-14 (Thibault's pilot)
+
+- First Modal run: WS2 `research_loop` + `FeedbackAgent`, branch `feature/ws2-autoresearch-loop` @ `131b577`, two
+  CPU workers (baseline / tuned), 2 rounds × 10 s, seed 42. Results only on `results/modal-benchmarks`
+  (`results/ws2-v1/`, commit `3fd148e`).
+- **It ran on WS2's problem `1a` (first autocorrelation), which is not a chosen problem.** No GPU was used, and no
+  record is claimed (best 1.51376 vs 1.50274, lower is better).
+- The runner `modal_first_autocorr.py` is not committed anywhere. Before any new campaign, commit it on a WS3 branch
+  (e.g. `feature/ws3-modal-gpu`). `results/modal-benchmarks` stays results-only.
+- The JSONL of the pilot cannot be replayed as is: `exp_0000`/`exp_0001` collide across workers, and its
+  `solution_path`s point to files that were not exported.
+
+### Which problem goes on GPU
+
+| Problem | Device | Why |
+|---|---|---|
+| `second-autocorrelation-inequality` (main) | **GPU** | n up to 2,000,000; every evaluation is a length-2n convolution; the only forum method that worked (Dinkelbach + LogSumExp + L-BFGS, 0.96272 at 1.6M) ran on GPU [t133/r279, r415] |
+| `circles-rectangle` (backup) | CPU | small problem, certified KKT point; no GPU gain expected |
+| `ring-loading-15` | CPU | exact `Fraction` / integer enumeration; a GPU has nothing to do |
+
+GPU campaigns target the main problem through the frozen catalog (`problems.catalog.load` or `ws2_module`), not
+WS2's own `problems/p1*.py`. WS2's branch has no second-autocorrelation module yet.
+
+### Rules for GPU runs
+
+1. **The GPU searches, the CPU scores.** The GPU computes only a surrogate objective. Each candidate a GPU worker
+   returns is re-scored in float64 on CPU with `load(slug).score` (pinned numpy/scipy verifier) before it is logged.
+   Log `gpu_objective` and `score` as two fields; only `score` counts, and only `selection/verify_claim.py` (run
+   locally) decides a claim.
+2. **Precision.**
+   - δ = 1e-5 on a score of ~0.96. The error of a float32 FFT at n = 2M can come close to that, so float32 is for
+     exploration only. The final polish runs in float64.
+   - float64 needs an `H100` or `A100` on Modal. `T4`, `L4` and `A10G` have weak float64 throughput: use them for
+     float32 exploration only.
+3. **Same formula as the verifier.** The GPU objective reproduces `problems/second-autocorrelation-inequality/
+   verifier_pinned.py`: f clipped at 0, full autoconvolution of length 2n−1, piecewise-linear L2 on the grid
+   `linspace(-0.5, 0.5, 2n+1)`, L1 = Σ|conv| / (2n), L∞ = max. Only the max (and the non-negativity, e.g. f = w²)
+   may be smoothed. Zero-pad the FFT to ≥ 2n−1 points so the convolution is linear, not circular.
+4. **Stay within submission limits.** n ≤ 2,000,000 values, all ≥ −1e-6, positive sum. A ×2 upsampling of a ~2M
+   solution is not submittable (see stage 3).
+5. **Use the GPU fully.** One 2M-point FFT is small for an H100. Batch several chains or seeds in one tensor
+   (one row per chain) rather than one chain per GPU.
+6. **Stack.**
+   - PyTorch (`torch.fft.rfft`/`irfft`, `torch.optim.LBFGS`) in float32/float64.
+   - GPU packages go in a separate `requirements-gpu.txt`, installed only in the Modal image. Do not add torch to
+     the shared `requirements.txt` without telling the team.
+   - Pin exact versions. Use Python 3.12 and the local numpy 2.5.4 / scipy 1.18.1 in the image, so the CPU
+     re-score on Modal matches the local one.
+7. **Modal function.**
+   - Declare `@app.function(gpu="H100", timeout=..., image=...)`, with an explicit `timeout` and a cap on parallel
+     containers for every GPU function.
+   - The image copies `problems/` unchanged, and the worker calls `load(slug)` inside the container. The sha256
+     check then proves the verifier and the certificate are the frozen ones (a modified problem refuses to load).
+   - Warm start from `load(slug).certificate()` or from a stored solution, never from a path that only existed in
+     an earlier container.
+8. **Secrets.**
+   - Never put `.env`, the EinsteinArena key, the Exa key or git credentials in the image or in Modal secrets used by
+     the search.
+   - GPU workers never submit and never call write endpoints.
+   - Agent-generated optimizer code runs without any secret.
+   - Modal credentials stay in each person's `~/.modal.toml`, never in the repo.
+9. **Store every solution, with a global id.**
+   - Use a Modal Volume per campaign. Ids are `<run_id>/<chain>/<experiment_id>`, and parent references use the same
+     ids.
+   - Each record uses the shared JSONL format plus `run_id`, `source_commit`, `device`, `gpu_type`, `dtype`,
+     `torch_version`, `cuda_version`, `gpu_objective`, `wall_s` and a `solution_path` that resolves on the Volume
+     (`.npy` float64 for large vectors).
+   - Download the best candidates locally before running `verify_claim.py`.
+10. **Reproducibility.** GPU kernels (FFT, atomics) are not bit-deterministic. A result is reproduced from its stored
+    solution, not by re-running the seed. Set and log seeds anyway.
+11. **Measure before scaling.** Before a large GPU campaign, compare CPU vs GPU on the main problem at equal budget
+    (n ≥ 400k, ≥ 3 seeds), and log wall time × GPU type so the cost can be estimated. Label every measurement with
+    its device.
 
 ## Exa integration (for the Exa challenge)
 
