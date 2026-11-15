@@ -5,3 +5,9 @@ sympy
 requests
 exa-py
 python-dotenv
+cma
+pyyaml
+pydantic
+pytest
+modal
+openai

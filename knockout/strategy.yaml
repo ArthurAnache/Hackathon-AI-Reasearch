@@ -1,0 +1,143 @@
+# Knockout Evolution: every tunable default lives here (prompt section 8).
+# The strategist (M5) may only patch the keys listed under `strategist_allow_list`.
+
+run:
+  arms: auto                 # auto | both (control + main; needs the LLM editor) | control
+  seed: 20261114
+  wall_clock_s: 600          # total wall-clock budget of one run
+  max_usd: 0.0               # hard USD cap, compute + LLM; must be > 0 to use the LLM editor
+
+budget_shares:               # fixed shares of the budget (section 5.12)
+  control: 0.20              # Hill Sampling arm: fixed, no bandit can reduce it
+  gate_max: 0.25             # knock-out gate experiments, at most
+  meta_max: 0.02             # strategist + scout, at most
+
+executor:
+  kind: local                # local | modal
+  workers: 8                 # local process pool size
+
+modal:                       # used when executor.kind = modal (CLAUDE.md "WS3 — Modal compute and GPUs")
+  app_name: knockout-evolution
+  volume: knockout-runs      # Modal Volume holding runs/<run_id>/...
+  cpu: 2.0                   # cores per evaluation worker
+  memory_mb: 8192            # per evaluation worker
+  orchestrator_memory_mb: 16384   # the loop holds a batch of candidates (up to 2M values each) in memory
+  max_containers: 32         # cap on parallel evaluation workers
+  worker_timeout_s: 900
+  orchestrator_timeout_s: 86400
+  # Cost ESTIMATES used by the budget governor. Check https://modal.com/pricing before a large run;
+  # Modal's dashboard has the real bill.
+  usd_per_core_s: 0.0000131
+  usd_per_gib_s: 0.00000222
+  overhead_s: 2.0            # per-call container/scheduling overhead charged on top of the job time
+
+sandbox:
+  timeout_slack_s: 10        # hard kill at budget_s + slack
+  memory_mb: 4096            # enforced on Linux only (macOS ignores RLIMIT_AS)
+  deny_network: true
+  max_output_mb: 256
+
+fidelity:                    # tuner budgets in seconds (section 5.4)
+  f0_s: 2.0
+  f1_s: 20.0
+  f2_s: 120.0
+  promote_ratio: 0.3333
+  levels: 3                  # 1 = F0 only, 2 = F0 and F1, 3 = the full ladder
+
+tuner:
+  method: cma                # cma | random
+  sigma0: 0.25               # in normalized [0,1] units
+  calls: 8                   # per-call budget = fidelity budget / calls (programs may finish sooner)
+  top_k: 3                   # best tuned candidates returned for exact re-scoring
+
+control:
+  edits_per_round: 4         # N edits of the incumbent per round
+  ratchet: false             # true: the best verified candidate becomes `init` of the next round, and edits are
+                             # compared with a replay of the incumbent program from that same `init`
+
+editor:
+  kind: offline              # offline (PARAMS mutations, no LLM) | openai (knockout/llm_editor.py)
+
+llm:                         # used when editor.kind = openai; the key is OPENAI_API_KEY in .env
+  model: gpt-6.1-sol         # reviewer, brainstorm, scout, strategist, and the control arm's editor
+  models: [gpt-6.1-sol]      # program writers of the main arm; a bandit picks among them when several are listed
+  prices: {}                 # optional {model: [usd_per_mtok_in, usd_per_mtok_out]}; else the two keys below
+  reasoning_effort: medium   # null to omit the parameter
+  max_output_tokens: 20000   # per call, reasoning included
+  timeout_s: 600
+  history: 24                # most recent edits shown to the model, plus the 5 largest gains
+  operators: [refine, restructure, reformulate, fresh]
+  # Price ESTIMATES for llm.model, in USD per million tokens, used by the budget governor. Update both when the
+  # model changes. gpt-6.1-sol: 2 / 10 according to third-party price lists read on 2026-11-14 (not checked on
+  # OpenAI's own pricing page). The OpenAI dashboard has the real bill.
+  usd_per_mtok_in: 2.0
+  usd_per_mtok_out: 10.0
+
+ledger:
+  save_solutions: all        # all | selected (only the baseline, kept programs and warm-start updates)
+
+main:                        # main arm (genes, gate, islands); runs only with the LLM editor
+  batch_size: 6              # children per batch (gate pairs included)
+  population_max: 60         # programs per island that may be parents
+  # ratchet: defaults to control.ratchet
+
+selection:
+  eps_rel: 1.0e-9            # improvement threshold, relative to max(1, |score|)
+  parent_power: 1.0          # rank-based power-law exponent
+
+genes:
+  g_max: 8
+  max_negative: 5
+  gamma: 0.97
+  clade_depth: 3
+  clade_decay: 0.5
+  phase_min_obs: 3
+  seed_count: 10             # genes asked from the brainstorm call at start
+  max_candidates: 12         # no gene birth from diffs while an island has this many untested genes
+  births_per_batch: 2        # reviewer calls per batch (best improving children)
+  dedupe_similarity: 0.8     # token Jaccard above which two gene texts are the same gene
+
+phases:
+  explore_until: 0.20        # fraction of island budget
+  window: 30                 # W evaluations
+
+gate:
+  p_validate: 0.90
+  p_refute: 0.10
+  min_pairs: 3
+  max_pairs: 8
+  reaudit_every: 100
+  pairs_per_batch: 2         # knock-out pairs of the gene under test in one batch
+
+filters:
+  jaccard_max: 0.95
+  recycled_line_ratio: 0.5
+
+islands:
+  max_islands: 5
+  min_evals_before_replace: 40
+  migrate_every: 50
+  migrate_min_posterior: 0.6
+
+linkage:
+  min_cooccurrence: 6
+  margin: 0.15
+
+strategist:
+  stagnation_fraction: 0.10
+  min_progress: 0.0          # a gain of the main arm's best below this does not count as progress
+
+operators: [refine, restructure, hybridize, reformulate, fresh]
+operator_priors: {refine: [1, 1], restructure: [1, 1], hybridize: [1, 1], reformulate: [1, 1], fresh: [1, 1]}
+bandit_discount: 0.95
+
+strategist_allow_list:
+  - operator_priors
+  - selection.parent_power
+  - genes.g_max
+  - fidelity.f0_s
+  - fidelity.f1_s
+  - fidelity.f2_s
+  - fidelity.promote_ratio
+  - islands.budget_shares
+  - seed_genes
