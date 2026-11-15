@@ -10,7 +10,7 @@ and what is still open. Every result is labelled as one of the following:
 - **Hypothesis:** we believe it, but have not checked it independently.
 - **Limitation:** something we know we did not or could not check.
 
-Last updated: 2026-11-14, 12:30 PT.
+Last updated: 2026-11-14, 22:05 PT (section 14: proposed freeze of third-autocorrelation and arbitration).
 
 ---
 
@@ -85,8 +85,9 @@ Pinned sources:
 | `selection/freeze_problems.py` | Freezes a chosen problem into `problems/<slug>/`; `--manifest` rewrites `problems/MANIFEST.json` |
 | `problems/` | Frozen catalog: `catalog.py`, `_frozen.py`, one directory per problem (pinned verifier, certificate, meta, independent verifier, API) |
 | `tests/test_ws1_frozen_problems.py` | Freeze rule, certificates, independent agreement, circles exploits, schema limits (unittest, ~9 s) |
-| `selection/verify_claim.py` | WS1 arbiter: pinned + independent verifier + live #1 → verdict in `selection/claims.jsonl` |
-| `selection/claims.jsonl` | Every arbitrated claim (WS1 self-tests so far) |
+| `tests/test_ws1_third_autocorrelation.py` | third-autocorrelation (proposal, §14): minimize rules, invalid candidates, exact scorer (unittest, ~1 s) |
+| `selection/verify_claim.py` | WS1 arbiter: pinned + independent verifier + live #1 → verdict in `selection/claims.jsonl`; `--provenance` records where a candidate comes from |
+| `selection/claims.jsonl` | Every arbitrated claim: WS1 self-tests, WS2 candidates, and the scout's third-autocorrelation candidates (§14) |
 | `docs/ws1_handoff.md` | Handoff to WS2/WS3: problems, records, δ, interface, limits, forum knowledge base |
 | `docs/ws1_knowledge.jsonl` | The same knowledge, one fact per line, `author: ws1-selection` (ready for past.dev) |
 | `integrations/arena_register.py` | One-time agent registration (challenge + proof of work), run only with Arthur's approval |
@@ -589,6 +590,8 @@ kakeya-needle-128 is the next problem to study otherwise.
 - With WS2: register `ws2_module(...)` in their catalog, and use `beats_record` (δ) rather than `RECORD_RTOL`.
 - Curate the literature check for the remaining live problems, and add Tao's constants (1c, 3b, 3c, 49, 89).
 - Third-autocorrelation: obtain MILO's construction, or treat 1.44889 as the bar.
+- Third-autocorrelation is frozen as a proposal and its candidates are arbitrated (section 14). Arthur's decisions
+  are listed in section 14.7.
 
 **Known limitations:**
 - `selection/verifiers/` from stage 1 uses a simplified unescaping. The verifiers actually run are the frozen ones
@@ -596,3 +599,161 @@ kakeya-needle-128 is the next problem to study otherwise.
 - The stage 2 cache (~13 MB) is git-ignored. Only the three frozen certificates are committed.
 - If the live #1 moves, `best_known_score()` and the arbiter follow it. The frozen certificate stays the #1 at
   freeze time.
+
+---
+
+## 14. Proposal: freeze of third-autocorrelation-inequality, and arbitration of the scout's candidates
+
+Done on 2026-11-14, 21:45–22:05 PT (2026-11-15, 05:45–06:05 UTC), on the branch `ws1/freeze-third-autocorrelation`
+(created from `docs/ws1-problem-scout` @ `b16fd50`).
+
+**Status: a proposal. Arthur has not accepted it.** The main problem is still second-autocorrelation-inequality.
+Nothing was submitted, the server has scored none of the files below, and nothing here is a record claim.
+
+### 14.1 What was frozen (`problems/third-autocorrelation-inequality/`)
+
+Command: `.venv/bin/python selection/freeze_problems.py third-autocorrelation-inequality`, then `--manifest`.
+
+API reads at freeze time (logged in `selection/arena_log.jsonl`):
+
+| Time (UTC, 2026-11-15) | Read | Result |
+|---|---|---|
+| 05:49:43 | `GET /api/problems/third-autocorrelation-inequality` | id 4, `minimize`, `minImprovement` 1e-5; verifier sha256 `b8288d59…`, **byte-identical to the pinned one** |
+| 05:49:44 | `GET /api/leaderboard?problem_id=4&limit=2` | #1 Atris 1.449109789331911; #2 Ghazt 1.449121951852342 |
+| 05:49:44 | `GET /api/solutions/best?problem_id=4&limit=1` | solution 2617 (Atris, created 2026-10-13), score 1.449109789331911, 65,536 values; same bytes as the stage 2 copy of 2026-11-14 |
+
+| File | sha256 | What it is |
+|---|---|---|
+| `verifier_pinned.py` | `b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9` | EinsteinArena verifier, commit `5baf636`; equal to the stage 2 registry value and to the live verifier |
+| `certificate.json.gz` | `670cf76b9e75b4d727940e36b4936878cd7b6e17017f00f4ae8dcca57257bc96` (decompressed, 1,313,736 bytes); `12891381d271299d577f1b3b605fa25281ecc795918bfedb086336bd2cca0668` (gzip file) | The live #1 solution (2617) as served at 05:49:44 UTC, serialized with `json.dumps` as stage 2 does |
+| `independent.py` | `66a2a4bea4c79907b40a6851dda22fc8b0f9a1d95d7efb43fd7c6e2595af9bb7` | Exact rational scorer (14.3) |
+| `problem.py` | `35f9a7d084b54fac8416a8c42c00aa862eb3bd7fa19c08c8a63bb8642077799d` | Same interface as the other problems, plus the server schema |
+| `meta.json` | `67f8817863fe2b2ee8a26e95c71b803ea71447e754c85026d348e332df916e1e` | Same shape as the others; role `proposed_main`; a `proposal` note says Arthur has not accepted it |
+
+`problems/MANIFEST.json` now lists 23 files. The hashes of the 15 files of the three existing problems and of the
+three shared files (`_frozen.py`, `catalog.py`, `README.md`) are unchanged.
+
+**Verified:**
+- The certificate reproduces the displayed score **exactly**: the pinned verifier, in a clean process
+  (`python -I selection/eval_runner.py`, 3 runs, deterministic, numpy 2.5.4), gives 1.449109789331911.
+- A copy of the problem with one byte appended to its pinned verifier refuses to load (`FrozenFileChanged`).
+
+### 14.2 Definition and limits
+
+- Score of values f, dx = 0.5 / n: |max(conv(f, f)) · dx| / (Σ f · dx)². **Minimize.** δ = 1e-5. Values may be
+  negative. The verifier rejects (Σ f · dx)² < 1e-9.
+- This is C′ of arXiv:2511.02864 (Problem 6.4), not Tao's constant 1d (section 7.2). The two are not compared.
+- **At most 100,000 values.** This comes from the zod schema of the pinned commit
+  (`z.array(num).min(1).max(100_000)`). **Limitation:** the live API only serves the text "array of floats (the
+  discretized function values, may be negative)", so the limit the server applies today cannot be read from it.
+  The live #1 has 65,536 values and our candidates have 25,600 and 51,200.
+- `gain` = record − score, `target()` = live #1 − δ, and `beats_record` is true only for a score at least δ below
+  the record; a tie never counts (`problems/_frozen.py`, unchanged, already handled `minimize`; now tested).
+
+### 14.3 Independent verifier
+
+- Exact rational arithmetic, standard library only, no code or arithmetic shared with the pinned verifier (numpy,
+  float64): float64 values → integers over a common power of two; signed Kronecker substitution (a = p − q, three
+  exact products); score = 2n · |max(a∗a)| / (Σa)².
+- Adapted from the scout's `selection/scout_third_autocorr_exact.py`. The one change: the big products use the
+  standard-library `decimal` (libmpdec, exact, `Inexact` trapped) instead of Python integers.
+- **Verified:** it returns the same exact fraction as the scout's integer scorer on the certificate, the seven
+  candidates, the published copy and 198 small random signed inputs.
+- **Tolerance:** 1e-12 for |exact − pinned|. Observed: 4.4e-16 on the certificate, at most 1.4e-15 on the seven
+  candidates, 1.2e-14 on a synthetic 100,000-value input.
+- **Cost** (one core, machine shared with other jobs): 0.5 s for 25,600 values, 1.1 s for 65,536, 2 s for 100,000.
+  The scout's integer scorer takes 5 s, 19 s and more.
+
+### 14.4 The problem is not registered in `problems/catalog.py`
+
+- `problems/catalog.py` is a frozen shared file and was left unchanged, so `catalog.SLUGS`, `catalog.load`,
+  `ws2_module` and `integrations/submit.py` (through `selection/independent_verifiers.py`) do not know this
+  problem. **It cannot be submitted from this branch.**
+- The arbiter and the tests load it by path: `selection.verify_claim.load_problem(slug)`, with the slug listed in
+  `PROPOSED_SLUGS`.
+- If Arthur accepts, the registration would be: add the slug to `SLUGS` in `problems/catalog.py` (and change `MAIN`
+  if it becomes the main problem); add its row to `problems/README.md`; set its role in `ROLES` and drop it from
+  `PROPOSALS` in `selection/freeze_problems.py`, then `--refreeze third-autocorrelation-inequality` and
+  `--manifest`; empty `PROPOSED_SLUGS`; update the test constants and
+  `test_catalog_lists_only_the_accepted_problems` in the same commit.
+
+### 14.5 Script changes and tests
+
+- `selection/freeze_problems.py`: entries for the fourth problem; it now also re-reads the #1 solution and refuses
+  to freeze if its id, score or bytes differ from the stage 2 copy; a `proposal` note for a proposed problem.
+- `selection/verify_claim.py`: `--provenance LABEL` (logged as given, no effect on the verdict), and
+  `load_problem` for proposed problems.
+- `tests/test_ws1_frozen_problems.py`: constants for the new problem; the freeze-rule and certificate tests now
+  also cover it; the `beats_record` and live-target tests follow the direction of each problem.
+- `tests/test_ws1_third_autocorrelation.py` (new, 14 tests): definition, minimize rules (at least δ below, tie,
+  inclusive boundary, tolerance, target), invalid candidates (schema, more than 100,000 values, integral close to
+  zero), exact scorer against a direct `Fraction` computation, agreement on a stored candidate.
+- **Result:** `.venv/bin/python -m unittest discover -s tests -p "test_ws1_*.py"`: 32 tests, all pass (the live
+  test is opt-in with `WS1_LIVE_TESTS=1` and also passes). 19 to 48 s on a machine with a load average of 26; the
+  new file alone takes 1.4 s. Only the `test_ws1_*` suites were run.
+
+### 14.6 Arbitration of the candidates
+
+Command, for each file of `selection/scout_candidates/third-autocorrelation-inequality/` (scout branch re-fetched at
+05:56 and 06:01 UTC, still `b16fd50`; each `.json.gz` decompressed first):
+
+```bash
+.venv/bin/python selection/verify_claim.py third-autocorrelation-inequality CANDIDATE.json \
+    --claimed-score <scout's pinned score> --by <scout's experiment id> --provenance <scout's label>
+```
+
+- Runs: 2026-11-15, 05:57:21–05:57:55 UTC. At each run the live verifier was identical to the frozen one, and the
+  live #1 was re-read: 1.449109789331911 (Atris), δ = 1e-5, target 1.4490997893319109.
+- **The bar is the live EinsteinArena #1**, as the decision rule in `CLAUDE.md` says (best of EinsteinArena, Tao's
+  table and AlphaEvolve, each re-verified). MILO's value (1.4488860142647635, arXiv:2609.38349 and its project
+  page) is none of the three and we have not reproduced it: the column about it is information only.
+- **Provenance, as the scout recorded it:** all seven candidates are `milo_published_copy`. They were obtained by
+  re-optimizing a partial copy (3,200 of 25,600 values, 6 decimals) of the solution published on the MILO project
+  page. No candidate labelled `clean` was on the scout branch.
+- Each line of `selection/claims.jsonl` holds `candidate_sha256` (the sha256 of the decompressed JSON, equal to
+  `sha256_json` in the scout's `MANIFEST.json`), `claimed_by` (the scout's experiment id) and `provenance`.
+
+| Candidate (`.json.gz`) | sha256 (JSON) | Provenance | Values | Pinned score | Independent (exact) score | Difference | Below the live #1, in δ | Below MILO's value, in δ (claimed, unverified) | Arbiter's verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| `milo_replay_25600_c_remelt` | `6262db4f37d6…` | `milo_published_copy` | 25,600 | 1.448825267560211 | 1.4488252675602122 | 1.3e-15 | 28.45 | 6.07 | `BEATS_RECORD` |
+| `milo_replay_25600_c` | `dd1f75f8a9f3…` | `milo_published_copy` | 25,600 | 1.448827989657653 | 1.448827989657653 | 0 | 28.18 | 5.80 | `BEATS_RECORD` |
+| `milo_replay_25600_e` | `18e6520db96e…` | `milo_published_copy` | 25,600 | 1.448835478669337 | 1.448835478669337 | 0 | 27.43 | 5.05 | `BEATS_RECORD` |
+| `milo_replay_25600_d` | `53e03f344514…` | `milo_published_copy` | 25,600 | 1.448845291011433 | 1.4488452910114331 | 2.2e-16 | 26.45 | 4.07 | `BEATS_RECORD` |
+| `milo_replay_51200_from_b` | `e99117df7c16…` | `milo_published_copy` | 51,200 | 1.448853861372726 | 1.4488538613727269 | 8.9e-16 | 25.59 | 3.22 | `BEATS_RECORD` |
+| `milo_replay_25600_b` | `4cd15cbb4914…` | `milo_published_copy` | 25,600 | 1.4488567088845645 | 1.4488567088845636 | 8.9e-16 | 25.31 | 2.93 | `BEATS_RECORD` |
+| `milo_replay_25600_a` | `268330e59859…` | `milo_published_copy` | 25,600 | 1.4488729104664002 | 1.4488729104664004 | 2.2e-16 | 23.69 | 1.31 | `BEATS_RECORD` |
+
+Three more runs, which are not candidates:
+
+| File | sha256 | Provenance label | Pinned score | Independent score | Arbiter's verdict |
+|---|---|---|---|---|---|
+| the frozen certificate (live #1, 65,536 values) | `670cf76b9e75…` | `frozen_certificate` | 1.449109789331911 | 1.4491097893319105 | `VALID_BELOW_RECORD` (gain 0: a tie; 22.38 δ above MILO's claimed, unverified value) |
+| `milo_published_copy_3200` as published (3,200 values) | `ef87d878fc52…` | `milo_published_copy_as_given` | 1.655795526648357 | 1.6557955266483577 | `VALID_BELOW_RECORD` (20,669 δ above the live #1) |
+| self-test `[1, -1, 0.5, -0.5]` (zero integral) | `66afeb056bc4…` | `ws1_self_test_zero_integral` | rejected | rejected | `INVALID` |
+
+**How to read the verdict.** `BEATS_RECORD` is the arbiter's verdict about one candidate file: the pinned verifier
+and the independent verifier accept it, they agree within 1e-12, and its score is at least δ below the live #1
+read at that moment for both the pinned and the independent score (and strictly below it in exact rationals). For
+all seven, the pinned score equals the score the scout recorded (difference 0). It is not a record: the server has
+scored nothing, and the live #1 can move.
+
+**Could not be verified:**
+- MILO's claimed value: its construction is not public and it is not on the leaderboard.
+- The score the server would give: its numpy version is not pinned. On this problem the local pinned score of
+  the live #1 equals the displayed one exactly.
+- The value limit the live server applies (14.2).
+- A detail: the scout's manifest gives 1.6557955266483575 for the published copy (its own numpy scorer); the pinned
+  verifier gives 1.655795526648357, a difference of 4.4e-16 on a file that is not a candidate.
+
+### 14.7 What Arthur has to decide
+
+1. **Accept the proposal or not:** third-autocorrelation-inequality as a frozen problem, and with which role (main
+   problem, or one more problem next to the current three). If yes: the registration steps of 14.4, then merge. If
+   no: the branch is dropped, nothing else changes.
+2. **Whether a result with the `milo_published_copy` provenance is one the team presents.** The candidates start
+   from data published by the MILO authors, not from our own search; from the live #1 alone the scout's method
+   gained 0 δ (section 12). The EinsteinArena page of the problem asks agents to check the literature before
+   confirming a record.
+3. **Which bar the team applies:** the live #1 only (the current rule, used by the arbiter), or also MILO's claimed
+   value. The margins against both are in the table.
+4. **Submission.** Not possible from this branch (14.4), and never without Arthur's `--confirm`.

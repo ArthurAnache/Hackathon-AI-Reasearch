@@ -1,6 +1,6 @@
 """WS1: tests of the frozen problems in problems/<slug>/ (standard library unittest; also runs under pytest).
 
-    .venv/bin/python -m unittest discover -s tests -p "test_ws1_*.py" -t .        (~15 s)
+    .venv/bin/python -m unittest discover -s tests -p "test_ws1_*.py"             (~20 s)
     WS1_LIVE_TESTS=1 ... also checks the live leaderboard read (network)
 
 What they guarantee:
@@ -10,6 +10,10 @@ What they guarantee:
     independent verifier agrees;
   - circles-rectangle: the pinned verifier rejects the tolerance exploits reported in selection/digests/;
   - the server-schema limits are enforced by verify().
+
+The freeze rule and the certificate tests also cover the problems frozen as a proposal (PROPOSED_SLUGS in
+selection/verify_claim.py), which are loaded by path because problems/catalog.py does not list them yet. The tests
+specific to third-autocorrelation-inequality are in tests/test_ws1_third_autocorrelation.py.
 """
 
 from __future__ import annotations
@@ -25,23 +29,31 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 from problems.catalog import SLUGS, load  # noqa: E402
+from selection.verify_claim import PROPOSED_SLUGS, load_problem  # noqa: E402
+
+# The catalog problems plus the problems frozen as a proposal (not in problems/catalog.py until Arthur accepts).
+FROZEN_SLUGS = SLUGS + PROPOSED_SLUGS
 
 # Frozen on 2026-11-14 from github.com/vinid/einstein-arena @ 5baf6361a3e0e2123edb98f676ef44f7ab081ad6.
+# third-autocorrelation-inequality: frozen on 2026-11-15 from the same commit, as a proposal.
 # Changing these values requires Arthur's approval (selection/freeze_problems.py --refreeze).
 VERIFIER_SHA256 = {
     "second-autocorrelation-inequality": "dc5ccffaa20ba6c112cab36ffe602c657372d192d8b486abd66b14bcad1ca768",
     "circles-rectangle": "77cf0c63c000f1abc2d89aae18d4d7407599b8f683f304fe6cf9adeba966482d",
     "ring-loading-15": "a91b09ba472d9506a1d54603f977872f37505bdcc0e258b5dddd1ed99f148a57",
+    "third-autocorrelation-inequality": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
 }
 CERTIFICATE_SHA256 = {
     "second-autocorrelation-inequality": "ae37b4fc12a29c416e219b521f88d09345d8748c3b50926cb18823bc55030cae",
     "circles-rectangle": "6de2c84392d8c1d3ad2601c7836db06cf0917b81fa52ff1fc199509b361e121f",
     "ring-loading-15": "013531d4876692d67aa2819220873f78ec94303e45032be31311eee273840cfe",
+    "third-autocorrelation-inequality": "670cf76b9e75b4d727940e36b4936878cd7b6e17017f00f4ae8dcca57257bc96",
 }
 DISPLAYED = {  # leaderboard #1 at freeze time (bestScore as served by the API)
     "second-autocorrelation-inequality": 0.963638667992813,
     "circles-rectangle": 2.3658323759098576,
     "ring-loading-15": 1.125,
+    "third-autocorrelation-inequality": 1.449109789331911,
 }
 
 
@@ -51,7 +63,7 @@ def sha256_file(path: Path) -> str:
 
 class FreezeRule(unittest.TestCase):
     def test_pinned_verifier_hash_is_unchanged(self):
-        for slug in SLUGS:
+        for slug in FROZEN_SLUGS:
             with self.subTest(slug=slug):
                 path = REPO_ROOT / "problems" / slug / "verifier_pinned.py"
                 self.assertEqual(sha256_file(path), VERIFIER_SHA256[slug], f"{slug}: pinned verifier changed")
@@ -61,34 +73,44 @@ class FreezeRule(unittest.TestCase):
     def test_verifier_hash_matches_stage2_registry(self):
         rows = {json.loads(l)["slug"]: json.loads(l)
                 for l in (REPO_ROOT / "selection" / "registry_stage2.jsonl").read_text().splitlines()}
-        for slug in SLUGS:
+        for slug in FROZEN_SLUGS:
             with self.subTest(slug=slug):
                 self.assertEqual(rows[slug]["verifier_pinned_sha256"], VERIFIER_SHA256[slug])
 
     def test_certificate_hash_is_unchanged(self):
-        for slug in SLUGS:
+        for slug in FROZEN_SLUGS:
             with self.subTest(slug=slug):
                 meta = json.loads((REPO_ROOT / "problems" / slug / "meta.json").read_text())
                 self.assertEqual(meta["certificate"]["sha256"], CERTIFICATE_SHA256[slug])
-                load(slug).certificate()  # raises FrozenFileChanged if the decompressed bytes differ
+                load_problem(slug).certificate()  # raises FrozenFileChanged if the decompressed bytes differ
 
     def test_every_ws1_file_under_problems_matches_the_manifest(self):
         manifest = json.loads((REPO_ROOT / "problems" / "MANIFEST.json").read_text())["sha256"]
         for rel, digest in manifest.items():
             with self.subTest(file=rel):
                 self.assertEqual(sha256_file(REPO_ROOT / rel), digest, f"{rel} changed")
-        for slug in SLUGS:
+        for slug in FROZEN_SLUGS:
             present = {p.relative_to(REPO_ROOT).as_posix() for p in (REPO_ROOT / "problems" / slug).rglob("*")
                        if p.is_file() and "__pycache__" not in p.parts}
             with self.subTest(slug=slug):
+                self.assertTrue(present, "the frozen problem directory is empty")
                 self.assertEqual(present - set(manifest), set(), "unexpected file in a frozen problem directory")
+
+    def test_catalog_lists_only_the_accepted_problems(self):
+        # A proposed problem stays out of problems/catalog.py (and so out of load(), ws2_module() and submit.py)
+        # until Arthur accepts it.
+        self.assertEqual(SLUGS, ("second-autocorrelation-inequality", "circles-rectangle", "ring-loading-15"))
+        for slug in PROPOSED_SLUGS:
+            with self.subTest(slug=slug):
+                self.assertRaises(KeyError, load, slug)
+                self.assertEqual(load_problem(slug).ROLE, "proposed_main")
 
 
 class Certificates(unittest.TestCase):
     def test_certificate_reproduces_displayed_score(self):
-        for slug in SLUGS:
+        for slug in FROZEN_SLUGS:
             with self.subTest(slug=slug):
-                p = load(slug)
+                p = load_problem(slug)
                 s = p.score(p.certificate())
                 if slug == "second-autocorrelation-inequality":
                     # The server runs the same verifier in an E2B sandbox whose numpy/scipy versions are not pinned;
@@ -99,9 +121,9 @@ class Certificates(unittest.TestCase):
                     self.assertEqual(s, DISPLAYED[slug])
 
     def test_independent_agrees_with_pinned(self):
-        for slug in SLUGS:
+        for slug in FROZEN_SLUGS:
             with self.subTest(slug=slug):
-                p = load(slug)
+                p = load_problem(slug)
                 c = p.certificate()
                 ind = p.independent_score(c)
                 self.assertLessEqual(abs(ind["score"] - p.score(c)), ind["tolerance_abs"])
@@ -113,11 +135,14 @@ class Certificates(unittest.TestCase):
         self.assertEqual(p.independent_score(p.certificate())["fraction"], Fraction(9, 8))
 
     def test_certificate_does_not_beat_itself(self):
-        for slug in SLUGS:
+        for slug in FROZEN_SLUGS:
             with self.subTest(slug=slug):
-                p = load(slug)
+                p = load_problem(slug)
+                step = max(p.DELTA, 1e-12) * 1.5
+                better = step if p.DIRECTION == "maximize" else -step    # minimize: a lower score is better
                 self.assertFalse(p.beats_record(DISPLAYED[slug], best=DISPLAYED[slug]))
-                self.assertTrue(p.beats_record(DISPLAYED[slug] + max(p.DELTA, 1e-12) * 1.5, best=DISPLAYED[slug]))
+                self.assertTrue(p.beats_record(DISPLAYED[slug] + better, best=DISPLAYED[slug]))
+                self.assertFalse(p.beats_record(DISPLAYED[slug] - better, best=DISPLAYED[slug]))
 
 
 def _grid(r: Fraction, step: Fraction, x0: Fraction = Fraction(0), y0: Fraction = Fraction(0)):
@@ -211,12 +236,13 @@ class SchemaAndValidity(unittest.TestCase):
 @unittest.skipUnless(os.environ.get("WS1_LIVE_TESTS") == "1", "set WS1_LIVE_TESTS=1 to read the live leaderboard")
 class LiveRecord(unittest.TestCase):
     def test_best_known_is_read_live(self):
-        for slug in SLUGS:
+        for slug in FROZEN_SLUGS:
             with self.subTest(slug=slug):
-                p = load(slug)
+                p = load_problem(slug)
                 best = p.best_known_score(max_age_s=0)
                 self.assertTrue(best["live"])
-                self.assertEqual(p.target(), best["value"] + p.DELTA)
+                sign = 1 if p.DIRECTION == "maximize" else -1
+                self.assertEqual(p.target(), best["value"] + sign * p.DELTA)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,54 @@
+{
+  "slug": "third-autocorrelation-inequality",
+  "problem_id": 4,
+  "title": "Third Autocorrelation Inequality (Upper Bound)",
+  "url": "https://einsteinarena.com/problems/third-autocorrelation-inequality",
+  "role": "proposed_main",
+  "direction": "minimize",
+  "delta": 1e-05,
+  "solution_format": "{\"values\": [f_0, ..., f_{n-1}]}, 1 <= n <= 100,000 numbers of either sign, (sum(f) * 0.5 / n)^2 >= 1e-9",
+  "limits": {
+    "max_values": 100000,
+    "min_integral_squared": 1e-09,
+    "inline_json_limit_chars": 2000000,
+    "blob_max_bytes": 52428800,
+    "notes": "max_values is the zod schema of the pinned commit (z.array(num).min(1).max(100_000)); the live API only serves the text 'array of floats (the discretized function values, may be negative)'. Values may be negative. The score is invariant under f -> a*f, but validity is not: the verifier rejects (sum(f) * 0.5 / n)^2 < 1e-9. Minimize: a lower score is better."
+  },
+  "verifier": {
+    "file": "verifier_pinned.py",
+    "sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+    "source_repo": "https://github.com/vinid/einstein-arena",
+    "commit": "5baf6361a3e0e2123edb98f676ef44f7ab081ad6",
+    "source_path": "web/src/lib/problems/third-autocorrelation-inequality.ts",
+    "source_url": "https://github.com/vinid/einstein-arena/blob/5baf6361a3e0e2123edb98f676ef44f7ab081ad6/web/src/lib/problems/third-autocorrelation-inequality.ts",
+    "harness": "server prefixes 'import json' and calls evaluate(solution) (web/src/app/api/evaluate/route.ts)",
+    "live_identical": true,
+    "live_checked_at": "2026-11-15T05:49:44+00:00"
+  },
+  "record": {
+    "value": 1.449109789331911,
+    "agent": "Atris",
+    "solution_id": 2617,
+    "submitted_at": "2026-10-13T22:46:20.355Z",
+    "runner_up": {
+      "agent": "Ghazt",
+      "value": 1.449121951852342
+    },
+    "source": "https://einsteinarena.com/api/leaderboard?problem_id=4",
+    "read_at": "2026-11-15T05:49:44+00:00",
+    "note": "Snapshot only. The record to beat is always the LIVE #1 (problem.best_known_score())."
+  },
+  "certificate": {
+    "file": "certificate.json.gz",
+    "sha256": "670cf76b9e75b4d727940e36b4936878cd7b6e17017f00f4ae8dcca57257bc96",
+    "sha256_of": "decompressed bytes, identical to GET /api/solutions/best for this solution",
+    "agent": "Atris",
+    "solution_id": 2617,
+    "displayed_score": 1.449109789331911,
+    "bytes": 1313736
+  },
+  "frozen_on": "2026-11-15T05:49:44+00:00",
+  "frozen_by": "ws1-selection",
+  "decision": "README1.md section 14 (proposal); docs/problem_scout.md (scout report)",
+  "proposal": "Proposed change of main problem, frozen on the branch ws1/freeze-third-autocorrelation. Arthur has not yet accepted the proposal: the problem is not registered in problems/catalog.py, and the main problem is still second-autocorrelation-inequality."
+}

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-14T22:21:19+00:00",
+  "generated_at": "2026-11-15T05:55:31+00:00",
   "generated_by": "ws1-selection",
   "sha256": {
     "problems/_frozen.py": "30970a79042b7e23846a5dd2cd1b0ca7ef90b1f3d6548e44be7dfec9062c1d6e",
@@ -19,6 +19,11 @@
     "problems/ring-loading-15/independent.py": "02b35434c0fc043e57ac01fc33ad2e2f2b8f03d5b985a911dab44f4e86cdfec0",
     "problems/ring-loading-15/meta.json": "2ae8438f8ae78f94e88188b2b2b2a1bcfca8d0dfee1038b5d6b05a32a305440a",
     "problems/ring-loading-15/problem.py": "fdf7a8159be97a84ab82c26aab1b777d32fbbfa0726bcef177f3d8c88a718d3e",
-    "problems/ring-loading-15/verifier_pinned.py": "a91b09ba472d9506a1d54603f977872f37505bdcc0e258b5dddd1ed99f148a57"
+    "problems/ring-loading-15/verifier_pinned.py": "a91b09ba472d9506a1d54603f977872f37505bdcc0e258b5dddd1ed99f148a57",
+    "problems/third-autocorrelation-inequality/certificate.json.gz": "12891381d271299d577f1b3b605fa25281ecc795918bfedb086336bd2cca0668",
+    "problems/third-autocorrelation-inequality/independent.py": "66a2a4bea4c79907b40a6851dda22fc8b0f9a1d95d7efb43fd7c6e2595af9bb7",
+    "problems/third-autocorrelation-inequality/meta.json": "67f8817863fe2b2ee8a26e95c71b803ea71447e754c85026d348e332df916e1e",
+    "problems/third-autocorrelation-inequality/problem.py": "35f9a7d084b54fac8416a8c42c00aa862eb3bd7fa19c08c8a63bb8642077799d",
+    "problems/third-autocorrelation-inequality/verifier_pinned.py": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9"
   }
 }

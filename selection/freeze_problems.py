@@ -3,9 +3,13 @@
 For each problem it:
   1. takes the pinned verifier extracted by stage 2 (selection/.cache/stage2/<slug>/verifier_pinned.py), checks its
      sha256 against registry_stage2.jsonl, and checks it is byte-identical to the verifier served live;
-  2. re-reads the live leaderboard and refuses to freeze if the #1 is no longer the record cached by stage 2
-     (re-run selection/stage2_profile.py first);
+  2. re-reads the live leaderboard and the live #1 solution, and refuses to freeze if the #1 is no longer the record
+     cached by stage 2 or if the solution served now differs from the cached one (re-run
+     selection/stage2_profile.py first);
   3. writes verifier_pinned.py, certificate.json.gz (the #1 solution bytes, gzip with mtime 0) and meta.json.
+
+A problem with the role "proposed_main" is frozen as a proposal: it gets a "proposal" note in meta.json and is not
+registered in problems/catalog.py until Arthur accepts it.
 
 Existing frozen files are never overwritten unless --refreeze is passed. A refreeze changes the frozen hashes, so the
 test in tests/test_ws1_frozen_problems.py must be updated in the same commit, with Arthur's approval.
@@ -39,6 +43,16 @@ ROLES = {
     "second-autocorrelation-inequality": "main",
     "circles-rectangle": "backup",
     "ring-loading-15": "record_bet",
+    "third-autocorrelation-inequality": "proposed_main",
+}
+# Problems frozen as a proposal: the note goes to meta.json["proposal"], the decision pointer replaces decision.md.
+PROPOSALS = {
+    "third-autocorrelation-inequality": {
+        "note": "Proposed change of main problem, frozen on the branch ws1/freeze-third-autocorrelation. Arthur has "
+                "not yet accepted the proposal: the problem is not registered in problems/catalog.py, and the main "
+                "problem is still second-autocorrelation-inequality.",
+        "decision": "README1.md section 14 (proposal); docs/problem_scout.md (scout report)",
+    },
 }
 LIMITS = {
     "second-autocorrelation-inequality": {
@@ -54,12 +68,22 @@ LIMITS = {
         "n_pairs": 15, "max_string_chars": 80, "max_reduced_bits": 64, "inline_json_limit_chars": 2_000_000,
         "notes": "Exact verifier; delta = 0, so only a strictly larger value than #1 counts.",
     },
+    "third-autocorrelation-inequality": {
+        "max_values": 100_000, "min_integral_squared": 1e-9, "inline_json_limit_chars": 2_000_000,
+        "blob_max_bytes": 50 * 1024 * 1024,
+        "notes": "max_values is the zod schema of the pinned commit (z.array(num).min(1).max(100_000)); the live API "
+                 "only serves the text 'array of floats (the discretized function values, may be negative)'. Values "
+                 "may be negative. The score is invariant under f -> a*f, but validity is not: the verifier rejects "
+                 "(sum(f) * 0.5 / n)^2 < 1e-9. Minimize: a lower score is better.",
+    },
 }
 FORMATS = {
     "second-autocorrelation-inequality": '{"values": [f_0, ..., f_{n-1}]}, 1 <= n <= 2,000,000 numbers >= -1e-6 '
                                          '(clipped at 0), positive sum',
     "circles-rectangle": '{"circles": [[x, y, r] x 21]}, r > 0, bounding box width + height <= 2, no overlap',
     "ring-loading-15": '{"pairs": [["u", "v"] x 15]}, nonnegative decimal or fraction strings, u + v <= 1',
+    "third-autocorrelation-inequality": '{"values": [f_0, ..., f_{n-1}]}, 1 <= n <= 100,000 numbers of either sign, '
+                                        '(sum(f) * 0.5 / n)^2 >= 1e-9',
 }
 
 
@@ -94,6 +118,13 @@ def freeze(slug: str, refreeze: bool) -> None:
     solution = (CACHE / slug / "record_solution.json").read_bytes()
     if sha(solution) != rec["solution_sha256"]:
         sys.exit(f"{slug}: cached record solution does not match its registry sha256")
+    # The certificate is the #1 solution as the API serves it now: same id, same score and same bytes (serialized
+    # the way stage 2 does) as the cached copy.
+    top = ea.get_best_solutions(live["id"], limit=1)[0]
+    if (top["id"] != rec["solution_id"] or float(top["score"]) != float(rec["solution_score"])
+            or sha(json.dumps(top["data"]).encode()) != sha(solution)):
+        sys.exit(f"{slug}: the #1 solution served now (id {top['id']}, score {top['score']!r}) is not the cached "
+                 f"stage 2 record solution; re-run selection/stage2_profile.py {slug} first")
 
     meta = {
         "slug": slug,
@@ -137,8 +168,10 @@ def freeze(slug: str, refreeze: bool) -> None:
         },
         "frozen_on": checked_at,
         "frozen_by": "ws1-selection",
-        "decision": "selection/decision.md",
+        "decision": PROPOSALS[slug]["decision"] if slug in PROPOSALS else "selection/decision.md",
     }
+    if slug in PROPOSALS:
+        meta["proposal"] = PROPOSALS[slug]["note"]
     out.mkdir(parents=True, exist_ok=True)
     (out / "verifier_pinned.py").write_bytes(verifier)
     (out / "certificate.json.gz").write_bytes(gzip.compress(solution, compresslevel=9, mtime=0))

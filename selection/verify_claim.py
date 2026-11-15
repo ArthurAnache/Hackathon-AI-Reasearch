@@ -2,8 +2,12 @@
 needs Arthur's --confirm).
 
     .venv/bin/python selection/verify_claim.py SLUG CANDIDATE.json [--claimed-score X] [--by AGENT]
+                                               [--provenance LABEL]
 
-CANDIDATE.json holds the solution object exactly as it would be submitted. The arbiter:
+CANDIDATE.json holds the solution object exactly as it would be submitted. --provenance records where the candidate
+comes from (for example "milo_published_copy" or "clean"); it is logged as given and does not change the verdict.
+SLUG is a problem of problems/catalog.py, or a problem frozen as a proposal (PROPOSED_SLUGS), which is loaded by
+path because it is not registered in the catalog until Arthur accepts it. The arbiter:
   1. checks that the frozen problem is intact (verifier sha256 = frozen value) and that the live verifier is still
      byte-identical to it;
   2. runs the PINNED verifier in a clean process (python -I, the server's harness), plus the server schema check;
@@ -27,6 +31,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import importlib.util
 import json
 import subprocess
 import sys
@@ -38,14 +43,38 @@ ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parent
 sys.path.insert(0, str(REPO_ROOT))
 from integrations import einstein_arena as ea  # noqa: E402
-from problems.catalog import SLUGS, load  # noqa: E402
+from problems.catalog import PROBLEMS_DIR, SLUGS, load  # noqa: E402
 
 CLAIMS = ROOT / "claims.jsonl"
 EVAL_RUNNER = ROOT / "eval_runner.py"
+# Frozen in problems/<slug>/ as a proposal (selection/freeze_problems.py, role "proposed_main"). problems/catalog.py
+# is a frozen shared file and does not list them until Arthur accepts the proposal; then the slug moves to
+# catalog.SLUGS and leaves this tuple.
+PROPOSED_SLUGS = ("third-autocorrelation-inequality",)
 
 
 def now() -> str:
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+
+
+def load_problem(slug: str):
+    """problems/<slug>/problem.py: through the catalog, or by path for a proposed problem (same module name)."""
+    if slug in SLUGS:
+        return load(slug)
+    if slug not in PROPOSED_SLUGS:
+        raise KeyError(f"unknown frozen problem {slug!r}; known: {list(SLUGS + PROPOSED_SLUGS)}")
+    name = "ws1_problem_" + slug.replace("-", "_")
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, PROBLEMS_DIR / slug / "problem.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        del sys.modules[name]
+        raise
+    return module
 
 
 def run_pinned(verifier: Path, candidate_path: Path) -> dict:
@@ -58,11 +87,13 @@ def run_pinned(verifier: Path, candidate_path: Path) -> dict:
     return json.loads(lines[-1])
 
 
-def arbitrate(slug: str, candidate_path: Path, claimed: float | None, by: str | None) -> dict:
+def arbitrate(slug: str, candidate_path: Path, claimed: float | None, by: str | None,
+              provenance: str | None = None) -> dict:
     raw = candidate_path.read_bytes()
     rec: dict = {"timestamp": now(), "slug": slug, "candidate_file": str(candidate_path),
-                 "candidate_sha256": hashlib.sha256(raw).hexdigest(), "claimed_score": claimed, "claimed_by": by}
-    p = load(slug)
+                 "candidate_sha256": hashlib.sha256(raw).hexdigest(), "claimed_score": claimed, "claimed_by": by,
+                 "provenance": provenance}
+    p = load_problem(slug)
     rec["frozen_verifier_sha256"] = p.VERIFIER_SHA256
     candidate = json.loads(raw)
     rec["json_chars"] = len(json.dumps(candidate, separators=(",", ":")))
@@ -154,13 +185,16 @@ def arbitrate(slug: str, candidate_path: Path, claimed: float | None, by: str | 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="WS1 arbiter: pinned + independent verification against the live #1.")
-    ap.add_argument("slug", choices=SLUGS)
+    ap.add_argument("slug", choices=SLUGS + PROPOSED_SLUGS)
     ap.add_argument("candidate", type=Path)
     ap.add_argument("--claimed-score", type=float)
     ap.add_argument("--by", help="who claims it (agent / experiment id)")
+    ap.add_argument("--provenance", help="where the candidate comes from, logged as given (e.g. milo_published_copy)")
     args = ap.parse_args()
-    r = arbitrate(args.slug, args.candidate, args.claimed_score, args.by)
+    r = arbitrate(args.slug, args.candidate, args.claimed_score, args.by, args.provenance)
     print(f"{r['slug']}: {r['verdict'].upper()}")
+    if r["provenance"]:
+        print(f"  provenance  = {r['provenance']} (as declared; sha256 {r['candidate_sha256']})")
     print(f"  pinned      = {r['pinned']['score']!r} ({'ok' if r['pinned']['ok'] else 'REJECTED: ' + str(r['pinned']['schema_error'] or r['pinned']['error'])})")
     ind = r["independent"]
     print(f"  independent = {ind.get('score')!r} ({'ok' if ind['ok'] else 'REJECTED: ' + ind['error']})")
