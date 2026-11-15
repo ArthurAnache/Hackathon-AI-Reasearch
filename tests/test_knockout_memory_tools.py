@@ -9,8 +9,7 @@ from pathlib import Path
 from knockout.memory_backfill import FACT_KEYS, facts_for_run, push_facts, write_facts
 from knockout.memory_demo import build_report
 from knockout.memory_metrics import analyze_run
-from knockout.memory import RunMemory
-from knockout.memory_demo import _fact_from_write
+from knockout.memory_demo import _fact_from_write, _render_legacy_block
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -166,9 +165,7 @@ def test_memory_demo_reconstructs_only_when_block_hash_matches(tmp_path: Path) -
     _jsonl(writer / "events.jsonl", [write_event])
     _jsonl(writer / "summary.json", [{"run_id": "writer", "problem": "toy"}])
     fact = _fact_from_write(write_event, "writer", {"problem": "toy"}, {"exp_1": exp}, {})
-    renderer = object.__new__(RunMemory)
-    renderer.max_chars = 2500
-    block = renderer._render([fact])
+    block = _render_legacy_block([fact], 2500)
     digest = hashlib.sha256(block.encode()).hexdigest()[:16]
     _jsonl(reader / "events.jsonl", [{
         "type": "memory_recall", "run_id": "reader", "timestamp": "2026-01-02T00:00:00Z",
