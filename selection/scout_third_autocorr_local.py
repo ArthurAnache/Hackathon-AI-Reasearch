@@ -33,6 +33,11 @@ def plan(budget: float, name: str = "mixed") -> list[dict]:
                  "steps": [{"op": "resample", "n": 3200}, {"op": "repeat", "k": 8},
                            _path(t, 0.97 * budget, sigma=sigma, keep_start=False, stages=16)]}
                 for i, (t, sigma) in enumerate([(3e-3, 0.0), (6e-3, 0.0), (1e-2, 3e-3), (2e-2, 0.0), (4e-2, 0.0)])]
+    if name == "longhopsB":  # track B only: five long hops from the best local3 result
+        key = "kept_local3_B002_locallonghopB"
+        return [{"track": "B", "label": "locallonghopB", "start_key": key, "seed": 35000 + i,
+                 "steps": [_path(t, 0.97 * budget, sigma=sigma, keep_start=True, stages=16)]}
+                for i, (t, sigma) in enumerate([(5e-4, 5e-4), (1e-3, 5e-4), (2e-3, 5e-4), (1e-3, 1e-3), (3e-3, 1e-3)])]
     if name == "hopsB":  # track B only: continue from the best local1 result (coarse copy of the live #1)
         key = "kept_local1_B002_localcoarse3200x8"
         return [
@@ -63,7 +68,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--round-name", required=True)
     ap.add_argument("--budget", type=float, default=840.0)
-    ap.add_argument("--plan", choices=["mixed", "coarseB", "hopsB"], default="mixed")
+    ap.add_argument("--plan", choices=["mixed", "coarseB", "hopsB", "longhopsB"], default="mixed")
     args = ap.parse_args()
     jobs = plan(args.budget, args.plan)
     for i, job in enumerate(jobs):

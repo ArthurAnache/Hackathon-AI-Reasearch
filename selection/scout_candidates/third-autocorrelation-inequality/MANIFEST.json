@@ -220,6 +220,325 @@
     "wall_s": 420.0,
     "device": "local CPU, 1 process"
    }
+  },
+  "trackB_local3_B002_locallonghopB": {
+   "file": "trackB_local3_B002_locallonghopB.json.gz",
+   "track": "B",
+   "provenance": "public_leaderboard_only",
+   "n": 25600,
+   "sha256_json": "2658537f74f52d6a2833d8cc5f131720646c3d6ac15684f57aaacd1808289e22",
+   "score_pinned_verifier": 1.449094982848945,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.449094982848944,
+   "pinned_minus_exact": 1.1102230246251565e-15,
+   "argmax_lag": 38842,
+   "below_live_top1_by": 1.4806482965923351e-05,
+   "below_live_top1_by_over_delta": 1.4806482965923349,
+   "below_milo_claim_by": -0.00020896858418151254,
+   "below_milo_claim_by_over_delta": -20.896858418151254,
+   "run": {
+    "experiment_id": "scout-third-autocorr/trackB/local3/B002_locallonghopB",
+    "checked_on": "2026-11-15T06:16:29+00:00",
+    "start_key": "kept_local1_B002_localcoarse3200x8",
+    "start_sha256_float64": "2c92fb1491fe11788b26bd40fc91bf0f351efb648a616becfeae6f28845f0a5e",
+    "config": {
+     "steps": [
+      {
+       "op": "path",
+       "t_hot": 0.001,
+       "t_cold": 1e-08,
+       "stages": 16,
+       "seconds": 679.0,
+       "sigma": 0.0005,
+       "keep_start": true
+      }
+     ]
+    },
+    "seed": 34003,
+    "budget_s": 700.0,
+    "wall_s": 679.0,
+    "device": "local CPU, 1 core"
+   }
+  },
+  "trackB_local3_B000_localhopsB": {
+   "file": "trackB_local3_B000_localhopsB.json.gz",
+   "track": "B",
+   "provenance": "public_leaderboard_only",
+   "n": 25600,
+   "sha256_json": "2a37d3c01d5fb5ce40c61b9c19a444d3da01d492913f85ffd1d74c2e1d24a5d3",
+   "score_pinned_verifier": 1.4490977656912827,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.449097765691284,
+   "pinned_minus_exact": -1.3322676295501878e-15,
+   "argmax_lag": 38842,
+   "below_live_top1_by": 1.2023640628244792e-05,
+   "below_live_top1_by_over_delta": 1.2023640628244792,
+   "below_milo_claim_by": -0.0002117514265191911,
+   "below_milo_claim_by_over_delta": -21.17514265191911,
+   "run": {
+    "experiment_id": "scout-third-autocorr/trackB/local3/B000_localhopsB",
+    "checked_on": "2026-11-15T06:16:34+00:00",
+    "start_key": "kept_local1_B002_localcoarse3200x8",
+    "start_sha256_float64": "2c92fb1491fe11788b26bd40fc91bf0f351efb648a616becfeae6f28845f0a5e",
+    "config": {
+     "steps": [
+      {
+       "op": "hops",
+       "t_hot": [
+        0.0003,
+        0.003
+       ],
+       "sigma": [
+        0.0003,
+        0.002
+       ],
+       "t_cold": 1e-08,
+       "stages": 14,
+       "hop_seconds": 336.0
+      }
+     ]
+    },
+    "seed": 34001,
+    "budget_s": 700.0,
+    "wall_s": 672.0,
+    "device": "local CPU, 1 core"
+   }
+  },
+  "trackB_local3_B001_localhopsB": {
+   "file": "trackB_local3_B001_localhopsB.json.gz",
+   "track": "B",
+   "provenance": "public_leaderboard_only",
+   "n": 25600,
+   "sha256_json": "6d1b31983593d9857f1fbb27fef8872dc27b8faf30fcadfd9c8bdd8d546da436",
+   "score_pinned_verifier": 1.4490985295580978,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4490985295580985,
+   "pinned_minus_exact": -6.661338147750939e-16,
+   "argmax_lag": 38842,
+   "below_live_top1_by": 1.1259773813110385e-05,
+   "below_live_top1_by_over_delta": 1.1259773813110385,
+   "below_milo_claim_by": -0.0002125152933343255,
+   "below_milo_claim_by_over_delta": -21.25152933343255,
+   "run": {
+    "experiment_id": "scout-third-autocorr/trackB/local3/B001_localhopsB",
+    "checked_on": "2026-11-15T06:16:39+00:00",
+    "start_key": "kept_local1_B002_localcoarse3200x8",
+    "start_sha256_float64": "2c92fb1491fe11788b26bd40fc91bf0f351efb648a616becfeae6f28845f0a5e",
+    "config": {
+     "steps": [
+      {
+       "op": "hops",
+       "t_hot": [
+        0.0003,
+        0.003
+       ],
+       "sigma": [
+        0.0003,
+        0.002
+       ],
+       "t_cold": 1e-08,
+       "stages": 14,
+       "hop_seconds": 336.0
+      }
+     ]
+    },
+    "seed": 34002,
+    "budget_s": 700.0,
+    "wall_s": 672.0,
+    "device": "local CPU, 1 core"
+   }
+  },
+  "trackB_local3_B003_localrepeat2B": {
+   "file": "trackB_local3_B003_localrepeat2B.json.gz",
+   "track": "B",
+   "provenance": "public_leaderboard_only",
+   "n": 51200,
+   "sha256_json": "ba52cf390a473063fef2563e3590f05129b33d3c5f859f99027be17c01e92fdc",
+   "score_pinned_verifier": 1.4490989105229044,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4490989105229042,
+   "pinned_minus_exact": 2.220446049250313e-16,
+   "argmax_lag": 83459,
+   "below_live_top1_by": 1.0878809006520385e-05,
+   "below_live_top1_by_over_delta": 1.0878809006520385,
+   "below_milo_claim_by": -0.0002128962581409155,
+   "below_milo_claim_by_over_delta": -21.28962581409155,
+   "run": {
+    "experiment_id": "scout-third-autocorr/trackB/local3/B003_localrepeat2B",
+    "checked_on": "2026-11-15T06:16:43+00:00",
+    "start_key": "kept_local1_B002_localcoarse3200x8",
+    "start_sha256_float64": "2c92fb1491fe11788b26bd40fc91bf0f351efb648a616becfeae6f28845f0a5e",
+    "config": {
+     "steps": [
+      {
+       "op": "repeat",
+       "k": 2
+      },
+      {
+       "op": "path",
+       "t_hot": 0.0001,
+       "t_cold": 1e-08,
+       "stages": 14,
+       "seconds": 679.0,
+       "sigma": 0.0001,
+       "keep_start": true
+      }
+     ]
+    },
+    "seed": 34004,
+    "budget_s": 700.0,
+    "wall_s": 679.1,
+    "device": "local CPU, 1 core"
+   }
+  },
+  "trackB_local1_B002_localcoarse3200x8": {
+   "file": "trackB_local1_B002_localcoarse3200x8.json.gz",
+   "track": "B",
+   "provenance": "public_leaderboard_only",
+   "n": 25600,
+   "sha256_json": "397e964220857031f15911870fb8aafe84b1a45bb4182bc743aa18546cdca260",
+   "score_pinned_verifier": 1.449101225026528,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.449101225026529,
+   "pinned_minus_exact": -8.881784197001252e-16,
+   "argmax_lag": 38929,
+   "below_live_top1_by": 8.564305382874338e-06,
+   "below_live_top1_by_over_delta": 0.8564305382874337,
+   "below_milo_claim_by": -0.00021521076176456155,
+   "below_milo_claim_by_over_delta": -21.521076176456155,
+   "run": {
+    "experiment_id": "scout-third-autocorr/trackB/local1/B002_localcoarse3200x8",
+    "checked_on": "2026-11-15T06:04:40+00:00",
+    "start_key": "live1_2617_atris",
+    "start_sha256_float64": "58485bf684495099002d7fcc01a5224c45913dfef0580d969e179f15a0b24dee",
+    "config": {
+     "steps": [
+      {
+       "op": "resample",
+       "n": 3200
+      },
+      {
+       "op": "repeat",
+       "k": 8
+      },
+      {
+       "op": "path",
+       "t_hot": 0.01,
+       "t_cold": 1e-08,
+       "stages": 16,
+       "seconds": 462.00000000000006,
+       "sigma": 0.0,
+       "keep_start": false
+      },
+      {
+       "op": "hops",
+       "t_hot": [
+        0.0003,
+        0.003
+       ],
+       "sigma": [
+        0.0003,
+        0.002
+       ],
+       "t_cold": 1e-08,
+       "stages": 12,
+       "hop_seconds": 403.2
+      }
+     ]
+    },
+    "seed": 32001,
+    "budget_s": 840.0,
+    "wall_s": 840.1,
+    "device": "local CPU, 1 core"
+   }
+  },
+  "trackA_local1_A000_localhops": {
+   "file": "trackA_local1_A000_localhops.json.gz",
+   "track": "A",
+   "provenance": "milo_published_copy",
+   "n": 25600,
+   "sha256_json": "4a074e196cad3d984c93c83e16b7ec1a002728966688c8f7e525b2ed3ee5ea97",
+   "score_pinned_verifier": 1.44882467417151,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4488246741715105,
+   "pinned_minus_exact": -4.440892098500626e-16,
+   "argmax_lag": 38437,
+   "below_live_top1_by": 0.0002851151604008617,
+   "below_live_top1_by_over_delta": 28.511516040086168,
+   "below_milo_claim_by": 6.134009325342582e-05,
+   "below_milo_claim_by_over_delta": 6.134009325342581,
+   "run": {
+    "experiment_id": "scout-third-autocorr/trackA/local1/A000_localhops",
+    "checked_on": "2026-11-15T06:04:26+00:00",
+    "start_key": "cand_c_remelt",
+    "start_sha256_float64": "808779ffd3755e7b30a3a4ed12a4a02336f2786785b2d20f9c754c5191c3ffbd",
+    "config": {
+     "steps": [
+      {
+       "op": "hops",
+       "t_hot": [
+        0.0003,
+        0.003
+       ],
+       "sigma": [
+        0.0003,
+        0.002
+       ],
+       "t_cold": 1e-08,
+       "stages": 14,
+       "hop_seconds": 403.2
+      }
+     ]
+    },
+    "seed": 31001,
+    "budget_s": 840.0,
+    "wall_s": 806.4,
+    "device": "local CPU, 1 core"
+   }
+  },
+  "trackA_local1_A001_localhops": {
+   "file": "trackA_local1_A001_localhops.json.gz",
+   "track": "A",
+   "provenance": "milo_published_copy",
+   "n": 25600,
+   "sha256_json": "61dbbaa75e7613736d065c5190ac0e3af92df3203e66c56553742a56cb7b1a91",
+   "score_pinned_verifier": 1.4488262557171088,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4488262557171092,
+   "pinned_minus_exact": -4.440892098500626e-16,
+   "argmax_lag": 38421,
+   "below_live_top1_by": 0.0002835336148021561,
+   "below_live_top1_by_over_delta": 28.353361480215607,
+   "below_milo_claim_by": 5.975854765472022e-05,
+   "below_milo_claim_by_over_delta": 5.975854765472021,
+   "run": {
+    "experiment_id": "scout-third-autocorr/trackA/local1/A001_localhops",
+    "checked_on": "2026-11-15T06:04:33+00:00",
+    "start_key": "cand_c",
+    "start_sha256_float64": "99e0a2f0e42d804cf1d4e8ad00d281c982875a7bacf89ae4eac7f7238aa58c5c",
+    "config": {
+     "steps": [
+      {
+       "op": "hops",
+       "t_hot": [
+        0.0003,
+        0.003
+       ],
+       "sigma": [
+        0.0003,
+        0.002
+       ],
+       "t_cold": 1e-08,
+       "stages": 14,
+       "hop_seconds": 403.2
+      }
+     ]
+    },
+    "seed": 31002,
+    "budget_s": 840.0,
+    "wall_s": 806.4,
+    "device": "local CPU, 1 core"
+   }
   }
  },
  "slug": "third-autocorrelation-inequality",
