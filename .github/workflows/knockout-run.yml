@@ -1,0 +1,56 @@
+# Launch a Knockout Evolution run on Modal CPUs from a push.
+#
+# A push launches a run only when its head commit message contains "[ko-run]" (or by manual dispatch), so ordinary
+# commits never spend money. The run's parameters come from knockout/launch.yaml at that commit, and its run_id
+# carries the commit sha. The GitHub job only launches (modal run --detach + spawn) and exits; the run continues
+# on Modal and writes its ledger to the Modal Volume "knockout-runs".
+#
+# Required repository secrets: MODAL_TOKEN_ID, MODAL_TOKEN_SECRET (the Modal workspace that pays for the run), and
+# OPENAI_API_KEY when launch.yaml asks for the LLM editor. The OpenAI key goes to the orchestrator function only;
+# evaluation workers, which run the LLM-written programs, have block_network=True and no secret at all.
+name: knockout-run
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: knockout-run-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  launch:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[ko-run]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Tests (a broken loop never reaches Modal)
+        run: python -m pytest tests/test_knockout_m0.py tests/test_knockout_m1_m5.py -q -p no:cacheprovider
+
+      - name: Launch on Modal
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+          # Needed only when launch.yaml has `editor: openai`. Passed to the orchestrator function alone.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$MODAL_TOKEN_ID" ] || [ -z "$MODAL_TOKEN_SECRET" ]; then
+            echo "MODAL_TOKEN_ID / MODAL_TOKEN_SECRET repository secrets are not set" >&2
+            exit 1
+          fi
+          cat knockout/launch.yaml
+          modal run --detach -m knockout.modal_app::launch --source-commit "${GITHUB_SHA}"
