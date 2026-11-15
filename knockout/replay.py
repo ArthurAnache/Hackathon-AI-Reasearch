@@ -84,6 +84,8 @@ def _derive(e: dict) -> tuple[dict, dict] | None:
         return {"revert": D.should_revert(**i)}, o
     if t == "promotion":
         return {"decision": D.promotion(**i)}, o
+    if t == "regime_pick":
+        return D.pick_regime(i["arms"], i["spend"], i["floors"], seed), o
     if t == "control_round":
         return D.control_round(i["edit_scores"], i["reference"], i["eps_rel"], i["direction"]), o
     return None
@@ -104,6 +106,8 @@ def replay(run_dir: str | Path) -> dict:
 
         allow = set(yaml.safe_load(strategy_file.read_text()).get("strategist_allow_list", []))
     checked: dict[str, int] = {}
+    scores_by_exp = {r["experiment_id"]: r.get("score") for r in experiments}
+    basins: dict[str, float] = {}       # start portfolio: archive cell -> occupant score, rebuilt from the events
     gate: dict[tuple[str, bool], dict[str, int]] = {}
 
     def fail(e: dict, msg: str):
@@ -142,6 +146,19 @@ def replay(run_dir: str | Path) -> dict:
                 fail(e, f"gate counters {p['inputs']} do not match the gate_pair events {g}")
             if p["outputs"]["verdict"] is not None:
                 gate.pop((p["gene"], bool(p.get("audit"))), None)
+        if t == "basin_insert":
+            # the occupant the event replaced is the one the earlier events put there, the new score strictly
+            # improves on it, and it is a per-start candidate of a logged experiment, so not above its best
+            prev = (p.get("previous") or {}).get("score")
+            if not _same(prev, basins.get(p["cell"])):
+                fail(e, f"previous occupant {prev} of {p['cell']} is not {basins.get(p['cell'])}")
+            if not D.improves(p["score"], prev, p["eps_rel"], p["direction"]):
+                fail(e, f"score {p['score']} does not improve on the occupant {prev}")
+            ledger_score = scores_by_exp.get(p["experiment"])
+            if ledger_score is None or D.gain(p["score"], ledger_score, p["direction"]) > 1e-12 * max(1, abs(ledger_score)):
+                fail(e, f"score {p['score']} is not a per-start score of experiment {p['experiment']} ({ledger_score})")
+            basins[p["cell"]] = p["score"]
+            checked["basin_insert"] = checked.get("basin_insert", 0) + 1
         if t == "strategy_patch" and allow is not None:
             bad = [k for k in p.get("patch", {}) if k not in allow]
             if bad:

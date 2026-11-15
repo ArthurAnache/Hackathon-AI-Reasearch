@@ -24,6 +24,8 @@ import numpy as np
 
 from knockout import decisions as D
 from knockout import filters as F
+from knockout import portfolio as P
+from knockout.basins import Archive, cell_name
 from knockout.context import Evaluation, RunContext, source_hash
 from knockout.genes import Gene, GeneStore, render, similarity
 from knockout.llm import LLM
@@ -80,9 +82,11 @@ class Member:
     exp_ids: dict[str, str] = field(default_factory=dict)
     fit: float | None = None      # ranking key: F0 score, or F0 gain over the warm start with the ratchet
     alive: bool = True
+    fit_by_regime: dict[str, float] = field(default_factory=dict)   # start portfolio: ranking key per regime
 
-    def score(self, fid: str, epoch: int) -> float | None:
-        return self.scores.get(f"{fid}@{epoch}")
+    def score(self, fid: str, key) -> float | None:
+        """`key` is the epoch in v1, the start set id with the start portfolio."""
+        return self.scores.get(f"{fid}@{key}")
 
 
 @dataclass
@@ -162,7 +166,25 @@ class MainArm:
         self.direction = ctx.problem.direction
         self.eval_seed = int(st["run.seed"])
         self.ratchet = bool(st.get("main.ratchet", st.get("control.ratchet", False)))
+        # start portfolio: the `record` regime is v1 with the ratchet, so the portfolio turns the ratchet on
+        self.portfolio = bool(st.get("portfolio.enabled", False))
+        if self.portfolio:
+            self.ratchet = True
+        self.show_record = bool(st.get("prompt.show_record", True))
         self.init, self.init_score, self.epoch = ctx.init, ctx.init_score, 0
+        self.regimes = list(st.get("portfolio.regimes", P.REGIMES)) if self.portfolio else ["record"]
+        self.regime = "record"
+        self.cur_set: P.StartSet | None = None
+        self.start_sets: dict[str, P.StartSet] = {}
+        self.set_worst: dict[str, list] = {}               # start set id -> worst valid score seen per start
+        self.regime_arms = {r: [1.0, 1.0] for r in self.regimes}
+        self.regime_spend = {r: 0.0 for r in self.regimes}
+        self.regime_stats = {r: {"batches": 0, "children": 0, "beat_parent": 0, "best_regime_score": None,
+                                 "best_progress": None} for r in self.regimes}
+        self.archive: Archive | None = None
+        self.promotions: list[dict] = []
+        self._n_neighbour = 0
+        self._other_basin = False                          # a child improved a cell other than the incumbent's
         self.genes = GeneStore(float(st.get("genes.dedupe_similarity", 0.8)))
         self.islands: dict[str, Island] = {}
         self.members: dict[str, Member] = {}
@@ -170,6 +192,7 @@ class MainArm:
         self.operator_arms = {op: [float(a), float(b)] for op, (a, b) in st["operator_priors"].items()
                               if op in MAIN_OPERATORS}
         self.model_arms = {m: [1.0, 1.0] for m in llm.models}
+        self.op_arms_r = {r: {k: list(v) for k, v in self.operator_arms.items()} for r in self.regimes}
         self.pair_stats: dict[str, list[float]] = {}      # "ga|gb" -> [n, successes]
         self.gene_obs: dict[str, list[float]] = {}        # gene -> [n, successes]
         self.evals = 0                                    # children evaluated at F0
@@ -233,6 +256,9 @@ class MainArm:
         ms = [self.members[i] for i in island.pool]
         ms = [m for m in ms if m.alive and (include_frozen or not island.lineages[m.lineage].frozen)]
         sgn = D.sign(self.direction)
+        if self.portfolio:      # rank with the fit of the batch's regime; members without one come last
+            return sorted(ms, key=lambda m: (-(sgn * m.fit_by_regime[self.regime])
+                                             if self.regime in m.fit_by_regime else float("inf"), m.id))
         return sorted(ms, key=lambda m: (-(sgn * m.fit) if m.fit is not None else float("inf"), m.id))
 
     def _add_gene(self, island: Island, type_: str, text: str, origin: str, evidence: list[str],
@@ -244,12 +270,238 @@ class MainArm:
                                   request_hash=request_hash)
         return gene
 
+    # ================================================================== start portfolio (brief sections 4 and 5)
+    def _key(self):
+        """Key of member scores: the epoch in v1, the id of the batch's start set with the portfolio."""
+        return self.cur_set.id if self.portfolio and self.cur_set is not None else self.epoch
+
+    def _submit(self, source: str, budget: float, adapter: str | None) -> list:
+        """One sandbox job per start of the batch's start set (v1: one job from the warm start)."""
+        starts = self.cur_set.starts if self.portfolio and self.cur_set is not None else (self.init,)
+        return [self.ctx.submit(source, budget, self.eval_seed, init=x, adapter_source=adapter) for x in starts]
+
+    def _finish(self, futs: list, category: str) -> Evaluation:
+        evs = [self.ctx.finish(f.result(), category) for f in futs]
+        if not (self.portfolio and self.cur_set is not None):
+            return evs[0]
+        sid = self.cur_set.id
+        agg = P.aggregate(evs, self.cur_set, self.set_worst[sid], self.direction)
+        self.set_worst[sid] = P.update_worst(self.set_worst[sid], evs, self.direction)
+        return agg
+
+    def _describe(self, candidate) -> dict:
+        from knockout import starts as S
+
+        return S.descriptors(self.ctx.problem.id, candidate)
+
+    def _register_set(self, sset: P.StartSet, seed: int | None, **extra) -> None:
+        self.start_sets[sset.regime] = sset
+        self.set_worst.setdefault(sset.id, [None] * len(sset))
+        self.ctx.ledger.event("start_set", seed=seed, refs=[sset.id], id=sset.id, regime=sset.regime,
+                              origins=list(sset.origin), start_scores=list(sset.start_scores), **extra)
+
+    def _init_portfolio(self) -> None:
+        """Cold start set (fixed for the run) and the basin archive, whose bin edges are fixed here from the
+        descriptors of the cold starts and the incumbent."""
+        from knockout import starts as S
+
+        st, pid = self.ctx.strategy, self.ctx.problem.id
+        seed = int(st.get("portfolio.cold_seed", 7))
+        cands = S.cold_starts(pid, int(st.get("portfolio.k_cold", 2)), seed)
+        scores = tuple(P.safe_score(self.ctx.problem, c) for c in cands)
+        self.archive = Archive.from_samples([*cands, self.init], self._describe,
+                                            int(st.get("portfolio.archive_bins", 4)), self.direction,
+                                            float(st["selection.eps_rel"]))
+        sset = P.StartSet("cold:0", "cold", tuple(cands), scores, tuple(f"cold:{k}" for k in range(len(cands))))
+        self._register_set(sset, seed, archive_keys=self.archive.keys, archive_edges=self.archive.edges)
+
+    def _start_set(self, regime: str) -> P.StartSet:
+        st = self.ctx.strategy
+        if regime == "record":
+            sid = f"record:{self.epoch}"
+            cur = self.start_sets.get("record")
+            if cur is None or cur.id != sid:
+                cur = P.StartSet(sid, "record", (self.init,), (self.init_score,), ("incumbent",))
+                self._register_set(cur, None)
+            return cur
+        if regime == "cold":
+            return self.start_sets["cold"]
+        # neighbour: redrawn for each batch of the regime, from perturbations of the incumbent and archive entries
+        from knockout import starts as S
+
+        seed = self._seed()
+        rng = np.random.default_rng(seed)
+        base = self.init if self.init is not None else self.start_sets["cold"].starts[0]
+        others = self.archive.others(self.init) if self.archive is not None else []
+        lo, hi = float(st.get("portfolio.perturb_min", 0.01)), float(st.get("portfolio.perturb_max", 0.3))
+        share = float(st.get("portfolio.neighbour_archive_share", 0.5))
+        starts, scores, origin = [], [], []
+        for _ in range(int(st.get("portfolio.k_neighbour", 2))):
+            if others and rng.random() < share:
+                e = others[int(rng.integers(len(others)))]
+                starts.append(e.candidate)
+                scores.append(e.score)
+                origin.append(f"archive:{cell_name(e.cell)}")
+            else:
+                strength = float(np.exp(rng.uniform(np.log(lo), np.log(hi))))
+                cand = S.perturb(self.ctx.problem.id, base, strength, int(rng.integers(2**31 - 1)))
+                starts.append(cand)
+                scores.append(P.safe_score(self.ctx.problem, cand))
+                origin.append(f"perturb:{strength:.4g}")
+        self._n_neighbour += 1
+        sset = P.StartSet(f"neighbour:{self._n_neighbour}", "neighbour", tuple(starts), tuple(scores), tuple(origin))
+        self._register_set(sset, seed, base_score=self.init_score)
+        return sset
+
+    def _begin_regime(self) -> None:
+        st = self.ctx.strategy
+        self.op_arms_r[self.regime] = self.operator_arms      # keeps a strategist shift made between batches
+        seed = self._seed()
+        floors = {r: float(v) for r, v in (st.get("portfolio.floors") or {}).items() if r in self.regimes}
+        inputs = {"arms": {r: list(v) for r, v in self.regime_arms.items()}, "spend": dict(self.regime_spend),
+                  "floors": floors}
+        out = D.pick_regime(inputs["arms"], inputs["spend"], inputs["floors"], seed)
+        self.ctx.ledger.event("regime_pick", seed=seed, refs=[out["choice"]], inputs=inputs, outputs=out)
+        self.regime = out["choice"]
+        self.operator_arms = self.op_arms_r[self.regime]
+        self.cur_set = self._start_set(self.regime)
+        self._other_basin = False
+
+    def _end_regime(self, live: list[Spec], spend0: float) -> None:
+        r, st = self.regime, self.ctx.strategy
+        self.op_arms_r[r] = self.operator_arms
+        self.regime_spend[r] += max(0.0, self._spend() - spend0)
+        succ = any(s.s for s in live)
+        self.regime_arms = D.bandit_update(self.regime_arms, r, (2.0 if self._other_basin else 1.0) if succ else 0.0,
+                                           0.0 if succ else 1.0, float(st["bandit_discount"]))
+        rs = self.regime_stats[r]
+        rs["batches"] += 1
+        rs["children"] += len(live)
+        rs["beat_parent"] += sum(s.s for s in live)
+        sgn = D.sign(self.direction)
+        for s in live:
+            v = P.selection_value(s.ev) if s.ev is not None and s.ev.valid else None
+            if v is not None and (rs["best_regime_score"] is None or sgn * (v - rs["best_regime_score"]) > 0):
+                rs["best_regime_score"] = v
+                rs["best_progress"] = P.progress(v, P.mean_start_score(self.cur_set), self._reference())
+
+    def _reference(self) -> float | None:
+        return self.ctx.best_known()
+
+    def _pcfg(self, ev: Evaluation) -> dict:
+        sset = self.cur_set
+        d: dict = {"regime": self.regime, "start_set": sset.id if sset else None}
+        if isinstance(ev, P.PortfolioEvaluation):
+            d.update({"per_start": ev.per_start, "regime_score": ev.regime_score,
+                      "progress": P.progress(ev.regime_score, P.mean_start_score(sset), self._reference())})
+        if self.archive is not None and ev.valid and ev.candidate is not None:
+            d["cell"] = cell_name(self.archive.cell(ev.candidate))
+        return d
+
+    def _offer(self, ev: Evaluation, exp_id: str, program_id: str, child: bool) -> list[tuple]:
+        """Every valid per-start candidate is offered to the archive (brief 4.5). Returns the cells it entered."""
+        if self.archive is None:
+            return []
+        entered: list[tuple] = []
+        evs = ev.per_start_evals if isinstance(ev, P.PortfolioEvaluation) else [ev]
+        inc_cell = self.archive.cell(self.init) if self.init is not None else None
+        for e in evs:
+            if not e.valid or e.candidate is None:
+                continue
+            out = self.archive.offer(e.candidate, e.score, exp_id, self.regime, program_id)
+            if out is None:
+                continue
+            out["incumbent_cell"] = cell_name(inc_cell) if inc_cell is not None else None
+            self.ctx.ledger.event("basin_insert", seed=None, refs=[exp_id], **out)
+            entered.append(self.archive.cell(e.candidate))
+            if child and inc_cell is not None and self.archive.cell(e.candidate) != inc_cell:
+                self._other_basin = True
+        return entered
+
+    def _deep_polish(self, island: Island) -> None:
+        """Brief 4.6: an archive entry outside the incumbent's cell that comes within `promote_gap` (normalized by
+        the distance between the incumbent and the mean cold start) gets one long run of the best record-regime
+        program. A result above the incumbent replaces it."""
+        ctx, st = self.ctx, self.ctx.strategy
+        if self.archive is None or self.init_score is None:
+            return
+        cold_mean = P.mean_start_score(self.start_sets["cold"])
+        scale = abs(self.init_score - cold_mean) if cold_mean is not None else abs(self.init_score)
+        gap = float(st.get("portfolio.promote_gap", 0.02))
+        sgn = D.sign(self.direction)
+        progs = [m for m in self.members.values() if m.alive and "record" in m.fit_by_regime
+                 and m.island_id in self.islands]
+        if not progs:
+            return
+        prog = max(progs, key=lambda m: (sgn * m.fit_by_regime["record"], m.id))
+        budget = float(st.get("portfolio.deep_factor", 10)) * self._budget("F0")
+        done = 0
+        for e in self.archive.others(self.init):
+            if done >= int(st.get("portfolio.max_deep_per_batch", 1)):
+                break
+            if e.deep_polished or ctx.problem.gain(self.init_score, e.score) > gap * scale:
+                continue
+            e.deep_polished = True
+            done += 1
+            seed = self._seed()
+            ev = ctx.finish(ctx.submit(prog.source, budget, seed, init=e.candidate,
+                                       adapter_source=self.islands[prog.island_id].adapter_source).result(),
+                            self.category)
+            exp_id = ctx.ledger.next_experiment_id()
+            before = self.init_score
+            beats = ev.valid and D.improves(ev.score, before, float(st["selection.eps_rel"]), self.direction)
+            rec = ctx.log_experiment(
+                experiment_id=exp_id, ev=ev, source=prog.source, program_id=prog.program_id, chain=self.chain,
+                agent=self.agent, hypothesis=f"deep polish of basin {cell_name(e.cell)} with {prog.id}",
+                rationale=f"archive entry {e.experiment} ({e.score!r}) is within promote_gap={gap:g} of the "
+                          f"incumbent ({before!r}), normalized by {scale:.6g}",
+                decision="keep" if beats else ("discard" if ev.valid else ev.status),
+                status="keep" if beats else ("discard" if ev.valid else ev.status), seed=seed, budget_s=budget,
+                best_before=self.best_score, save_solution=True,
+                extra_config=self._cfg(island, prog, "deep-polish", "deep", before, ev=ev))
+            for c in self._offer(ev, exp_id, prog.program_id, child=False):
+                self.archive.cells[c].deep_polished = True     # its own result is not promoted again
+            payload = {"entry": {"cell": cell_name(e.cell), "experiment": e.experiment, "score": e.score,
+                                 "regime": e.regime}, "program": prog.id, "budget_s": budget,
+                       "score_before": e.score, "score_after": ev.score if ev.valid else None,
+                       "incumbent_score": before, "new_incumbent_from_other_basin": bool(beats)}
+            ctx.ledger.event("basin_promotion", seed=seed, refs=[exp_id, e.experiment], **payload)
+            self.promotions.append({**payload, "experiment": exp_id})
+            if beats and (self.best_score is None or ctx.problem.gain(ev.score, self.best_score) > 0):
+                self._set_best(ev, exp_id, rec, prog)
+
+    def _regime_block(self, spec: Spec) -> str:
+        sset = self.cur_set
+        lines = [f"Regime: `{self.regime}`."]
+        if self.regime == "record":
+            lines.append("`construct` is called once, with `init` = the best candidate found so far in this run "
+                         "(None if there is none yet).")
+        else:
+            lines.append(f"`construct` is called once per start ({len(sset)} starts); each start is a canonical "
+                         "candidate passed as `init` that may be invalid or poor; return a valid candidate. The "
+                         "program's score here is the mean of its verified scores over the starts.")
+        for origin, x, sc in zip(sset.origin, sset.starts, sset.start_scores):
+            try:
+                desc = {k: round(float(v), 4) for k, v in self._describe(x).items()} if x is not None else None
+            except Exception:  # noqa: BLE001  (descriptors of an invalid start may not exist)
+                desc = None
+            lines.append(f"- start {origin}: score {sc!r}, descriptors {desc}")
+        val = spec.parent.score("F0", sset.id)
+        prog = P.progress(val, P.mean_start_score(sset), self._reference())
+        lines.append(f"Parent program on this start set: mean score {val!r}, normalized progress {prog!r}"
+                     if val is not None else "The parent program has not been run on this start set yet.")
+        lines.append(f"Best normalized progress seen in this regime: {self.regime_stats[self.regime]['best_progress']!r}"
+                     " (0 = the mean start, 1 = the reference value).")
+        return "\n".join(lines)
+
     # ================================================================== start
     def start(self) -> Evaluation:
         """Canonical island, baseline evaluation of the seed program, seed genes (one brainstorm call)."""
         ctx = self.ctx
         island = self._new_island(CANONICAL_TEXT, None, True, [])
         lin = self._new_lineage(island)
+        if self.portfolio:
+            self.cur_set = self._start_set("record")
         ev = ctx.finish(ctx.submit(self.seed_source, self._budget("F0"), self.eval_seed, init=self.init).result(),
                         self.category)
         m = self._new_member(program_id=f"p_{source_hash(self.seed_source)}", source=self.seed_source,
@@ -262,7 +514,7 @@ class MainArm:
             agent=self.agent, hypothesis=m.hypothesis, rationale="first evaluation of the main arm's seed program",
             decision="baseline", status="keep" if ev.valid else ev.status, seed=self.eval_seed,
             budget_s=self._budget("F0"), best_before=self.best_score, save_solution=new_best,
-            extra_config=self._cfg(island, m, "seed", "F0", self.init_score if self.ratchet else None))
+            extra_config=self._cfg(island, m, "seed", "F0", self.init_score if self.ratchet else None, ev=ev))
         if ev.valid:
             self._record_score(island, m, "F0", ev, exp_id)
             island.pool.append(m.id)
@@ -271,6 +523,9 @@ class MainArm:
             island.best_score = ev.score
             if new_best:
                 self._set_best(ev, exp_id, rec, m)
+        if self.portfolio:
+            self._init_portfolio()
+            self._offer(ev, exp_id, m.program_id, child=False)
         self._sig_score = self.best_score
         self._end_batch(island, [])
         self._brainstorm(island)
@@ -294,9 +549,14 @@ class MainArm:
     # ================================================================== one batch
     def step(self) -> dict:
         ctx = self.ctx
+        spend0 = self._spend()
+        if self.portfolio:
+            self._begin_regime()
         island = self._pick_island()
         phase, phase_inputs = self._phase(island)
-        specs = self._plan(island, phase, phase_inputs)
+        # start portfolio: gene statistics are kept per "<regime>/<phase>" (pooled while a key has few observations)
+        gene_key = f"{self.regime}/{phase}" if self.portfolio else phase
+        specs = self._plan(island, gene_key, phase_inputs)
         self._write_programs(island, specs)
         self._filter(island, specs)
         live = [s for s in specs if s.source]
@@ -308,9 +568,12 @@ class MainArm:
         self._ladder(island, live, batch_evals)
         improved = self._update_best(island, live, batch_evals, ref_scores)
         self._births(island, live)
+        if self.portfolio:
+            self._deep_polish(island)
+            self._end_regime(live, spend0)
         self._end_batch(island, live, improved)
         valid = [s for s in live if s.ev is not None and s.ev.valid]
-        return {"batch": self.batches, "island": island.id, "phase": phase, "n": len(specs), "written": len(live),
+        return {"batch": self.batches, "island": island.id, "phase": gene_key, "regime": self.regime, "n": len(specs), "written": len(live),
                 "valid": len(valid), "kept": sum(s.s for s in live), "best": self.best_score,
                 "new_best": best_before != self.best_score, "n_edits": len(live),
                 "genes": {k: sum(g.status == k for g in self.genes.genes.values())
@@ -401,7 +664,8 @@ class MainArm:
         negatives = [g.id for g in self.genes.negatives(island.id, int(st["genes.max_negative"]))]
         ctx.ledger.event("genome_built", seed=seed, refs=[parent.id, *built["genome"]],
                          inputs={"pool": pool, "g_max": g_max, "phase": phase_inputs},
-                         outputs={"genome": built["genome"], "draws": built["draws"], "phase": phase},
+                         outputs={"genome": built["genome"], "draws": built["draws"], "phase": phase.split("/")[-1]},
+                         gene_key=phase,
                          negatives=negatives, operator=operator)
         return Spec("normal", operator, model, parent, parent_b if operator == "hybridize" else None,
                     built["genome"], negatives, phase, self._seed(), self.category)
@@ -454,7 +718,10 @@ class MainArm:
         negative = [self.genes.genes[g] for g in spec.negatives if g in self.genes.genes]
         trial = self.genes.genes.get(spec.trial) if spec.kind == "with" else None
         parts = ["# Problem", self.brief,
-                 "# State of the run", state_block(ctx, self.init_score, self.ratchet, self.gains, "batches")]
+                 "# State of the run", state_block(ctx, self.init_score, self.ratchet, self.gains, "batches",
+                                                   show_record=self.show_record)]
+        if self.portfolio:
+            parts += ["# Regime of this batch", self._regime_block(spec)]
         if not island.canonical:
             parts += ["# Formulation of this island", self.genes.genes[island.formulation].text,
                       "`construct` returns the object of this formulation. This adapter (fixed, do not rewrite it) "
@@ -537,7 +804,7 @@ class MainArm:
 
     # ------------------------------------------------------------------ evaluation
     def _cfg(self, island: Island, member: Member | None, operator: str, fid: str, ref: float | None,
-             spec: Spec | None = None) -> dict:
+             spec: Spec | None = None, ev: Evaluation | None = None) -> dict:
         cfg = {"arm": "main", "island": island.id, "member": member.id if member else None, "operator": operator,
                "fidelity": fid, "epoch": self.epoch, "ref_score": ref, "batch": self.batches}
         if spec is not None:
@@ -548,28 +815,33 @@ class MainArm:
                         "edit_meta": {k: v for k, v in spec.meta.items() if k not in ("role", "error")}})
         elif member is not None:
             cfg.update({"parent_id": member.parents[0] if member.parents else None, "genome": member.genome})
+        if self.portfolio and ev is not None:
+            cfg.update(self._pcfg(ev))
         return cfg
 
     def _record_score(self, island: Island, m: Member, fid: str, ev: Evaluation, exp_id: str) -> None:
-        m.scores[f"{fid}@{self.epoch}"] = ev.score
-        m.exp_ids[f"{fid}@{self.epoch}"] = exp_id
+        key = self._key()
+        value = P.selection_value(ev)
+        m.scores[f"{fid}@{key}"] = value
+        m.exp_ids[f"{fid}@{key}"] = exp_id
         if fid == "F0":
-            m.fit = self.ctx.problem.gain(ev.score, self.init_score) if self.ratchet and self.init_score is not None \
-                else ev.score
+            relative = self.ratchet and self.init_score is not None and (not self.portfolio or self.regime == "record")
+            m.fit = self.ctx.problem.gain(value, self.init_score) if relative else value
+            if self.portfolio:
+                m.fit_by_regime[self.regime] = m.fit
 
     def _evaluate_f0(self, island: Island, live: list[Spec], batch_evals: list) -> dict[str, float | None]:
         """Children and the parents they are compared with, all from the same warm start. Returns the F0 score
         of each comparison parent at the current epoch (None if its replay failed)."""
         ctx = self.ctx
         f0 = self._budget("F0")
-        need = {s.parent.id: s.parent for s in live if s.parent.score("F0", self.epoch) is None}
-        fut_parents = [(m, ctx.submit(m.source, f0, self.eval_seed, init=self.init,
-                                      adapter_source=self.islands[m.island_id].adapter_source))
+        key = self._key()
+        need = {s.parent.id: s.parent for s in live if s.parent.score("F0", key) is None}
+        fut_parents = [(m, self._submit(m.source, f0, self.islands[m.island_id].adapter_source))
                        for m in need.values()]
-        fut_children = [(s, ctx.submit(s.source, f0, self.eval_seed, init=self.init,
-                                       adapter_source=s.adapter_source or island.adapter_source)) for s in live]
+        fut_children = [(s, self._submit(s.source, f0, s.adapter_source or island.adapter_source)) for s in live]
         for m, fut in fut_parents:
-            ev = ctx.finish(fut.result(), self.category)
+            ev = self._finish(fut, self.category)
             exp_id = ctx.ledger.next_experiment_id()
             save = ev.valid and self._beats_batch(ev, batch_evals)
             rec = ctx.log_experiment(
@@ -578,15 +850,17 @@ class MainArm:
                 rationale=f"reference for its children in batch {self.batches} (same warm start, same fidelity)",
                 decision="baseline" if ev.valid else ev.status, status="keep" if ev.valid else ev.status,
                 seed=self.eval_seed, budget_s=f0, best_before=self.best_score, save_solution=save,
-                extra_config=self._cfg(self.islands[m.island_id], m, "replay", "F0", self.init_score))
+                extra_config=self._cfg(self.islands[m.island_id], m, "replay", "F0", self.init_score, ev=ev))
+            if self.portfolio:
+                self._offer(ev, exp_id, m.program_id, child=False)
             if ev.valid:
                 self._record_score(island, m, "F0", ev, exp_id)
                 batch_evals.append((ev, exp_id, rec, m))
             elif sum(self.members[i].alive for i in self.islands[m.island_id].pool) > 1:
                 m.alive = False       # a program that no longer runs from the current warm start is not a parent
         for s, fut in fut_children:
-            s.ev = ctx.finish(fut.result(), s.category)
-        return {s.parent.id: s.parent.score("F0", self.epoch) for s in live}
+            s.ev = self._finish(fut, s.category)
+        return {s.parent.id: s.parent.score("F0", key) for s in live}
 
     def _beats_batch(self, ev: Evaluation, batch_evals: list) -> bool:
         """True when `ev` is above the arm's best and above everything already evaluated in this batch."""
@@ -604,18 +878,20 @@ class MainArm:
         for s in live:
             ev = s.ev
             ref = s.ref = ref_scores.get(s.parent.id)
-            s.s = int(ev.valid and D.improves(ev.score, ref, eps, self.direction))
+            value = P.selection_value(ev)
+            s.s = int(ev.valid and D.improves(value, ref, eps, self.direction))
+            what = "regime score" if self.portfolio else "tuned score"
             s.exp_id = ctx.ledger.next_experiment_id()
             if not ev.valid:
                 decision = status = ev.status
                 rationale = f"no valid candidate: {ev.error}"
             elif s.s:
                 decision = status = "keep"
-                rationale = f"tuned score {ev.score:.15g} beats its parent {s.parent.id} ({ref}) by more than " \
-                            f"eps_rel={eps:g} at F0, same warm start"
+                rationale = f"{what} {value:.15g} beats its parent {s.parent.id} ({ref}) by more than " \
+                            f"eps_rel={eps:g} at F0, same start set"
             else:
                 decision = status = "discard"
-                rationale = f"tuned score {ev.score:.15g} does not beat its parent {s.parent.id} ({ref}) at F0"
+                rationale = f"{what} {value:.15g} does not beat its parent {s.parent.id} ({ref}) at F0"
             target = island
             if ev.valid and s.operator == "reformulate":
                 target = self._open_island(island, s)
@@ -636,7 +912,9 @@ class MainArm:
                 experiment_id=s.exp_id, ev=ev, source=s.source, program_id=f"p_{source_hash(s.source)}",
                 chain=self.chain, agent=self.agent, hypothesis=s.hypothesis, rationale=rationale, decision=decision,
                 status=status, seed=self.eval_seed, budget_s=self._budget("F0"), best_before=self.best_score,
-                save_solution=save, extra_config=self._cfg(target or island, s.member, s.operator, "F0", ref, s))
+                save_solution=save, extra_config=self._cfg(target or island, s.member, s.operator, "F0", ref, s, ev=ev))
+            if self.portfolio:
+                self._offer(ev, s.exp_id, f"p_{source_hash(s.source)}", child=True)
             self.evals += 1
             island.evals += 1
             if ev.claim == "numerical_artifact":
@@ -701,7 +979,7 @@ class MainArm:
                 o[0] += 1
                 o[1] += s.s
         self._linkage(genome, s)
-        score = s.ev.score if s.ev.valid else None
+        score = P.selection_value(s.ev) if s.ev.valid else None    # the value `s` was computed from
         self.ctx.ledger.event(
             "credit_update", seed=None, refs=[s.exp_id, s.parent.id],
             inputs={"child_score": score, "parent_score": ref, "eps_rel": eps, "direction": self.direction,
@@ -782,7 +1060,7 @@ class MainArm:
                 continue                      # neither program was written (budget): the pair did not happen
 
             def score(s: Spec | None) -> float | None:
-                return s.ev.score if s is not None and s.ev is not None and s.ev.valid else None
+                return P.selection_value(s.ev) if s is not None and s.ev is not None and s.ev.valid else None
 
             inputs = {"score_with": score(w), "score_without": score(wo),
                       "eps_rel": float(st["selection.eps_rel"]), "direction": self.direction,
@@ -814,6 +1092,8 @@ class MainArm:
     # ------------------------------------------------------------------ fidelity ladder (5.4)
     def _ladder(self, island: Island, live: list[Spec], batch_evals: list) -> None:
         st, ctx = self.ctx.strategy, self.ctx
+        if self.portfolio and self.regime != "record":
+            return      # the ladder re-runs a program from the incumbent: it belongs to the record regime only
         levels = int(st.get("fidelity.levels", 3))
         current = {s.exp_id: s for s in live if s.member is not None}
         scores = {k: s.ev.score for k, s in current.items()}
@@ -841,7 +1121,10 @@ class MainArm:
                               f"fidelity (experiment {k})",
                     decision="keep" if ev.valid else ev.status, status="keep" if ev.valid else ev.status,
                     seed=self.eval_seed, budget_s=budget, best_before=self.best_score, save_solution=save,
-                    extra_config=self._cfg(self.islands[s.member.island_id], s.member, s.operator, fid, None, s))
+                    extra_config=self._cfg(self.islands[s.member.island_id], s.member, s.operator, fid, None, s,
+                                           ev=ev))
+                if self.portfolio:
+                    self._offer(ev, exp_id, s.member.program_id, child=False)
                 if ev.valid:
                     self._record_score(island, s.member, fid, ev, exp_id)
                     batch_evals.append((ev, exp_id, rec, s.member))
@@ -858,7 +1141,8 @@ class MainArm:
             self.init, self.init_score = ev.candidate, ev.score
             self.epoch += 1
             self.ctx.ledger.event("warm_start_update", seed=None, refs=[exp_id], arm="main", epoch=self.epoch,
-                                  score_before=before, score_after=ev.score, solution_path=self.best_solution_path)
+                                  score_before=before, score_after=ev.score, solution_path=self.best_solution_path,
+                                  regime=self.regime if self.portfolio else None)
 
     def _update_best(self, island: Island, live: list[Spec], batch_evals: list, ref_scores: dict) -> bool:
         """Returns True when the island improved: a child beat the island's reference (its best score, or, with
@@ -874,6 +1158,8 @@ class MainArm:
         best_kid = max(kids, key=lambda v: D.sign(self.direction) * v) if kids else None
         improved = best_kid is not None and D.improves(best_kid, reference, float(ctx.strategy["selection.eps_rel"]),
                                                        self.direction)
+        if self.portfolio:      # a regime's batch improves when a child beat its parent on the same start set
+            improved = any(s.s for s in live)
         if best_kid is not None and (island.best_score is None or gain(best_kid, island.best_score) > 0):
             island.best_score = best_kid
         before = self.best_score
@@ -902,7 +1188,7 @@ class MainArm:
                 "# Problem", self.brief[:3000], "# Parent program", "```python\n" + s.parent.source.rstrip() + "\n```",
                 "# Diff from parent to child", "```diff\n" + diff + "\n```",
                 f"# Scores (frozen verifier, same warm start, same budget)\nparent: "
-                f"{s.ref!r}\nchild: {s.ev.score!r}",
+                f"{s.ref!r}\nchild: {P.selection_value(s.ev)!r}",
                 "# Your task", "The child beat its parent. State the reusable idea behind the gain as 0 to 2 genes. "
                 + GENE_RULES + " Return no gene if the gain looks like tuning noise."])
             seed = self._seed()
@@ -964,7 +1250,7 @@ class MainArm:
                     rationale=f"lineage {lin.id} had no improvement for {lin.since_improvement} evaluations",
                     decision="keep" if ev.valid else ev.status, status="keep" if ev.valid else ev.status,
                     seed=self.eval_seed, budget_s=self._budget("F2"), best_before=self.best_score,
-                    save_solution=new_best, extra_config=self._cfg(island, m, "freeze-tune", "F2", None))
+                    save_solution=new_best, extra_config=self._cfg(island, m, "freeze-tune", "F2", None, ev=ev))
                 refs = [exp_id]
                 if ev.valid:
                     self._record_score(island, m, "F2", ev, exp_id)
@@ -1013,6 +1299,15 @@ class MainArm:
             "best_experiment": self.best_experiment, "best_member": self.best_member,
             "best_solution_path": self.best_solution_path, "curve": self.curve,
         }
+        if self.portfolio:
+            state["portfolio"] = {
+                "regime_arms": self.regime_arms, "regime_spend": self.regime_spend, "regime_stats": self.regime_stats,
+                "operator_arms_by_regime": self.op_arms_r,
+                "start_sets": {r: {"id": v.id, "origin": list(v.origin), "start_scores": list(v.start_scores)}
+                               for r, v in self.start_sets.items()},
+                "archive": self.archive.table() if self.archive else [],
+                "archive_edges": self.archive.edges if self.archive else {},
+                "promotions": self.promotions}
         (self.ctx.ledger.dir / "state.json").write_text(json.dumps(state, indent=1))
 
 

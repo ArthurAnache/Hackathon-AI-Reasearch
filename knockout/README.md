@@ -98,6 +98,9 @@ asks for. What was checked instead is listed under "Results". Read the "Limitati
 | `report.py` | `python -m knockout.report runs/<id>` writes `report.md` from the ledger |
 | `replay.py` | `python -m knockout.replay runs/<id>` re-derives every decision from the events and the LLM cache |
 | `run.py` | CLI and `run()`; `modal_app.py` calls the same `run()` on Modal |
+| `portfolio.py` | start portfolio: `StartSet`, per-start aggregation, normalized progress |
+| `basins.py` | start portfolio: basin archive over trusted descriptors |
+| `starts.py` | start portfolio: cold starts, perturbations and descriptors per problem (trusted) |
 | `launch.yaml` | parameters of the run that a `[ko-run]` push launches |
 
 ## Run it
@@ -196,6 +199,87 @@ How the Modal run is split:
   with the frozen verifier, writes the ledger. It never runs an LLM-written program;
 - **workers** (`evaluate_job`, `modal.cpu` cores, `block_network=True`, no secret, `max_containers` cap,
   explicit timeout): run one untrusted program each, inside a child process with rlimits.
+
+## Start portfolio (2026-11-15)
+
+Brief: [`docs/knockout_portfolio_brief.md`](../docs/knockout_portfolio_brief.md). Branch
+`feature/ws2-start-portfolio`, from `genetic-method`. Off by default (`portfolio.enabled: false`); with it off, v1
+runs unchanged (the 38 v1 tests pass, verified).
+
+**Why.** In v1 every program started from the record solution and could not return worse, so every child landed
+on the parent's score and the genes, the gate and the bandits had no signal. The portfolio evaluates programs from
+three kinds of starts, learns per regime, keeps an archive of distinct basins, and deep-polishes a basin that gets
+close to the incumbent.
+
+### What is built
+
+| Step of the brief | Content | Where |
+|---|---|---|
+| P0 | `StartSet`; member scores keyed by start set id (`F0@record:3`, `F0@cold:0`, `F0@neighbour:7`); per-start evaluation and aggregation; `pick_regime` (floors, then Thompson); `prompt.show_record` | `portfolio.py`, `decisions.py`, `main_arm.py`, `llm_editor.py` |
+| P1 | `neighbour` regime (perturbations of the incumbent, archive entries); gene statistics under `<regime>/<phase>`; one set of operator arms per regime; report tables per regime | `main_arm.py`, `report.py` |
+| P2 | basin archive (descriptors, bins fixed at start, `basin_insert`), neighbour starts drawn from it | `basins.py`, `starts.py` |
+| P3 | deep polish of an archive entry within `promote_gap` (`basin_promotion`, `new_incumbent_from_other_basin`) | `main_arm.py` |
+| P4 | `cold_starts`, `perturb`, `descriptors` for the toy, circles-rectangle and second-autocorrelation; seed program for circles-rectangle, registered in `run.py` | `starts.py`, `seeds/circles_rectangle.py` |
+| P5 | `prompt.knowledge` switch | **not built** |
+
+Run it: `--profile portfolio` (= `portfolio.enabled: true`, `prompt.show_record: false`), for example
+`.venv/bin/python -m knockout.run --problem circles-rectangle --profile portfolio --editor openai --wall-clock 600 --max-usd 5`.
+Settings: `portfolio:` in `strategy.yaml`. The strategist may patch `portfolio.floors` (each in [0.1, 0.4], sum at
+most 0.9), `portfolio.promote_gap` and `portfolio.k_cold` (range checks in `config.py`).
+
+Ledger: new events `regime_pick`, `start_set`, `basin_insert` and `basin_promotion`. `config` of every main-arm
+experiment gains `regime`, `start_set`, `per_start`, `regime_score`, `progress` and `cell`. **One experiment line
+per (program, start set): `score` is the best per-start candidate (the one stored), `config.regime_score` is the
+mean over the starts, and selection uses the mean.** `replay.py` re-derives every `regime_pick` and checks every
+`basin_insert` against the earlier inserts and the ledger scores.
+
+### Rules chosen where the brief left room
+
+- **Invalid result on one start.** Its value is the start's own score if the start is valid, else the worst valid
+  score seen on that start of that start set. With neither, the program is invalid on the start set.
+  A program with no valid start at all is invalid.
+- **Ratchet.** The portfolio turns the ratchet on. A candidate of any regime that beats the incumbent replaces it,
+  and the `record` start set gets a new id.
+- **The fidelity ladder runs in the `record` regime only.** It re-runs a program from the incumbent.
+- **Descriptors of circle packings are scale-free.** They are the 25 % and 75 % quantiles and the maximum of the
+  radii divided by the median radius, plus `aspect` and `n_small` (circles-rectangle) or `n_boundary` (toy). The
+  brief's absolute radius quartiles put every polished packing in one cell: the cold starts have radius 1e-3 and set
+  the bottom of every bin range (seen on the first circles-rectangle run, verified).
+- **Bin edges** are logged in the cold `start_set` event, not in `run_start`, because `run_start` is written before
+  the main arm starts.
+- **The archive keeps candidates in memory.** An entry refers to the experiment line that produced it, but only the
+  best per-start candidate of a line is on disk.
+- **The deep polish result does not re-enter the queue.** When the result lands in the cell it came from, it is
+  marked as polished and is not promoted again.
+
+### Results (fake LLM, no cost)
+
+| Run | What | Outcome |
+|---|---|---|
+| toy, 45 s, `tests/test_knockout_portfolio.py` | all three regimes picked; deep polish fires with `promote_gap = 1.0` | ledger validates, replay passes, report written (verified) |
+| circles-rectangle, 90 s, warm start = frozen certificate (2.3658323759098576) | 7 batches; cold children reach regime score 2.3587 (progress 0.997); 2 archive cells; 1 deep polish (2.3642478 → 2.3642481, below the incumbent) | ledger validates, replay passes (verified) |
+
+**L1 of the brief is reached** on the toy and on circles-rectangle, with the fake LLM of the v1 tests. L2 to L5
+need runs with the real LLM (experiments E1 to E3 of the brief), which wait for Arthur's go-ahead and a USD cap. No
+record is claimed. The incumbent on circles-rectangle is the certificate, a certified KKT point (the seed returns
+it unchanged).
+
+Tests: `.venv/bin/python -m pytest tests/test_knockout_portfolio.py tests/test_knockout_portfolio_starts.py -q`
+(21 tests, about 45 s, of which 40 s is the recorded toy run).
+
+### Limitations
+
+- **Gene verdicts are not per regime.** The knock-out gate gives a global verdict. Only the statistics behind
+  genome construction are kept per regime. The brief allows this shortcut.
+- The `prompt.knowledge` switch (P5) is not built, so E3 cannot run yet.
+- The control arm is unchanged and still sees the record value. Main-versus-control comparisons with
+  `prompt.show_record: false` therefore mix two changes.
+- The population cap (`main.population_max`) trims by the fit of the current regime. That could drop a program
+  that is good in another regime. A short run does not reach the cap.
+- **The branch where a promotion beats the incumbent is checked only through the ledger.** The test requires a
+  `warm_start_update` whenever `new_incumbent_from_other_basin` is true. No fake run reached that branch.
+- Bins come from only two cold starts and the incumbent. Read the archive table of E1 before trusting "number of
+  basins" (brief §12).
 
 ## Ledger format
 

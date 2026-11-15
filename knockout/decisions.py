@@ -59,6 +59,22 @@ def bandit_update(arms: dict[str, list[float]], chosen: str, successes: float, f
     return out
 
 
+def pick_regime(arms: dict[str, list[float]], spend: dict[str, float], floors: dict[str, float],
+                seed: int) -> dict:
+    """Start portfolio (brief 5.1). If some regime's share of the main arm's spend is below its floor, return the
+    regime with the largest shortfall (floor - share), ties by name. Otherwise Thompson sampling over the Beta arms.
+    Returns {"choice", "reason": "floor" | "thompson", "shares", "draws"}."""
+    names = sorted(arms)
+    total = sum(float(spend.get(r, 0.0)) for r in names)
+    shares = {r: (float(spend.get(r, 0.0)) / total if total > 0 else 0.0) for r in names}
+    short = {r: float(floors.get(r, 0.0)) - shares[r] for r in names if shares[r] < float(floors.get(r, 0.0))}
+    if short:
+        choice = max(sorted(short), key=lambda r: short[r])
+        return {"choice": choice, "reason": "floor", "shares": shares, "draws": {}}
+    out = thompson_pick(arms, seed)
+    return {"choice": out["choice"], "reason": "thompson", "shares": shares, "draws": out["draws"]}
+
+
 def shift_arms(arms: dict[str, list[float]], old_priors: dict[str, list[float]],
                new_priors: dict[str, list[float]], floor: float = 0.05) -> dict[str, list[float]]:
     """Apply new priors to bandit arms without erasing what the arms have learned: each arm moves by the

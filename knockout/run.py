@@ -34,7 +34,8 @@ from knockout.problems_api import TOY, load_problem
 
 ROOT = Path(__file__).resolve().parent
 SEEDS = {TOY: ROOT / "seeds" / "toy_circles.py",
-         "second-autocorrelation-inequality": ROOT / "seeds" / "second_autocorrelation.py"}
+         "second-autocorrelation-inequality": ROOT / "seeds" / "second_autocorrelation.py",
+         "circles-rectangle": ROOT / "seeds" / "circles_rectangle.py"}
 
 # Named sets of strategy overrides. Explicit --set values win over a profile.
 PROFILES = {
@@ -47,6 +48,9 @@ PROFILES = {
                          # does anyway), 6 children per batch of which up to 2 gate pairs
                          "main.batch_size": 6, "gate.pairs_per_batch": 2, "fidelity.levels": 1,
                          "strategist.min_progress": 1.0e-7},
+    # Start portfolio (docs/knockout_portfolio_brief.md): record, neighbour and cold regimes, basin archive,
+    # deep polish; the LLM never sees the record value.
+    "portfolio": {"portfolio.enabled": True, "prompt.show_record": False},
 }
 
 

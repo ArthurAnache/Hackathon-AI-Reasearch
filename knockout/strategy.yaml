@@ -132,6 +132,24 @@ operators: [refine, restructure, hybridize, reformulate, fresh]
 operator_priors: {refine: [1, 1], restructure: [1, 1], hybridize: [1, 1], reformulate: [1, 1], fresh: [1, 1]}
 bandit_discount: 0.95
 
+portfolio:                   # start portfolio (docs/knockout_portfolio_brief.md); v1 behaviour when disabled
+  enabled: false
+  regimes: [record, neighbour, cold]
+  floors: {record: 0.2, neighbour: 0.2, cold: 0.2}   # minimum share of the main arm's spend per regime
+  k_cold: 2                  # starts per cold start set (a child costs k evaluations)
+  k_neighbour: 2
+  cold_seed: 7
+  perturb_min: 0.01          # relative strength of a neighbour perturbation, log-uniform
+  perturb_max: 0.3
+  neighbour_archive_share: 0.5   # probability that a neighbour start is an archive entry rather than a perturbation
+  archive_bins: 4
+  promote_gap: 0.02          # deep polish when an entry outside the incumbent's cell is this close (normalized)
+  deep_factor: 10            # deep polish budget = deep_factor * fidelity.f0_s
+  max_deep_per_batch: 1
+
+prompt:
+  show_record: true          # false: the LLM never sees the record value (set by the "portfolio" profile)
+
 strategist_allow_list:
   - operator_priors
   - selection.parent_power
@@ -142,3 +160,6 @@ strategist_allow_list:
   - fidelity.promote_ratio
   - islands.budget_shares
   - seed_genes
+  - portfolio.floors
+  - portfolio.promote_gap
+  - portfolio.k_cold

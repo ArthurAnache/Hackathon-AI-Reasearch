@@ -138,11 +138,14 @@ def strip_fence(source: str) -> str:
 
 
 # ---------------------------------------------------------------------------------------------------- prompt blocks
-def state_block(ctx, init_score, ratchet: bool, gains: list[float], unit: str) -> str:
-    """Record, warm start, budget, and the measured distance to the record threshold (facts from the ledger)."""
-    best_known = ctx.best_known()
-    state = [f"Record to beat (live #1): {best_known!r}. A record needs a score of at least "
-             f"{best_known!r} + {ctx.problem.min_margin:g}." if best_known is not None else "Record: unknown.",
+def state_block(ctx, init_score, ratchet: bool, gains: list[float], unit: str, show_record: bool = True) -> str:
+    """Record, warm start, budget, and the measured distance to the record threshold (facts from the ledger).
+    With `show_record=False` (start portfolio, `prompt.show_record: false`) the record value, the record threshold
+    and the distance to it are left out; trusted code still uses them."""
+    best_known = ctx.best_known() if show_record else None
+    state = ([f"Record to beat (live #1): {best_known!r}. A record needs a score of at least "
+              f"{best_known!r} + {ctx.problem.min_margin:g}." if best_known is not None else "Record: unknown."]
+             if show_record else []) + [
              f"Score of the current warm start (`init`): {init_score!r}." if init_score is not None
              else "There is no warm start for this problem (`init` is None).",
              f"Each program gets budget_s = {float(ctx.strategy['fidelity.f0_s']):g} seconds on one CPU core."]

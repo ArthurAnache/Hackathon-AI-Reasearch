@@ -55,6 +55,7 @@ class Strategy:
         bad = [k for k in patch if k not in allowed]
         if bad:
             raise StrategyError(f"keys not in strategist_allow_list: {bad}")
+        _check_portfolio_ranges(patch)
         previous = {k: copy.deepcopy(self.get(k)) for k in patch}
         for k, v in patch.items():
             self._set(k, v)
@@ -65,3 +66,17 @@ class Strategy:
 
 
 _MISSING = object()
+
+
+def _check_portfolio_ranges(patch: dict[str, Any]) -> None:
+    """Range checks of the start portfolio keys the strategist may patch (brief section 6)."""
+    if "portfolio.floors" in patch:
+        floors = patch["portfolio.floors"]
+        if not isinstance(floors, dict) or not all(isinstance(v, (int, float)) and 0.1 <= v <= 0.4
+                                                   for v in floors.values()) or sum(floors.values()) > 0.9:
+            raise StrategyError("portfolio.floors: each floor in [0.1, 0.4] and their sum at most 0.9")
+    if "portfolio.promote_gap" in patch and not (isinstance(patch["portfolio.promote_gap"], (int, float))
+                                                 and 0.0 < patch["portfolio.promote_gap"] <= 0.2):
+        raise StrategyError("portfolio.promote_gap must be in (0, 0.2]")
+    if "portfolio.k_cold" in patch and patch["portfolio.k_cold"] not in (1, 2, 3, 4):
+        raise StrategyError("portfolio.k_cold must be an integer in [1, 4]")

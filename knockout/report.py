@@ -166,7 +166,66 @@ def build(run_dir: str | Path) -> str:
                 f"  - Rationale (LLM): {p['rationale'][:600]}",
                 f"  - Rejected entries: {p['rejected'] or 'none'}", f"  - Outcome: {outcome}"]
     out.append("")
+    out += _portfolio_section(state, events, exps)
     return "\n".join(out)
+
+
+def _portfolio_section(state: dict, events: list[dict], exps: list[dict]) -> list[str]:
+    """Start portfolio tables (docs/knockout_portfolio_brief.md, section 7). Empty when the portfolio was off."""
+    pf = state.get("portfolio")
+    if not pf:
+        return []
+    out = ["## Start portfolio", "", "### Regimes", "",
+           "| Regime | Batches | Spend (USD) | Children | Beat their parent | Share | Best regime score | Best progress |",
+           "|---|---|---|---|---|---|---|---|"]
+    for r, rs in pf["regime_stats"].items():
+        share = rs["beat_parent"] / rs["children"] if rs["children"] else None
+        out.append(f"| {r} | {rs['batches']} | {_fmt(pf['regime_spend'].get(r))} | {rs['children']} | "
+                   f"{rs['beat_parent']} | {_fmt(share)} | {_fmt(rs['best_regime_score'])} | "
+                   f"{_fmt(rs['best_progress'])} |")
+    picks = Counter((e["payload"]["outputs"]["choice"], e["payload"]["outputs"]["reason"])
+                    for e in events if e["type"] == "regime_pick")
+    out += ["", "Regime picks (regime, reason): " + ", ".join(f"{k[0]}/{k[1]}: {v}" for k, v in sorted(picks.items())),
+            "", "Selection inside `neighbour` and `cold` uses the mean verified score over the start set "
+            "(`config.regime_score`); the experiment's `score` is its best per-start candidate, the one stored.", ""]
+    ops: dict[tuple[str, str], list[int]] = {}
+    for r in exps:
+        c = r["config"]
+        if c.get("arm") != "main" or c.get("operator") in (None, "seed", "replay", "freeze-tune", "deep-polish") \
+                or c.get("fidelity") != "F0" or "regime" not in c:
+            continue
+        v = ops.setdefault((c["regime"], c["operator"]), [0, 0])
+        v[0] += 1
+        v[1] += r["decision"] == "keep"
+    out += ["### Operator success per regime", "", "| Regime | Operator | Children | Beat their parent |", "|---|---|---|---|"]
+    out += [f"| {k[0]} | {k[1]} | {v[0]} | {v[1]} |" for k, v in sorted(ops.items())] or ["| — | — | 0 | 0 |"]
+    out += ["", "### Genes per regime", "",
+            "Statistics are kept under `<regime>/<phase>`; the verdict of the knock-out gate is still global "
+            "(limitation: per-regime verdicts were not built).", "",
+            "| Gene | Regime | Posterior mean | Observations | Status (global) |", "|---|---|---|---|---|"]
+    for g in state.get("genes", []):
+        per: dict[str, list[float]] = {}
+        for key, (a, b, n) in g.get("stats", {}).items():
+            reg = key.split("/")[0] if "/" in key else "—"
+            v = per.setdefault(reg, [0.0, 0.0, 0])
+            v[0] += a
+            v[1] += b
+            v[2] += n
+        for reg, (a, b, n) in sorted(per.items()):
+            out.append(f"| {g['id']} | {reg} | {(1 + a) / (2 + a + b):.2f} | {n} | {g['status']} |")
+    out += ["", "### Basin archive", "", f"Descriptor bin edges: `{json.dumps(pf.get('archive_edges'))}`", "",
+            "| Cell | Best score | Experiment | Regime that found it | Deep-polished |", "|---|---|---|---|---|"]
+    out += [f"| {e['cell']} | {_fmt(e['score'])} | {e['experiment']} | {e['regime']} | {e['deep_polished']} |"
+            for e in pf.get("archive", [])]
+    out += ["", "### Deep polish (basin promotions)", ""]
+    if not pf.get("promotions"):
+        out.append("No archive entry came within `promote_gap` of the incumbent outside its cell.")
+    for pr in pf.get("promotions", []):
+        line = (f"- `{pr['experiment']}`: cell {pr['entry']['cell']} ({pr['entry']['regime']}), program {pr['program']}, "
+                f"{_fmt(pr['score_before'])} → {_fmt(pr['score_after'])} (incumbent {_fmt(pr['incumbent_score'])})")
+        out.append(f"**{line} — new incumbent from another basin**" if pr["new_incumbent_from_other_basin"] else line)
+    out.append("")
+    return out
 
 
 def write(run_dir: str | Path) -> Path:

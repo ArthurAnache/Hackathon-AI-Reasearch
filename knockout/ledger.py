@@ -33,6 +33,8 @@ EVENT_TYPES = (
     "llm_call", "warm_start_update",
     # main arm: islands and linkage (decisions with no type of their own in the prompt's list)
     "island_opened", "island_replaced", "linkage",
+    # start portfolio (docs/knockout_portfolio_brief.md, section 7)
+    "regime_pick", "start_set", "basin_insert", "basin_promotion",
 )
 
 
