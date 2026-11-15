@@ -1,0 +1,2 @@
+# GPU packages, installed only in the Modal image of knockout/v2/gpu/modal_app.py (CLAUDE.md, WS3 rule 6).
+torch==2.14.1
