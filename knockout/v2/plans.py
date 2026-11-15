@@ -70,8 +70,27 @@ def grid(start: str, families=None, seeds=(1, 2), schedules=("p0", "a7"), budget
     return out
 
 
+def lean_grid(start: str, families=None) -> list[dict]:
+    """A grid that fits about 50 workers for an hour: every family and strength with both schedules at 1,500
+    evaluations (seed 1), with the anneal at 3,000 (seed 2), and the second strength with the anneal at 6,000
+    (seed 3)."""
+    out = []
+    for family in families or STRENGTHS:
+        strengths = STRENGTHS[family]
+        for strength in strengths:
+            out += [spec(start, family, strength, 1, schedule, 1500) for schedule in ("p0", "a7")]
+            out.append(spec(start, family, strength, 2, "a7", 3000))
+        out.append(spec(start, family, strengths[1], 3, "a7", 6000))
+    return out
+
+
 def e1() -> list[dict]:
     """E1, validation from solution 2782: a basin 2.3e-5 higher is known to exist (solution 2783)."""
+    return reheats("sol2782") + lean_grid("sol2782")
+
+
+def e1_wide() -> list[dict]:
+    """The first E1 plan (288 episodes). It needs more than 100 parallel workers to finish within an hour."""
     return reheats("sol2782") + grid("sol2782")
 
 
@@ -85,4 +104,4 @@ def holds() -> list[dict]:
     return [s for start in ("sol2782", "sol2783") for s in reheats(start, (6000, 12000), ("h6", "h7", "h8"))]
 
 
-PLANS = {"smoke": smoke, "e1": e1, "e2_reheat": e2_reheat, "holds": holds}
+PLANS = {"smoke": smoke, "e1": e1, "e1_wide": e1_wide, "e2_reheat": e2_reheat, "holds": holds}

@@ -21,6 +21,7 @@ the sandbox of knockout/modal_app.py.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,6 +34,9 @@ VOLUME_NAME = "knockout-v2"
 WORKER_CPU, WORKER_MEMORY_MB = 1.0, 2048                   # measured peak of one episode at n = 2M: 1.3 GiB
 USD_PER_CORE_S, USD_PER_GIB_S = 0.0000131, 0.00000222      # estimates, see knockout/strategy.yaml
 SECONDS_PER_EVAL = 0.4                                      # one Modal core; the smoke run measured 0.36 to 0.40
+# Cap on parallel workers of one launch. The workspace runs at most 100 containers in total (measured on
+# 2026-11-14: a 288-episode launch took 91 and starved the other apps), so several launches must share that.
+MAX_WORKERS = int(os.environ.get("KO_V2_MAX_WORKERS", "40"))
 _IGNORE = ["**/__pycache__", "**/*.pyc", "**/.DS_Store", "results/**"]
 
 image = (
@@ -54,7 +58,7 @@ def worker_usd(wall_s: float) -> float:
     return wall_s * (WORKER_CPU * USD_PER_CORE_S + WORKER_MEMORY_MB / 1024 * USD_PER_GIB_S)
 
 
-@app.function(cpu=WORKER_CPU, memory=WORKER_MEMORY_MB, timeout=3 * 3600, max_containers=150, retries=1,
+@app.function(cpu=WORKER_CPU, memory=WORKER_MEMORY_MB, timeout=3 * 3600, max_containers=MAX_WORKERS, retries=1,
               volumes={VOL: volume})
 def run_one(spec: dict, run_id: str, meta: dict) -> dict:
     """One episode on one core. Writes the solution and its record to the Volume, returns the record."""
@@ -144,7 +148,10 @@ def launch(plan: str = "smoke", plan_file: str = "", source_commit: str = "", be
     from knockout.v2 import plans
 
     specs = json.loads(Path(plan_file).read_text()) if plan_file else plans.PLANS[plan]()
-    specs = sorted(plans.with_baselines(specs), key=lambda s: -s["budget"])     # the longest episodes start first
+    # Episodes of 6,000 evaluations or more start first (they set the end of the run), then the shortest ones
+    # (they tell early whether the plan makes sense).
+    specs = sorted(plans.with_baselines(specs),
+                   key=lambda s: (0, -s["budget"]) if s["budget"] >= 6000 else (1, s["budget"]))
     name = Path(plan_file).stem if plan_file else plan
     usd = estimate_usd(specs)
     if usd > max_usd:
