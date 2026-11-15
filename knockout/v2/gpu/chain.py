@@ -25,12 +25,37 @@ def initial_w(xp, f0, kappa, floors):
     return xp.sqrt(g + floors * mean)
 
 
+def reopen_cells(xp, w, grad_f, eta):
+    """Open the closed cells that the first-order condition says should not be closed.
+
+    With f >= 0, a local maximum needs d log C / d f_j <= 0 on every cell with f_j = 0. A closed cell (f_j below
+    1e-9 of the mean open value) with a positive derivative is given f_j = eta * mean * grad_j / max grad, so the
+    strongest violator opens at `eta` times the mean open value. eta is (B, 1); rows with eta = 0 are untouched.
+    Returns (w, number of cells opened per row). With f = w^2 this is the only way a zero cell can move.
+    """
+    f = w * w
+    one = xp.ones_like(f)
+    zero = xp.zeros_like(f)
+    is_open = f > 1e-6 * xp.amax(f, -1)[:, None]
+    mean = (xp.sum(xp.where(is_open, f, zero), -1) / xp.sum(xp.where(is_open, one, zero), -1))[:, None]
+    violating = (f <= 1e-9 * mean) & (grad_f > 0) & (eta > 0)
+    gain = xp.where(violating, grad_f, zero)
+    top = xp.amax(gain, -1)[:, None]
+    new_f = eta * mean * gain / xp.where(top > 0, top, xp.ones_like(top))
+    return xp.where(violating, xp.sqrt(new_f), w), xp.sum(xp.where(violating, one, zero), -1)
+
+
 def run_chains(xp, w0, kappa, m, stage_lists, *, history=8, on_stage_end=None, on_progress=None,
-               progress_every=200, deadline=None, clock=time.monotonic):
+               progress_every=200, deadline=None, clock=time.monotonic, reopen=None, reopen_every=500,
+               reopen_until=0.9):
     """Run the chains. w0 (B, n), kappa (B, 1), stage_lists: one list of Stage per row, equal total evaluations.
 
     on_stage_end(row, stage_index, evals_done, w_row, info) is called once per row and stage;
-    info = {"beta", "smooth", "exact", "accepted", "rejected", "restarts"} describes the row's current point.
+    info = {"beta", "smooth", "exact", "accepted", "rejected", "restarts", "reopened"} describes the row's
+    current point.
+    reopen: one eta per row (0 = never). Every `reopen_every` evaluations, during the first `reopen_until` of the
+    budget, the rows with eta > 0 get their first-order-violating closed cells opened (see reopen_cells). Each
+    such event costs one extra batched evaluation, counted in "extra_evals" and not in the stage budgets.
     Returns {"evals", "stopped_early", "best_w", "best_exact", "first_exact", "x", "smooth", "exact", "stage"}.
     """
     b = w0.shape[0]
@@ -52,10 +77,23 @@ def run_chains(xp, w0, kappa, m, stage_lists, *, history=8, on_stage_end=None, o
     cur_exact = xp.zeros((b,), **kw)
     first_exact = None
     evals, stopped_early = 0, False
+    reopen_rows = [i for i in range(b) if reopen is not None and reopen[i] > 0]
+    eta = xp.zeros((b, 1), **kw)
+    for i in reopen_rows:
+        eta[i, 0] = reopen[i]
+    reopened = [0] * b
+    extra_evals = 0
     while evals < total:
         if deadline is not None and clock() >= deadline:
             stopped_early = True
             break
+        if reopen_rows and evals % reopen_every == 0 and evals <= reopen_until * total:
+            _, _, aux = evaluate(xp, opt.x, beta, kappa, m)
+            opt.x, counts = reopen_cells(xp, opt.x, aux["grad_f"], eta)
+            extra_evals += 1
+            for i, cnt in enumerate(counts.tolist()):
+                reopened[i] += int(cnt)
+            opt.mark_fresh(reopen_rows)
         xt = opt.trial()
         phi, grad, aux = evaluate(xp, xt, beta, kappa, m)
         took = opt.update(xt, phi, grad)
@@ -74,7 +112,7 @@ def run_chains(xp, w0, kappa, m, stage_lists, *, history=8, on_stage_end=None, o
                 if on_stage_end is not None:
                     info = {"beta": stage_lists[i][stage[i]].beta, "smooth": float(cur_smooth[i]),
                             "exact": float(cur_exact[i]), "accepted": opt.accepted[i],
-                            "rejected": opt.rejected[i], "restarts": opt.restarts[i]}
+                            "rejected": opt.rejected[i], "restarts": opt.restarts[i], "reopened": reopened[i]}
                     on_stage_end(i, stage[i], evals, opt.x[i], info)
                 stage[i] += 1
                 if stage[i] < len(bounds[i]):
@@ -88,4 +126,5 @@ def run_chains(xp, w0, kappa, m, stage_lists, *, history=8, on_stage_end=None, o
                         list(stage))
     return {"evals": evals, "stopped_early": stopped_early, "best_w": best_w, "best_exact": best_exact,
             "first_exact": first_exact, "x": opt.x, "smooth": cur_smooth, "exact": cur_exact, "stage": stage,
-            "accepted": list(opt.accepted), "rejected": list(opt.rejected), "restarts": list(opt.restarts)}
+            "accepted": list(opt.accepted), "rejected": list(opt.rejected), "restarts": list(opt.restarts),
+            "reopened": reopened, "extra_evals": extra_evals}

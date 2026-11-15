@@ -70,7 +70,8 @@ def evaluate(xp, w, beta, kappa, m: int):
     """Objective and gradient at w (B, n), with f = w^2; beta and kappa are (B, 1).
 
     Returns (phi, grad_w, aux): phi (B,) = -log C_beta, grad_w (B, n) = d phi / d w, and
-    aux = {"smooth": C_beta (B,), "exact": C with the hard maximum (B,)}. Cost: 4 FFTs of m points per row.
+    aux = {"smooth": C_beta (B,), "exact": C with the hard maximum (B,), "grad_f": d log C_beta / d f (B, n),
+    which is also defined on the cells where w = 0}. Cost: 4 FFTs of m points per row.
     """
     f = w * w
     n = f.shape[-1]
@@ -98,4 +99,4 @@ def evaluate(xp, w, beta, kappa, m: int):
     # chain rule through g = kappa f / sum(f): removes the component along f (scale invariance)
     grad_f = scale * (gv - xp.sum(gv * g, -1)[:, None] / kappa)
     phi = -xp.log(smooth[:, 0])
-    return phi, -2.0 * w * grad_f, {"smooth": smooth[:, 0], "exact": exact[:, 0]}
+    return phi, -2.0 * w * grad_f, {"smooth": smooth[:, 0], "exact": exact[:, 0], "grad_f": grad_f}

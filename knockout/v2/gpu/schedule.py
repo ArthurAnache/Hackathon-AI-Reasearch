@@ -36,6 +36,7 @@ class ChainSpec:
     seed: int = 0
     hypothesis: str = ""
     jitter: float = 0.0             # kick before the chain: f_i <- f_i * exp(jitter * N(0, 1)), drawn from `seed`
+    reopen: float = 0.0             # periodic opening of closed cells with a positive derivative (chain.py)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -47,7 +48,7 @@ class ChainSpec:
         stages = tuple(Stage(float(b), int(e)) for b, e in d["stages"])
         return ChainSpec(name=d["name"], start=d["start"], stages=stages, floor=float(d.get("floor", 0.0)),
                          seed=int(d.get("seed", 0)), hypothesis=d.get("hypothesis", ""),
-                         jitter=float(d.get("jitter", 0.0)))
+                         jitter=float(d.get("jitter", 0.0)), reopen=float(d.get("reopen", 0.0)))
 
 
 def geometric(beta_start: float, beta_end: float, n: int) -> list[float]:
@@ -110,8 +111,8 @@ def check_batch(chains: list[ChainSpec]) -> int:
     if len(set(names)) != len(names):
         raise ValueError("chain names must be distinct")
     for c in chains:
-        if c.floor < 0 or c.jitter < 0:
-            raise ValueError("floor and jitter must be >= 0")
+        if c.floor < 0 or c.jitter < 0 or c.reopen < 0:
+            raise ValueError("floor, jitter and reopen must be >= 0")
     return totals.pop()
 
 
@@ -289,7 +290,38 @@ def plan_kick16(start: str, evals: int) -> list[ChainSpec]:
     return chains
 
 
-PLANS = {"smoke": plan_smoke, "deep": plan_deep, "deep16": plan_deep16, "kick16": plan_kick16}
+def plan_reopen16(start: str, evals: int) -> list[ChainSpec]:
+    """Support moves driven by the first-order condition, with and without a reheat, plus a few kicks.
+
+    At a point polished with the support fixed, 1 to 2 % of the zero cells of the live #1 have a positive
+    derivative (14,000 to 37,000 cells; 23,000 cells appear between solutions 2782 and 2783). `reopen` opens
+    exactly those cells, every 500 evaluations, instead of flooring all 1.5 million zero cells."""
+    chains = [ChainSpec("control", start, anneal(1e9, 1e11, 2, evals),
+                        hypothesis="control: no reheat, support fixed, polish from beta = 1e9 to 1e11")]
+    for eta in (1e-4, 1e-3, 1e-2):
+        chains.append(ChainSpec(f"polish-reopen{eta:g}", start, anneal(1e9, 1e11, 2, evals), reopen=eta,
+                                hypothesis=f"polish from beta = 1e9 to 1e11, closed cells with a positive "
+                                           f"derivative opened every 500 evaluations (eta = {eta:g})"))
+    for tag, b0, etas in (("b8", 1e8, (1e-3, 1e-2)), ("b7", 1e7, (1e-3, 1e-2)), ("b6", 1e6, (1e-3, 1e-2)),
+                          ("b5", 1e5, (1e-2,)), ("b4", 1e4, (1e-2,))):
+        for eta in etas:
+            chains.append(ChainSpec(
+                f"{tag}-reopen{eta:g}", start, _with_polish(b0, 1e9, 3, evals, 0.25), reopen=eta,
+                hypothesis=f"reheat at beta = {b0:.0e}, slow cooling to 1e9, polish to 1e11; closed cells with a "
+                           f"positive derivative opened every 500 evaluations (eta = {eta:g})"))
+
+    def kick(sigma, seed, eta):
+        tag = f"k{sigma:g}-b5-s{seed}" + (f"-reopen{eta:g}" if eta else "")
+        return ChainSpec(tag, start, _with_polish(1e5, 1e9, 3, evals, 0.25), seed=seed, jitter=sigma, reopen=eta,
+                         hypothesis=f"log-normal cell kick of width {sigma:g} (seed {seed}), slow cooling from "
+                                    f"beta = 1e5 to 1e9, polish to 1e11" + (f"; reopen eta = {eta:g}" if eta else ""))
+
+    chains += [kick(0.1, 1, 0.0), kick(0.3, 1, 0.0), kick(0.1, 1, 1e-2), kick(0.3, 1, 1e-2)]
+    return chains
+
+
+PLANS = {"smoke": plan_smoke, "deep": plan_deep, "deep16": plan_deep16, "kick16": plan_kick16,
+         "reopen16": plan_reopen16}
 
 
 def build_plan(name: str, start: str, evals: int) -> list[ChainSpec]:

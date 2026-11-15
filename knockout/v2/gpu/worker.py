@@ -280,6 +280,7 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
                 extra={"beta": info.get("beta"), "evals_done": item["evals_done"], "n": res["n"],
                        "nonzero": res["nonzero"], "accepted": info.get("accepted"),
                        "rejected": info.get("rejected"), "restarts": info.get("restarts"),
+                       "reopened": info.get("reopened"),
                        "verifier_error": res["error"], "fft_len": m, "history": int(spec.get("history", 8)),
                        **item["extra"]})
             records.append(rec)
@@ -305,7 +306,8 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
 
     out = run_chains(torch, w0, kappa, m, [c.stages for c in chains], history=int(spec.get("history", 8)),
                      on_stage_end=on_stage_end, on_progress=on_progress,
-                     progress_every=int(spec.get("progress_every", 200)), deadline=deadline)
+                     progress_every=int(spec.get("progress_every", 200)), deadline=deadline,
+                     reopen=[c.reopen for c in chains], reopen_every=int(spec.get("reopen_every", 500)))
     loop_s = time.monotonic() - t0
 
     # the chain ends: the point where a stopped chain stands, and the best exact point each chain saw
@@ -329,7 +331,7 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
         best = next((r for r in mine if r.get("best")), None)
         table.append({
             "chain": c.name, "start": c.start, "start_score": start_scores[c.start], "floor": c.floor,
-            "jitter": c.jitter, "seed": c.seed,
+            "jitter": c.jitter, "seed": c.seed, "reopen": c.reopen, "reopened": out["reopened"][i],
             "beta_start": c.stages[0].beta, "beta_end": c.stages[-1].beta, "stages": len(c.stages),
             "evals": out["evals"], "final_id": final and final["experiment_id"],
             "final_score": final and final["score"], "final_gain_over_start": final and final["gain_over_start"],

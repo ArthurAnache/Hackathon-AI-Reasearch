@@ -10,7 +10,7 @@ import pytest
 
 from knockout.seeds import second_autocorrelation as seed
 from knockout.v2.gpu import schedule as sch
-from knockout.v2.gpu.chain import initial_w, run_chains
+from knockout.v2.gpu.chain import initial_w, reopen_cells, run_chains
 from knockout.v2.gpu.lbfgs import BatchedLBFGS
 from knockout.v2.gpu.objective import autoconvolution, evaluate, exact_score, fft_length, kappa_for
 
@@ -213,6 +213,51 @@ def test_run_chains_bookkeeping_and_best_point():
     # zero cells of a chain without floor stay exactly zero
     assert ((out["x"][1] == 0) == (f0[1] == 0)).all()
     assert math.isfinite(float(out["smooth"].min()))
+
+
+def test_reopen_opens_only_closed_cells_with_positive_derivative():
+    n = 48
+    f0 = _start(n=n, rows=2, seed_=11)
+    m = fft_length(n)
+    kappa = kappa_for(np, f0, m)
+    w = initial_w(np, f0, kappa, np.zeros((2, 1)))
+    beta = np.full((2, 1), 50.0)
+    _, _, aux = evaluate(np, w, beta, kappa, m)
+    eta = np.array([[1e-2], [0.0]])
+    w2, counts = reopen_cells(np, w, aux["grad_f"], eta)
+    closed = w[0] == 0
+    should = closed & (aux["grad_f"][0] > 0)
+    assert should.any() and counts[0] == should.sum() and counts[1] == 0
+    assert ((w2[0] > 0) == ((w[0] > 0) | should)).all()         # nothing else opens
+    assert (w2[0][~should] == w[0][~should]).all() and (w2[1] == w[1]).all()
+    mean_open = (w[0] ** 2)[w[0] > 0].mean()
+    assert (w2[0][should] ** 2).max() == pytest.approx(1e-2 * mean_open, rel=1e-12)
+    # the derivative on closed cells is the true one: opening a violating cell a little raises the objective
+    j = int(np.argmax(np.where(should, aux["grad_f"][0], -np.inf)))
+    w3 = w.copy()
+    w3[0, j] = 1e-4
+    before, _, _ = evaluate(np, w, beta, kappa, m)
+    after, _, _ = evaluate(np, w3, beta, kappa, m)
+    assert after[0] < before[0]
+    assert (before[0] - after[0]) == pytest.approx(aux["grad_f"][0, j] * 1e-8, rel=1e-3)
+
+
+def test_run_chains_with_reopen_keeps_the_budget():
+    n = 64
+    f0 = np.repeat(_start(n=n, rows=1, seed_=7), 2, axis=0)
+    m = fft_length(n)
+    kappa = kappa_for(np, f0, m)
+    w0 = initial_w(np, f0, kappa, np.zeros((2, 1)))
+    stages = [(sch.Stage(1e3, 60), sch.Stage(1e4, 60))] * 2
+    ends = []
+    out = run_chains(np, w0, kappa, m, stages, reopen=[0.0, 1e-2], reopen_every=30,
+                     on_stage_end=lambda row, stage, evals, w_row, info: ends.append((row, evals, info["reopened"])))
+    assert out["evals"] == 120 and out["extra_evals"] == 4       # events at 0, 30, 60, 90 (not after 90 % = 108)
+    assert out["reopened"][0] == 0 and out["reopened"][1] > 0
+    assert ((out["x"][0] == 0) == (f0[0] == 0)).all()            # the row without reopen keeps its support
+    assert ((out["x"][1] != 0) & (f0[1] == 0)).any()             # the other row opened cells
+    assert sorted(e[:2] for e in ends) == [(0, 60), (0, 120), (1, 60), (1, 120)]
+    assert (out["best_exact"] >= out["first_exact"] - 1e-15).all()
 
 
 def test_run_chains_stops_at_deadline():
