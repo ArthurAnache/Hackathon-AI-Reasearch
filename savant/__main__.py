@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from savant.ab_eval import write_ab_protocol
-from savant.config import SavantConfig, env_llm_config
+from savant.config import SavantConfig, env_llm_config, load_dotenv
 from savant.loop import init_session, offline_smoke_council, plan_iteration, run_loop
 from savant.llm import LLMClient
 from savant.planner import ResourceLedger
@@ -51,6 +51,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("ab-protocol", help="write A/B evaluation protocol (not executed)")
 
     a = ap.parse_args(argv)
+    load_dotenv()
     cfg = SavantConfig()
     cfg.llm = env_llm_config(cfg.llm)
     if a.cmd in ("analyze", "plan", "run") and getattr(a, "export", None):

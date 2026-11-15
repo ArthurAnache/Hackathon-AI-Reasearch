@@ -6,10 +6,10 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_EXPORT = Path(
-    r"C:\Users\thiba\Desktop\Berkeley\AIRESEARCHACK\ws3-v2-runner"
-    r"\runs\ws3\20261115T015342Z-b60\export_20261115T015703Z"
-)
+# Validated WS3 smoke export. Override with SAVANT_SEED_EXPORT. Otherwise the first
+# directory that exists is used: this repo's runs/ws3 copy, then a sibling
+# ws3-v2-runner worktree. The in-repo path is returned when neither exists.
+SMOKE_EXPORT_REL = Path("runs") / "ws3" / "20261115T015342Z-b60" / "export_20261115T015703Z"
 RUNS_DIR = ROOT / "runs" / "savant"
 PROBLEM = "second-autocorrelation-inequality"
 BASELINE_OPTIMIZERS = (
@@ -126,7 +126,7 @@ def astra_config(base: LLMConfig | None = None) -> LLMConfig:
 class SavantConfig:
     problem: str = PROBLEM
     runs_dir: Path = field(default_factory=lambda: RUNS_DIR)
-    seed_export: Path = field(default_factory=lambda: DEFAULT_EXPORT)
+    seed_export: Path = field(default_factory=lambda: resolve_seed_export())
     matched_seeds: tuple[int, ...] = MATCHED_SEEDS
     campaign_seeds: tuple[int, ...] = CAMPAIGN_SEEDS
     holdout_seeds: tuple[int, ...] = HOLDOUT_SEEDS
@@ -143,6 +143,32 @@ class SavantConfig:
         d["runs_dir"] = str(self.runs_dir)
         d["seed_export"] = str(self.seed_export)
         return d
+
+
+def seed_export_candidates(root: Path | None = None) -> tuple[Path, ...]:
+    """Portable locations of the validated smoke export, in preference order."""
+    root = (root or ROOT).resolve()
+    return (
+        root / SMOKE_EXPORT_REL,
+        root.parent / "ws3-v2-runner" / SMOKE_EXPORT_REL,
+    )
+
+
+def resolve_seed_export(root: Path | None = None) -> Path:
+    """Return the WS3 smoke export path.
+
+    ``SAVANT_SEED_EXPORT`` wins, including a path that does not exist yet.
+    Otherwise the first existing candidate is used. When none exist, the
+    in-repo candidate is returned so callers can skip or fail as before.
+    """
+    raw = (os.environ.get("SAVANT_SEED_EXPORT") or "").strip()
+    if raw:
+        return Path(raw).expanduser()
+    candidates = seed_export_candidates(root)
+    for path in candidates:
+        if path.is_dir():
+            return path
+    return candidates[0]
 
 
 def load_dotenv(root: Path = ROOT) -> None:

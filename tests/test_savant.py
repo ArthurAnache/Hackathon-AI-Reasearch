@@ -10,10 +10,9 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-EXPORT = Path(
-    r"C:\Users\thiba\Desktop\Berkeley\AIRESEARCHACK\ws3-v2-runner"
-    r"\runs\ws3\20261115T015342Z-b60\export_20261115T015703Z"
-)
+from savant.config import resolve_seed_export
+
+EXPORT = resolve_seed_export()
 
 
 @pytest.mark.skipif(not EXPORT.exists(), reason="WS3 Modal export missing")
@@ -215,3 +214,27 @@ def test_run_mock_loop_no_modal(tmp_path, record):
     decisions = [h["decision"] for h in out["history"] if "decision" in h]
     assert decisions and decisions[-1] in ("CONTINUE", "PIVOT", "MORE_REPLICATION", "STOP")
     record(n_it=len(out["history"]), decision=decisions[-1], stop_reason=out["stop_reason"])
+
+
+@pytest.mark.process("savant")
+def test_seed_export_is_configurable(tmp_path, monkeypatch):
+    """SAVANT_SEED_EXPORT wins; otherwise the in-repo copy, then the sibling worktree."""
+    from savant.config import SMOKE_EXPORT_REL, SavantConfig, resolve_seed_export, seed_export_candidates
+
+    monkeypatch.delenv("SAVANT_SEED_EXPORT", raising=False)
+    repo = tmp_path / "repo"
+    in_repo = repo / SMOKE_EXPORT_REL
+    sibling = repo.parent / "ws3-v2-runner" / SMOKE_EXPORT_REL
+    assert seed_export_candidates(repo) == (in_repo, sibling)
+    assert resolve_seed_export(repo) == in_repo
+
+    sibling.mkdir(parents=True)
+    assert resolve_seed_export(repo) == sibling
+
+    in_repo.mkdir(parents=True)
+    assert resolve_seed_export(repo) == in_repo
+
+    chosen = tmp_path / "configured"
+    monkeypatch.setenv("SAVANT_SEED_EXPORT", str(chosen))
+    assert resolve_seed_export(repo) == chosen
+    assert SavantConfig().seed_export == chosen

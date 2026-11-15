@@ -63,13 +63,21 @@ class FakeResponses:
 
 
 def astra_client(tmp: Path, fake: FakeResponses, *, max_usd=50.0) -> LLMClient:
+    """Build a client without ``__init__`` so tests never load a real API key.
+
+    ``last_meta`` lives on thread-local state, so ``_init_runtime`` has to run
+    before that property is set. The rest follows ``LLMClient.__init__``.
+    """
     client = LLMClient.__new__(LLMClient)
     client.cfg = astra_config(LLMConfig())
     client.max_usd, client.max_tokens = max_usd, 40_000_000
     from savant.llm import LLMUsage
-    client.usage, client.allow_mock, client.last_meta = LLMUsage(), False, None
+    client.usage = LLMUsage()
+    client.allow_mock = False
     client.ledger_path = tmp / "spend_ledger.json"
     client.prior = {"usd": 0.0, "tokens": 0, "entries": []}
+    client._init_runtime()
+    client.last_meta = None
     client._load_ledger()
     client._openai_client = lambda: SimpleNamespace(responses=fake)
     return client
