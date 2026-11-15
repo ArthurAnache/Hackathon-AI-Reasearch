@@ -32,7 +32,8 @@ from knockout.llm_editor import (OPERATORS, SCHEMA, SYSTEM, check_program, histo
 
 FIDELITIES = ("F0", "F1", "F2")
 MAIN_OPERATORS = {
-    "refine": OPERATORS["refine"],
+    "refine": OPERATORS["refine"] + " A child that only changes constants is rejected as a near-duplicate before "
+              "evaluation, so change at least a few lines of logic.",
     "restructure": OPERATORS["restructure"],
     "hybridize": "Two parent programs are shown. Write one program that combines what makes each of them work.",
     "reformulate": "Propose another formulation of the problem: `construct` may return any JSON-serializable "
@@ -784,7 +785,8 @@ class MainArm:
                 return s.ev.score if s is not None and s.ev is not None and s.ev.valid else None
 
             inputs = {"score_with": score(w), "score_without": score(wo),
-                      "eps_rel": float(st["selection.eps_rel"]), "direction": self.direction}
+                      "eps_rel": float(st["selection.eps_rel"]), "direction": self.direction,
+                      "invalid_is_tie": bool(st.get("gate.invalid_is_tie", True))}
             outcome = D.pair_outcome(**inputs)
             gate.pairs += 1
             gate.wins += outcome == "win"

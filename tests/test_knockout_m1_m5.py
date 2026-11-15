@@ -46,6 +46,10 @@ def test_pair_outcome_needs_more_than_eps():
     assert D.pair_outcome(1.0, 1.0 + 1e-3, 1e-6, "maximize") == "loss"
     assert D.pair_outcome(None, 1.0, 1e-6, "maximize") == "loss" and D.pair_outcome(1.0, None, 1e-6, "maximize") == "win"
     assert D.pair_outcome(0.9, 1.0, 1e-6, "minimize") == "win"
+    # the rule used by new runs: a crashed child proves nothing about the gene
+    assert D.pair_outcome(None, 1.0, 1e-6, "maximize", invalid_is_tie=True) == "tie"
+    assert D.pair_outcome(1.0, None, 1e-6, "maximize", invalid_is_tie=True) == "tie"
+    assert D.pair_outcome(1.1, 1.0, 1e-6, "maximize", invalid_is_tie=True) == "win"
 
 
 # ------------------------------------------------------------------ credit, phases, genome (5.3)

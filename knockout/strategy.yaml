@@ -22,7 +22,7 @@ modal:                       # used when executor.kind = modal (CLAUDE.md "WS3 â
   cpu: 2.0                   # cores per evaluation worker
   memory_mb: 8192            # per evaluation worker
   orchestrator_memory_mb: 16384   # the loop holds a batch of candidates (up to 2M values each) in memory
-  max_containers: 32         # cap on parallel evaluation workers
+  max_containers: 64         # cap on parallel evaluation workers
   worker_timeout_s: 900
   orchestrator_timeout_s: 86400
   # Cost ESTIMATES used by the budget governor. Check https://modal.com/pricing before a large run;
@@ -108,6 +108,7 @@ gate:
   max_pairs: 8
   reaudit_every: 100
   pairs_per_batch: 2         # knock-out pairs of the gene under test in one batch
+  invalid_is_tie: true       # a pair with a crashed or invalid child is a tie, not a win for the other side
 
 filters:
   jaccard_max: 0.95

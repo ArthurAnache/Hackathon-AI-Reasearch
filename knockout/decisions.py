@@ -127,9 +127,14 @@ def linkage(n_joint: int, joint_rate: float, rate_a: float, rate_b: float, min_c
 
 
 # ---------------------------------------------------------------------------------------------- gate (5.2)
-def pair_outcome(score_with: float | None, score_without: float | None, eps_rel: float, direction: str) -> str:
-    """win: the child with the gene beats the other by more than EPS. loss: the reverse. tie: neither."""
+def pair_outcome(score_with: float | None, score_without: float | None, eps_rel: float, direction: str,
+                 invalid_is_tie: bool = False) -> str:
+    """win: the child with the gene beats the other by more than EPS. loss: the reverse. tie: neither.
+    With `invalid_is_tie`, a pair in which either child has no valid score is a tie: a crash of one program is
+    not evidence about the gene (first Modal run: a gene "won" a pair because the other child crashed)."""
     if score_with is None and score_without is None:
+        return "tie"
+    if invalid_is_tie and (score_with is None or score_without is None):
         return "tie"
     if improves(score_with, score_without, eps_rel, direction):
         return "win"

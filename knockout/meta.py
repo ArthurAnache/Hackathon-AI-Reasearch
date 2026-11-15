@@ -124,7 +124,7 @@ def validate_patch(patch: dict, strategy, islands: list[str]) -> tuple[dict, lis
                 f"{key}: expected at most 5 {{type, text}} genes")
     clean = {k: v for k, v in clean.items() if v is not None}
     f = {k: float(clean.get(k, strategy[k])) for k in ("fidelity.f0_s", "fidelity.f1_s", "fidelity.f2_s")}
-    if not f["fidelity.f0_s"] <= f["fidelity.f1_s"] <= f["fidelity.f2_s"]:
+    if any(k in clean for k in f) and not f["fidelity.f0_s"] <= f["fidelity.f1_s"] <= f["fidelity.f2_s"]:
         errors.append("fidelity budgets must stay ordered f0 <= f1 <= f2; the fidelity keys were dropped")
         clean = {k: v for k, v in clean.items() if not k.startswith("fidelity.f")}
     return clean, errors
