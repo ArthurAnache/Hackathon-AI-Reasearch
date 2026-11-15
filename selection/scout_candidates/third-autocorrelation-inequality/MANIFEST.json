@@ -27,7 +27,9 @@
     "budget_s": 420.0,
     "wall_s": 420.0,
     "device": "local CPU, 1 process"
-   }
+   },
+   "track": "A",
+   "provenance": "milo_published_copy"
   },
   "milo_replay_25600_c": {
    "file": "milo_replay_25600_c.json.gz",
@@ -56,7 +58,9 @@
     "budget_s": 420.0,
     "wall_s": 420.0,
     "device": "local CPU, 1 process"
-   }
+   },
+   "track": "A",
+   "provenance": "milo_published_copy"
   },
   "milo_replay_25600_e": {
    "file": "milo_replay_25600_e.json.gz",
@@ -85,13 +89,142 @@
     "budget_s": 420.0,
     "wall_s": 420.0,
     "device": "local CPU, 1 process"
+   },
+   "track": "A",
+   "provenance": "milo_published_copy"
+  },
+  "milo_replay_25600_a": {
+   "file": "milo_replay_25600_a.json.gz",
+   "track": "A",
+   "provenance": "milo_published_copy",
+   "n": 25600,
+   "sha256_json": "268330e59859f08f81c6eb0260e655c2fc9b1587a0740aa38b168e13d59637b6",
+   "score_pinned_verifier": 1.4488729104664002,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4488729104664004,
+   "pinned_minus_exact": -2.220446049250313e-16,
+   "argmax_lag": 25599,
+   "below_live_top1_by": 0.00023687886551071458,
+   "below_live_top1_by_over_delta": 23.687886551071454,
+   "below_milo_claim_by": 1.3103798363278685e-05,
+   "below_milo_claim_by_over_delta": 1.3103798363278685,
+   "run": {
+    "experiment_id": "scout-third-autocorr/milo_replay_25600_a",
+    "checked_on": "2026-11-15T04:56:05+00:00",
+    "start": "selection/.cache/scout/third-autocorrelation-inequality/milo/milo_record_x8_25600.json",
+    "upsample": 1,
+    "up_noise": 0.0,
+    "config": {
+     "t_hot": 0.001,
+     "t_cold": 1e-08,
+     "stages": 14
+    },
+    "seed": 0,
+    "budget_s": 300.0,
+    "wall_s": 300.0,
+    "device": "local CPU, 1 process"
+   }
+  },
+  "milo_replay_25600_b": {
+   "file": "milo_replay_25600_b.json.gz",
+   "track": "A",
+   "provenance": "milo_published_copy",
+   "n": 25600,
+   "sha256_json": "4cd15cbb491417d37e18d99ef8f4e0dbc11781a22bc9c1fe919a820b213de6cf",
+   "score_pinned_verifier": 1.4488567088845645,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4488567088845636,
+   "pinned_minus_exact": 8.881784197001252e-16,
+   "argmax_lag": 25599,
+   "below_live_top1_by": 0.0002530804473463988,
+   "below_live_top1_by_over_delta": 25.308044734639875,
+   "below_milo_claim_by": 2.9305380198962894e-05,
+   "below_milo_claim_by_over_delta": 2.930538019896289,
+   "run": {
+    "experiment_id": "scout-third-autocorr/milo_replay_25600_b",
+    "checked_on": "2026-11-15T04:56:05+00:00",
+    "start": "selection/.cache/scout/third-autocorrelation-inequality/milo/milo_record_x8_25600.json",
+    "upsample": 1,
+    "up_noise": 0.0,
+    "config": {
+     "t_hot": 0.003,
+     "t_cold": 1e-08,
+     "stages": 14
+    },
+    "seed": 0,
+    "budget_s": 300.0,
+    "wall_s": 300.0,
+    "device": "local CPU, 1 process"
+   }
+  },
+  "milo_replay_25600_d": {
+   "file": "milo_replay_25600_d.json.gz",
+   "track": "A",
+   "provenance": "milo_published_copy",
+   "n": 25600,
+   "sha256_json": "53e03f344514f3c37a9e2e7cb58bbdc75c39a8ee0f0376138ae5f7bf2c05d815",
+   "score_pinned_verifier": 1.448845291011433,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4488452910114331,
+   "pinned_minus_exact": -2.220446049250313e-16,
+   "argmax_lag": 38403,
+   "below_live_top1_by": 0.0002644983204780349,
+   "below_live_top1_by_over_delta": 26.449832047803486,
+   "below_milo_claim_by": 4.072325333059901e-05,
+   "below_milo_claim_by_over_delta": 4.072325333059901,
+   "run": {
+    "experiment_id": "scout-third-autocorr/milo_replay_25600_d",
+    "checked_on": "2026-11-15T05:18:32+00:00",
+    "start": "selection/.cache/scout/third-autocorrelation-inequality/milo/milo_record_x8_25600.json",
+    "upsample": 1,
+    "up_noise": 0.0,
+    "config": {
+     "t_hot": 0.03,
+     "t_cold": 1e-08,
+     "stages": 16
+    },
+    "seed": 0,
+    "budget_s": 420.0,
+    "wall_s": 420.0,
+    "device": "local CPU, 1 process"
+   }
+  },
+  "milo_replay_51200_from_b": {
+   "file": "milo_replay_51200_from_b.json.gz",
+   "track": "A",
+   "provenance": "milo_published_copy",
+   "n": 51200,
+   "sha256_json": "e99117df7c16341869ff8048aa73c316fc03060f5a06b7ef517a4cb96544c6c5",
+   "score_pinned_verifier": 1.448853861372726,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4488538613727269,
+   "pinned_minus_exact": -8.881784197001252e-16,
+   "argmax_lag": 51199,
+   "below_live_top1_by": 0.0002559279591849428,
+   "below_live_top1_by_over_delta": 25.59279591849428,
+   "below_milo_claim_by": 3.215289203750693e-05,
+   "below_milo_claim_by_over_delta": 3.2152892037506926,
+   "run": {
+    "experiment_id": "scout-third-autocorr/milo_replay_51200_from_b",
+    "checked_on": "2026-11-15T05:03:35+00:00",
+    "start": "selection/.cache/scout/third-autocorrelation-inequality/runs/milo_replay_25600_b/best.json",
+    "upsample": 2,
+    "up_noise": 0.0001,
+    "config": {
+     "t_hot": 0.0001,
+     "t_cold": 1e-09,
+     "stages": 12
+    },
+    "seed": 0,
+    "budget_s": 420.0,
+    "wall_s": 420.0,
+    "device": "local CPU, 1 process"
    }
   }
  },
  "slug": "third-autocorrelation-inequality",
  "delta": 1e-05,
  "status": "candidates only: not submitted, not arbitrated by selection/verify_claim.py, not a record claim",
- "provenance": "Re-optimized by selection/scout_third_autocorr.py from the plot-resolution copy of MILO's record published at https://jprithwish.github.io/MILO/static/einstein-run.js (Jana et al., arXiv:2609.38349). Any use must credit MILO for the starting construction.",
  "live_top1_when_packed": {
   "score": 1.449109789331911,
   "agent": "Atris",
@@ -106,5 +239,9 @@
   "accessed_on": "2026-11-15T04:50:41+00:00",
   "source_file_sha256": "12864825cad36ccc5f9797dd51a79d64f98278267faf5ab1c29143e3ddaa237e",
   "score_as_published": 1.6557955266483575
+ },
+ "provenance_by_track": {
+  "A": "milo_published_copy: re-optimized by selection/scout_third_autocorr.py from the plot-resolution copy of MILO's record published at https://jprithwish.github.io/MILO/static/einstein-run.js (Jana et al., arXiv:2609.38349). Any use must credit MILO for the starting construction.",
+  "B": "public_leaderboard_only: re-optimized from EinsteinArena leaderboard solutions (2617, Atris; 2609, Ghazt) with no MILO data. Any use must credit the authors of the starting solution."
  }
 }

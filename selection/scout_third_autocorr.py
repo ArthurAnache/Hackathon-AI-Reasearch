@@ -184,6 +184,137 @@ def run_path(prob: Prob, f: np.ndarray, t_hot: float, t_cold: float, stages: int
 
 
 # ----------------------------------------------------------------------------------------------------------------
+# Step pipelines (used by the Modal fleet, selection/scout_third_autocorr_modal.py)
+
+MAX_VALUES = 100_000  # zod schema of the problem at the pinned commit: values: z.array(num).min(1).max(100_000)
+
+
+def resample(f: np.ndarray, m: int) -> np.ndarray:
+    """Exact block average of the step function f on m equal cells (plain sum-pooling when m divides len(f))."""
+    n = len(f)
+    cum = np.concatenate([[0.0], np.cumsum(f)])
+    edges = np.interp(np.linspace(0.0, n, m + 1), np.arange(n + 1), cum)
+    return np.diff(edges) * (m / n)
+
+
+def run_steps(f0: np.ndarray, steps: list[dict], seed: int, budget_s: float, on_progress=None):
+    """Run a list of steps from f0 and return (best point, its FFT score, trace).
+
+    Steps:
+      {"op": "pool", "k": 2}                      sum-pool to a coarser grid (len must be a multiple of k)
+      {"op": "resample", "n": 25600}              exact block average onto another grid
+      {"op": "repeat", "k": 2}                    block-repeat (preserves the score exactly)
+      {"op": "path", "t_hot", "t_cold", "stages", "seconds", "sigma": 0, "keep_start": True}
+                                                  one timed cooling path from the current best (+ relative noise);
+                                                  with keep_start False the path's landing replaces the current
+                                                  best even when it is worse (exploration)
+      {"op": "hops", "t_hot": [lo, hi], "sigma": [lo, hi], "t_cold", "stages", "hop_seconds", "seconds": None}
+                                                  re-melt hops with a ratchet, until `seconds` or the budget ends
+    Noise is additive: sigma * mean|f| * N(0, 1) per cell. Grids above MAX_VALUES are refused.
+    """
+    rng = np.random.default_rng(seed)
+    t0 = time.monotonic()
+    deadline = t0 + budget_s
+    f = np.asarray(f0, dtype=np.float64)
+    prob = Prob(len(f))
+    best = f * (prob.n / f.sum())
+    best_score = prob.score(best)
+    trace = [{"t": 0.0, "op": "start", "n": prob.n, "score": best_score}]
+
+    def log(**kw) -> None:
+        trace.append({"t": round(time.monotonic() - t0, 1), "n": prob.n, **kw})
+        if on_progress is not None:
+            on_progress(best, best_score, trace)
+
+    def perturb(x: np.ndarray, sigma: float) -> np.ndarray:
+        return x + sigma * np.abs(x).mean() * rng.standard_normal(len(x)) if sigma > 0.0 else x.copy()
+
+    def draw(rng_range) -> float:
+        lo, hi = rng_range
+        return float(math.exp(rng.uniform(math.log(lo), math.log(hi)))) if hi > lo else float(lo)
+
+    for step in steps:
+        if time.monotonic() >= deadline:
+            break
+        op = step["op"]
+        if op in ("pool", "repeat", "resample"):
+            if op == "pool":
+                g = best.reshape(-1, step["k"]).mean(axis=1)
+            elif op == "repeat":
+                g = np.repeat(best, step["k"])
+            else:
+                g = resample(best, step["n"])
+            if len(g) > MAX_VALUES:
+                raise ValueError(f"{len(g)} values exceed the schema limit of {MAX_VALUES}")
+            prob = Prob(len(g))
+            best = g * (prob.n / g.sum())
+            best_score = prob.score(best)
+            log(op=op, score=best_score)
+        elif op == "path":
+            rat = Ratchet()
+            keep = step.get("keep_start", True)
+            if keep:
+                rat.offer(best, best_score)
+            end = min(deadline, time.monotonic() + step["seconds"])
+            f_end = run_path(prob, perturb(best, step.get("sigma", 0.0)), step["t_hot"], step["t_cold"],
+                             step["stages"], 0, rat, end, timed=True)
+            landing = prob.score(f_end)
+            accepted = rat.best < best_score
+            if accepted or not keep:
+                best, best_score = rat.x.copy(), rat.best
+            log(op="path", t_hot=step["t_hot"], sigma=step.get("sigma", 0.0), landing=landing, accepted=accepted,
+                score=best_score)
+        elif op == "hops":
+            end = min(deadline, time.monotonic() + step["seconds"]) if step.get("seconds") else deadline
+            while time.monotonic() < end - 0.6 * step["hop_seconds"]:
+                t_hot, sigma = draw(step["t_hot"]), draw(step["sigma"])
+                rat = Ratchet()
+                hop_end = min(end, time.monotonic() + step["hop_seconds"])
+                f_end = run_path(prob, perturb(best, sigma), t_hot, step["t_cold"], step["stages"], 0, rat, hop_end,
+                                 timed=True)
+                landing = prob.score(f_end)
+                accepted = rat.best < best_score
+                if accepted:
+                    best, best_score = rat.x.copy(), rat.best
+                log(op="hop", t_hot=t_hot, sigma=sigma, landing=landing, accepted=accepted, score=best_score)
+        else:
+            raise ValueError(f"unknown step {op!r}")
+    return best, best_score, trace
+
+
+def run_job_to_dir(job: dict) -> dict:
+    """One fleet job: load job["start_path"] (.npy), run its steps, checkpoint the best point and a JSON record
+    into job["out_dir"]. Plain files only, so it can run in a child process of a Modal container."""
+    import platform
+
+    f0 = np.load(job["start_path"])
+    start_sha = hashlib.sha256(f0.tobytes()).hexdigest()
+    out = Path(job["out_dir"])
+    out.mkdir(parents=True, exist_ok=True)
+    t0 = time.monotonic()
+    state = {"last": 0.0}
+
+    def save(best, score, trace, final=False) -> None:
+        if not final and time.monotonic() - state["last"] < 120:
+            return
+        state["last"] = time.monotonic()
+        np.save(out / f"{job['id']}.tmp.npy", best)
+        os.replace(out / f"{job['id']}.tmp.npy", out / f"{job['id']}.npy")
+        meta = {**{k: job[k] for k in ("id", "track", "round", "start_key", "steps", "seed", "budget_s", "label",
+                                       "provenance")},
+                "start_sha256_float64": start_sha, "n": int(len(best)), "score_fft": float(score), "final": final,
+                "wall_s": round(time.monotonic() - t0, 1), "trace": trace, "device": job.get("device", "CPU"),
+                "cpu": platform.processor() or platform.machine(), "numpy": np.__version__}
+        tmp = out / f"{job['id']}.tmp.json"
+        tmp.write_text(json.dumps(meta))
+        os.replace(tmp, out / f"{job['id']}.json")
+
+    best, score, trace = run_steps(f0, job["steps"], job["seed"], job["budget_s"], on_progress=save)
+    save(best, score, trace, final=True)
+    return {"id": job["id"], "score_fft": float(score), "n": int(len(best))}
+
+
+# ----------------------------------------------------------------------------------------------------------------
 # Hop chain (one worker)
 
 def chain(job: dict) -> dict:
