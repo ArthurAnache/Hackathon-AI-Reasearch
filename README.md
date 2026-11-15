@@ -32,6 +32,11 @@ over time, and every decision replays from its ledger, but its best gain is 0.52
 the main problem the plain control arm ended slightly ahead of the gene arm. The records above came from the
 autonomous loop and from the scout's coarsen-and-repeat search, not from the genetic method.
 
+**Shared memory (past.dev) in one line:** every run writes its wins, refuted ideas and failed batches to a shared
+past.dev memory that later runs and teammates' loops recall; it works on the live service (cross-run recall
+verified, 84 facts backfilled from our history), but its effect on results is not yet measurable
+([details](#5-shared-research-memory-with-pastdev)).
+
 ## Figures
 
 Knockout Evolution, second-autocorrelation, best score so far over time (built from
@@ -115,15 +120,48 @@ After v1, we tested whether anything can leave the #1's basin on second-autocorr
 - **Basin screen on third-autocorrelation** (`feature/ws2-v2-basin-screen`): LLM-written moves vs hand-written
   random moves vs control, 957 campaign episodes.
 
-### 4. Start portfolio and shared memory (this branch)
+### 4. Start portfolio
 
-- **Start portfolio:** the gene arm breeds from three kinds of starts (the record, neighbours of archived basins,
-  cold starts), a Thompson bandit picks the regime, an archive keeps distinct basins and deep-polishes promising
-  ones. Run on circles-rectangle with two models on Modal.
-- **past.dev shared memory:** facts from earlier runs and other agents (wins, refuted ideas, failed batches) are
-  recalled into the editor's prompt. 84 facts were backfilled from the v1 ledgers.
+The gene arm breeds from three kinds of starts (the record, neighbours of archived basins, cold starts), a Thompson
+bandit picks the regime, and an archive keeps distinct basins and deep-polishes promising ones. Run on
+circles-rectangle with two models on Modal (results below).
 
-### 5. Problem scout (WS1, branch `ws1/freeze-third-autocorrelation`)
+### 5. Shared research memory with past.dev
+
+**What it does.** Every Knockout run writes what it learned to a shared [past.dev](https://past.dev) memory, and
+every later run (or a teammate's loop on the same problem) recalls it before the LLM writes new programs. This turns
+separate runs into one research history: a dead end found at 2 a.m. is not retried at 10 a.m.
+
+- **Writes**, after each batch: `win` (a child or edit that beat its reference), `failed_batch` (one summary per
+  batch with no win), `refuted` (a gene refuted by its knock-out, a numerical artifact, or an operator with ≥ 10
+  children and no win), and an end-of-run `lesson`. Each fact is scoped to the problem and carries the run, arm,
+  experiment ids, scores and source commit.
+- **Reads**: two recalls per batch fill a prompt section "Memory from earlier runs and other agents", ordered so that
+  refuted ideas and failed batches come first ("already tried, do not retry"), then at most 3 wins and 2 lessons.
+- **Guardrails**: memory is data, never instructions; it never sets parameters, scores or claims; facts from
+  another problem are never shown; the API key goes only to the orchestrator, never to the sandboxed workers; a store
+  failure is logged and the run continues without memory; every call is logged and replay still passes. Off by
+  default: `--set memory.enabled=true`.
+- **Code**: `knockout/pastdev.py` (client for past.dev's `POST /ingest`, `GET /ingest/{id}`, `POST /recall`, plus a
+  local store with the same interface), `knockout/memory.py`, and the tools `memory_backfill.py`,
+  `memory_metrics.py`, `memory_demo.py`. Tests: `tests/test_knockout_memory*.py` (21, offline).
+
+**Does it work? Yes, as infrastructure (verified on the live service):**
+
+| Check | Result |
+|---|---|
+| Ingest then recall | a fact was processed in 11 s and recalled |
+| Cross-run memory | all 4 recalls of a second toy run returned the 4 facts written by the first run's `control`, `main` and `run` agents, 0 errors |
+| Backfill of our history | 84 facts from the 3 committed v1 runs (57 wins, 7 refuted, 17 failed batches, 3 lessons) |
+| Main problem, memory on (640 s, 0.69 USD) | 3 recalls; the prompts carried 41 facts, 40 of them from other runs; 9 facts written, 0 errors, replay passes |
+
+**Does it improve results? Not shown yet.** On a toy A/B at equal budget (3 seed pairs, memory on in a fresh scope
+vs memory off), children beating their reference were 5/16 (31 %) with memory vs 3/12 (25 %) without, and the LLM
+cost per winning child was 0.130 vs 0.173 USD. With 4–6 children per run that difference is noise, and the pair with
+the most accumulated memory did worse. Memory costs about +0.05 to +0.09 USD of LLM per run once facts exist. A fair
+test needs longer runs and more pairs.
+
+### 6. Problem scout (WS1, branch `ws1/freeze-third-autocorrelation`)
 
 A pipeline on third-autocorrelation: block-average a solution to 1,600–3,200 cells, repeat it back to full size,
 then cooling paths and "hops" (perturb and re-optimize), on 48-core Modal containers and local cores.
@@ -131,7 +169,7 @@ then cooling paths and "hops" (perturb and re-optimize), on 48-core Modal contai
 - Track A starts from a partial copy of a solution published by the MILO authors (arXiv:2609.38349).
 - Track B starts from the public EinsteinArena #1 only, with no MILO data.
 
-### 6. Autonomous research loop `autoloop` (branch `ws4-research-map`)
+### 7. Autonomous research loop `autoloop` (branch `ws4-research-map`)
 
 A loop with a ledger, typed moves, a policy (rules, Claude, or an OpenAI model), problem packs built from a verifier
 and a reference, model-written stages run in an isolated Modal app, lessons distilled from ledgers, and a claim gate
@@ -262,7 +300,7 @@ run at equal time (85–86 of 100 pairs).
 
 | Branch | Content |
 |---|---|
-| `genetic-method-final` (this one) | Knockout v1 + start portfolio + past.dev memory, results ledgers, figures, this README |
+| `main`, `genetic-method-final` | Knockout v1 + start portfolio + past.dev memory, results ledgers, figures, this README |
 | `genetic-method` | Knockout v1 handover and the figures |
 | `ws1-selection`, `ws1/freeze-third-autocorrelation`, `docs/ws1-problem-scout` | problem selection, frozen problems, arbiter, scout and third-autocorrelation candidates |
 | `feature/ws2-v2-moves-cpu`, `feature/ws2-v2-anneal-gpu`, `feature/ws2-v2-multires`, `feature/ws2-v2-basin-screen` | Knockout v2 experiments and their results READMEs |
