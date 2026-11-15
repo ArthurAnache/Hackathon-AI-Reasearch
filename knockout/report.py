@@ -167,6 +167,7 @@ def build(run_dir: str | Path) -> str:
                 f"  - Rejected entries: {p['rejected'] or 'none'}", f"  - Outcome: {outcome}"]
     out.append("")
     out += _portfolio_section(state, events, exps)
+    out += memory_section(d, events, exps)
     return "\n".join(out)
 
 
@@ -224,6 +225,44 @@ def _portfolio_section(state: dict, events: list[dict], exps: list[dict]) -> lis
         line = (f"- `{pr['experiment']}`: cell {pr['entry']['cell']} ({pr['entry']['regime']}), program {pr['program']}, "
                 f"{_fmt(pr['score_before'])} → {_fmt(pr['score_after'])} (incumbent {_fmt(pr['incumbent_score'])})")
         out.append(f"**{line} — new incumbent from another basin**" if pr["new_incumbent_from_other_basin"] else line)
+    out.append("")
+    return out
+
+
+def memory_section(d: Path, events: list[dict], exps: list[dict]) -> list[str]:
+    """Shared memory (knockout/memory.py): what was recalled, from whom, what was written, and the efficiency
+    metrics of the memory brief: repeat rate of refuted ideas, share of children that beat their parent, USD per
+    winning child. No score claim is made from these numbers."""
+    from knockout.memory import jaccard
+
+    out = ["## Memory (past.dev)", ""]
+    recalls = [e["payload"] for e in events if e["type"] == "memory_recall"]
+    writes = [e["payload"] for e in events if e["type"] == "memory_write"]
+    errors = [e["payload"] for e in events if e["type"] == "memory_error"]
+    if not (recalls or writes or errors):
+        return out + ["Memory was off for this run.", ""]
+    run_id = d.name
+    store = (recalls or writes or [{}])[0].get("store")
+    foreign = [r for r in recalls if any(x != run_id for x in r.get("runs", []))]
+    authors = sorted({a for r in recalls for a in r.get("authors", []) if not a.endswith("@" + run_id)})
+    kinds: dict = {}
+    for w in writes:
+        kinds[w["kind"]] = kinds.get(w["kind"], 0) + 1
+    out += [f"- Store: {store}. Recalls: {len(recalls)} (one per main batch / control round), "
+            f"{sum(len(r.get('fact_ids', [])) for r in recalls)} facts shown, errors: {len(errors)}.",
+            f"- Prompts that contained a fact from another run or agent: {len(foreign)} of {len(recalls)}; "
+            f"authors recalled from elsewhere: {', '.join(authors) or 'none'}.",
+            "- Facts written: " + (", ".join(f"{k} {v}" for k, v in sorted(kinds.items())) or "none") + "."]
+    refuted = [t for r in recalls for t in r.get("refuted_texts", [])]
+    props = [x for x in exps if x.get("config", {}).get("operator") not in (None, "replay", "freeze-tune", "seed")]
+    if refuted and props:
+        rep = sum(any(jaccard(x["hypothesis"], t) >= 0.6 for t in refuted) for x in props)
+        out.append(f"- Repeat rate: {rep} of {len(props)} proposals ({rep / len(props):.1%}) are near-duplicates "
+                   "(word Jaccard >= 0.6) of a recalled refuted idea or failed edit.")
+    keep = sum(x.get("decision") == "keep" for x in props)
+    usd = sum(e["payload"].get("usd", 0.0) for e in events if e["type"] == "llm_call")
+    out.append(f"- Children that beat their parent: {keep} of {len(props)}"
+               + (f"; LLM USD per winning child: {usd / keep:.3f}." if keep else "; no winning child."))
     out.append("")
     return out
 

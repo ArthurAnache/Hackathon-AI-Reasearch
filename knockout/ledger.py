@@ -35,6 +35,8 @@ EVENT_TYPES = (
     "island_opened", "island_replaced", "linkage",
     # start portfolio (docs/knockout_portfolio_brief.md, section 7)
     "regime_pick", "start_set", "basin_insert", "basin_promotion",
+    # shared memory (knockout/memory.py, past.dev)
+    "memory_recall", "memory_write", "memory_error",
 )
 
 

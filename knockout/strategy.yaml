@@ -132,6 +132,18 @@ operators: [refine, restructure, hybridize, reformulate, fresh]
 operator_priors: {refine: [1, 1], restructure: [1, 1], hybridize: [1, 1], reformulate: [1, 1], fresh: [1, 1]}
 bandit_discount: 0.95
 
+memory:                      # shared memory for the LLM editor (knockout/memory.py): past.dev with PAST_API_KEY,
+                             # else a local JSONL file (runs/pastdev_local.jsonl) shared by the runs of this machine
+  enabled: false             # off by default; on with --set memory.enabled=true
+  recall_k: 8                # facts per recall query (two queries per main batch / control round)
+  max_chars: 2500            # cap on the prompt section
+  timeout_s: 8               # per past.dev call; one retry, then the run goes on without memory
+  write_failed_batches: true # one aggregated `failed_batch` fact per batch / round
+  agent_name: ""             # shown to other agents; default: a short hash of the git user / host name
+  since: ""                  # ISO time; recall ignores older facts (fair A/B comparisons)
+  scope_suffix: ""           # e.g. "ab-1": an isolated memory (scope = <problem>-<suffix>)
+  local_path: ""             # LocalStore file; default <runs_root>/pastdev_local.jsonl
+
 portfolio:                   # start portfolio (docs/knockout_portfolio_brief.md); v1 behaviour when disabled
   enabled: false
   regimes: [record, neighbour, cold]

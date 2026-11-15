@@ -168,6 +168,32 @@ def state_block(ctx, init_score, ratchet: bool, gains: list[float], unit: str, s
     return "\n".join(state)
 
 
+def history_ids(ctx, n: int, arm: str, island: str | None = None) -> set[str]:
+    """Experiment ids that history_block shows (the last n edits and the 5 largest gains), so the memory block can
+    leave out facts of this run that the prompt already contains."""
+    sign = ctx.problem.sign()
+    rows = []
+    for r in ctx.ledger.read():
+        cfg = r.get("config", {})
+        if cfg.get("arm") != arm or cfg.get("operator") in (None, "replay", "freeze-tune", "seed"):
+            continue
+        if cfg.get("fidelity", "F0") != "F0" or (island is not None and cfg.get("island") != island):
+            continue
+        ref = cfg.get("ref_score")
+        rows.append((r["experiment_id"], None if r.get("score") is None or ref is None else sign * (r["score"] - ref)))
+    top = sorted((x for x in rows if x[1] is not None), key=lambda x: x[1], reverse=True)[:5]
+    return {x[0] for x in rows[-n:]} | {x[0] for x in top}
+
+
+def memory_section(ctx, arm: str, key, query_hint: str, n: int, island: str | None = None) -> list[str]:
+    """The memory block as prompt parts ([] when memory is off, empty or failing: the prompt is then unchanged)."""
+    mem = getattr(ctx, "memory", None)
+    if mem is None or not mem.enabled:
+        return []
+    block = mem.recall_block(arm, key, query_hint, history_ids(ctx, n, arm, island))
+    return [block] if block else []
+
+
 def history_block(ctx, n: int, arm: str, island: str | None = None) -> str:
     """Edits already evaluated in this arm (and island), with their gain over the program they had to beat."""
     sign = ctx.problem.sign()
@@ -243,6 +269,7 @@ class OpenAIEditor:
                                               gains, "rounds"),
             "# Incumbent program", "```python\n" + parent_source.rstrip() + "\n```",
             "# Evidence from this run", self._history(),
+            *memory_section(ctx, "control", len(rounds), f"{operator} " + parent_source[:300], self.history_n),
             "# Your task", f"Operator `{operator}`: {OPERATORS[operator]}",
             "Write one new program that respects the contract and the hard rules.",
         ])

@@ -59,6 +59,7 @@ class RunContext:
     init: Any = None                           # warm-start candidate shared by every job (None for the toy)
     init_score: float | None = None            # its score under the frozen verifier
     llm: Any = None                            # knockout.llm.LLM, shared by the arms (None without an LLM)
+    memory: Any = None                         # knockout.memory.RunMemory (past.dev), off unless memory.enabled
     best_known_cache: float | None = None
 
     def best_known(self) -> float | None:
