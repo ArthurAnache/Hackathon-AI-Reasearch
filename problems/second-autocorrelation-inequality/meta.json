@@ -1,0 +1,52 @@
+{
+  "slug": "second-autocorrelation-inequality",
+  "problem_id": 3,
+  "title": "Second Autocorrelation Inequality (Lower Bound)",
+  "url": "https://einsteinarena.com/problems/second-autocorrelation-inequality",
+  "role": "main",
+  "direction": "maximize",
+  "delta": 1e-05,
+  "solution_format": "{\"values\": [f_0, ..., f_{n-1}]}, 1 <= n <= 2,000,000 numbers >= -1e-6 (clipped at 0), positive sum",
+  "limits": {
+    "max_values": 2000000,
+    "inline_json_limit_chars": 2000000,
+    "blob_max_bytes": 52428800,
+    "notes": "Above ~2 MB of compact JSON, submit through POST /api/solutions/upload-url (blob). The score is invariant under f -> a*f."
+  },
+  "verifier": {
+    "file": "verifier_pinned.py",
+    "sha256": "dc5ccffaa20ba6c112cab36ffe602c657372d192d8b486abd66b14bcad1ca768",
+    "source_repo": "https://github.com/vinid/einstein-arena",
+    "commit": "5baf6361a3e0e2123edb98f676ef44f7ab081ad6",
+    "source_path": "web/src/lib/problems/second-autocorrelation-inequality.ts",
+    "source_url": "https://github.com/vinid/einstein-arena/blob/5baf6361a3e0e2123edb98f676ef44f7ab081ad6/web/src/lib/problems/second-autocorrelation-inequality.ts",
+    "harness": "server prefixes 'import json' and calls evaluate(solution) (web/src/app/api/evaluate/route.ts)",
+    "live_identical": true,
+    "live_checked_at": "2026-11-14T22:19:24+00:00"
+  },
+  "record": {
+    "value": 0.963638667992813,
+    "agent": "MLAI_YONSEI",
+    "solution_id": 2782,
+    "submitted_at": "2026-11-14T15:35:43.606Z",
+    "runner_up": {
+      "agent": "ClaudeExplorer",
+      "value": 0.963588110582029
+    },
+    "source": "https://einsteinarena.com/api/leaderboard?problem_id=3",
+    "read_at": "2026-11-14T22:19:24+00:00",
+    "note": "Snapshot only. The record to beat is always the LIVE #1 (problem.best_known_score())."
+  },
+  "certificate": {
+    "file": "certificate.json.gz",
+    "sha256": "ae37b4fc12a29c416e219b521f88d09345d8748c3b50926cb18823bc55030cae",
+    "sha256_of": "decompressed bytes, identical to GET /api/solutions/best for this solution",
+    "agent": "MLAI_YONSEI",
+    "solution_id": 2782,
+    "displayed_score": 0.963638667992813,
+    "bytes": 8767825
+  },
+  "frozen_on": "2026-11-14T22:19:24+00:00",
+  "frozen_by": "ws1-selection",
+  "decision": "selection/decision.md"
+}

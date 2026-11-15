@@ -1,0 +1,111 @@
+{
+  "run_id": "20261115T190815Z-circles-rectangle-f207602-pf-astra",
+  "problem": "circles-rectangle",
+  "editor": "openai:gpt-6-astra",
+  "stop_reason": "error: RemoteError: Input aborted due to internal failure (e.g. preemption). Retries are disabled",
+  "init_score": 2.3658323759098576,
+  "baseline": 2.3658323759098576,
+  "best": 2.365832375910829,
+  "best_arm": "main",
+  "best_experiment": "exp_000076",
+  "best_solution_path": "solutions/main/exp_000076.json",
+  "arms": {
+    "control": {
+      "best": 2.3658323759098576,
+      "best_experiment": "exp_000001",
+      "best_solution_path": "solutions/control/exp_000001.json",
+      "steps": 4,
+      "spend": 6.648866277372449
+    },
+    "main": {
+      "best": 2.365832375910829,
+      "best_experiment": "exp_000076",
+      "best_solution_path": "solutions/main/exp_000076.json",
+      "steps": 6,
+      "spend": 26.45252702853256,
+      "evaluations": 107
+    }
+  },
+  "program_incumbent": "p_546200ea6db5",
+  "rounds": 4,
+  "wall_s": 1481.9,
+  "budget": {
+    "elapsed_s": 1484.2,
+    "wall_clock_s": 3300.0,
+    "max_usd": 48.0,
+    "total_usd": 33.1014,
+    "compute_s": {
+      "control": 103.8,
+      "main": 955.2,
+      "gate": 220.4,
+      "meta": 0.0
+    },
+    "usd": {
+      "control": 6.6489,
+      "main": 21.7045,
+      "gate": 4.6737,
+      "meta": 0.0744
+    },
+    "llm_usd": {
+      "control": 6.6414,
+      "main": 21.6437,
+      "gate": 4.6606,
+      "meta": 0.0744
+    }
+  },
+  "control_curve": [
+    [
+      0.00022525262216436002,
+      2.3658323759098576
+    ],
+    [
+      1.7790036692344817,
+      2.3658323759098576
+    ],
+    [
+      3.4139646170418225,
+      2.3658323759098576
+    ],
+    [
+      4.994302120622521,
+      2.3658323759098576
+    ],
+    [
+      6.648866277372449,
+      2.3658323759098576
+    ]
+  ],
+  "main_curve": [
+    [
+      0.00020503135837043998,
+      2.3658323759098576
+    ],
+    [
+      3.835086463087783,
+      2.3658323759106374
+    ],
+    [
+      7.2892281751041885,
+      2.365832375910715
+    ],
+    [
+      10.961654338064523,
+      2.365832375910829
+    ],
+    [
+      14.693191100416126,
+      2.365832375910829
+    ],
+    [
+      18.836091712608994,
+      2.365832375910829
+    ],
+    [
+      22.699629165625588,
+      2.365832375910829
+    ]
+  ],
+  "best_known": 2.3658323759098576,
+  "record_claims": [],
+  "beats_record": false
+}

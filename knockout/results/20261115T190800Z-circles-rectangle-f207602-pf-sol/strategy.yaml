@@ -1,0 +1,169 @@
+run:
+  arms: auto
+  seed: 20261114
+  wall_clock_s: 3300.0
+  max_usd: 48.0
+budget_shares:
+  control: 0.2
+  gate_max: 0.25
+  meta_max: 0.02
+executor:
+  kind: modal
+  workers: 8
+modal:
+  app_name: knockout-evolution
+  volume: knockout-runs
+  cpu: 2.0
+  memory_mb: 8192
+  orchestrator_memory_mb: 16384
+  max_containers: 64
+  worker_timeout_s: 900
+  orchestrator_timeout_s: 86400
+  usd_per_core_s: 1.31e-05
+  usd_per_gib_s: 2.22e-06
+  overhead_s: 2.0
+sandbox:
+  timeout_slack_s: 10
+  memory_mb: 7000
+  deny_network: true
+  max_output_mb: 256
+fidelity:
+  f0_s: 2.0
+  f1_s: 20.0
+  f2_s: 120.0
+  promote_ratio: 0.3333
+  levels: 3
+tuner:
+  method: cma
+  sigma0: 0.25
+  calls: 8
+  top_k: 3
+control:
+  edits_per_round: 8
+  ratchet: false
+editor:
+  kind: openai
+llm:
+  model: gpt-6.1-sol
+  models:
+  - gpt-6.1-sol
+  prices:
+    gpt-6.1-sol:
+    - 2.0
+    - 10.0
+    gpt-6-astra:
+    - 10.0
+    - 50.0
+  reasoning_effort: medium
+  max_output_tokens: 20000
+  timeout_s: 600
+  history: 24
+  operators:
+  - refine
+  - restructure
+  - reformulate
+  - fresh
+  usd_per_mtok_in: 2.0
+  usd_per_mtok_out: 10.0
+ledger:
+  save_solutions: all
+main:
+  batch_size: 16
+  population_max: 60
+selection:
+  eps_rel: 1.0e-09
+  parent_power: 1.0
+genes:
+  g_max: 8
+  max_negative: 5
+  gamma: 0.97
+  clade_depth: 3
+  clade_decay: 0.5
+  phase_min_obs: 3
+  seed_count: 10
+  max_candidates: 12
+  births_per_batch: 2
+  dedupe_similarity: 0.8
+phases:
+  explore_until: 0.2
+  window: 30
+gate:
+  p_validate: 0.9
+  p_refute: 0.1
+  min_pairs: 3
+  max_pairs: 8
+  reaudit_every: 100
+  pairs_per_batch: 2
+  invalid_is_tie: true
+filters:
+  jaccard_max: 0.95
+  recycled_line_ratio: 0.5
+islands:
+  max_islands: 5
+  min_evals_before_replace: 40
+  migrate_every: 50
+  migrate_min_posterior: 0.6
+linkage:
+  min_cooccurrence: 6
+  margin: 0.15
+strategist:
+  stagnation_fraction: 0.1
+  min_progress: 0.0
+operators:
+- refine
+- restructure
+- hybridize
+- reformulate
+- fresh
+operator_priors:
+  refine:
+  - 1
+  - 1
+  restructure:
+  - 1
+  - 1
+  hybridize:
+  - 1
+  - 1
+  reformulate:
+  - 1
+  - 1
+  fresh:
+  - 1
+  - 1
+bandit_discount: 0.95
+portfolio:
+  enabled: true
+  regimes:
+  - record
+  - neighbour
+  - cold
+  floors:
+    record: 0.2
+    neighbour: 0.2
+    cold: 0.2
+  k_cold: 2
+  k_neighbour: 2
+  cold_seed: 7
+  perturb_min: 0.01
+  perturb_max: 0.3
+  neighbour_archive_share: 0.5
+  archive_bins: 4
+  promote_gap: 0.02
+  deep_factor: 10
+  max_deep_per_batch: 1
+prompt:
+  show_record: false
+strategist_allow_list:
+- operator_priors
+- selection.parent_power
+- genes.g_max
+- fidelity.f0_s
+- fidelity.f1_s
+- fidelity.f2_s
+- fidelity.promote_ratio
+- islands.budget_shares
+- seed_genes
+- portfolio.floors
+- portfolio.promote_gap
+- portfolio.k_cold

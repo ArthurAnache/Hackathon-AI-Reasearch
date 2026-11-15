@@ -1,0 +1,19 @@
+# Start portfolio campaign of 2026-11-15 (Arthur's go-ahead: up to 100 USD of OpenAI and 350 EUR of Modal in all,
+# 1h15 at most). Two runs launched together, identical but for the program-writing model.
+problem: circles-rectangle
+profile: portfolio           # portfolio.enabled + prompt.show_record: false
+editor: openai
+tag: pf-sol
+wall_clock_s: 3300           # 55 minutes
+max_usd: 48.0                # this run's cap, LLM + Modal estimate; the two runs together stay under 100 USD
+set:
+  llm.model: gpt-6.1-sol           # reviewer, brainstorm, strategist and the control arm's editor
+  llm.models: [gpt-6.1-sol]        # program writers of the main arm
+  llm.prices: {gpt-6.1-sol: [2.0, 10.0], gpt-6-astra: [10.0, 50.0]}   # third-party price lists, not OpenAI's page
+  llm.reasoning_effort: medium
+  main.batch_size: 16
+  gate.pairs_per_batch: 2
+  control.edits_per_round: 8
+  selection.eps_rel: 1.0e-9
+  fidelity.f0_s: 2.0
+  sandbox.memory_mb: 7000

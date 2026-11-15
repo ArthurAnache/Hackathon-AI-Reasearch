@@ -1,0 +1,19 @@
+# Parameters of the run launched on Modal (see .github/workflows/knockout-run.yml and knockout/modal_app.py).
+# A push launches a run only if its commit message contains "[ko-run]" (or by manual dispatch on GitHub).
+# Edit this file and commit it with the tag: the run is then traceable to the exact commit that defined it.
+#
+# Campaign of 2026-11-14 evening (Arthur): 1 hour, 50 USD cap. The 15-minute smoke run (20261115T021632Z) ended
+# cleanly with 16 children per batch; this one doubles the batch so the fixed cost of a batch is better used.
+
+problem: second-autocorrelation-inequality   # toy | second-autocorrelation-inequality
+profile: large-warm-start    # named overrides from knockout/run.py (PROFILES); omit for the toy
+init: live                   # warm start: live (live #1 of EinsteinArena) | omit for the frozen certificate
+editor: openai               # openai (both arms; needs OPENAI_API_KEY at launch) | offline (control arm, no LLM)
+wall_clock_s: 3600           # total wall clock of the run
+max_usd: 50.0                # hard USD cap of this run (Modal compute + LLM together); required, in (0, 500]
+set:                         # optional strategy.yaml overrides (dotted keys); they win over the profile
+  control.edits_per_round: 12
+  main.batch_size: 32        # 32 children per batch, of which up to 4 knock-out pairs (the gate's 25 % share)
+  gate.pairs_per_batch: 4
+  selection.eps_rel: 1.0e-10 # observed effects are 1e-10 to 1e-9; smaller differences are treated as ties
+  sandbox.memory_mb: 7000    # RLIMIT_AS is enforced on Linux; the worker container has 8 GiB
