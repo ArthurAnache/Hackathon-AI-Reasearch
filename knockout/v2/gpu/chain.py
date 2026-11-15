@@ -47,15 +47,16 @@ def reopen_cells(xp, w, grad_f, eta):
 
 def run_chains(xp, w0, kappa, m, stage_lists, *, history=8, on_stage_end=None, on_progress=None,
                progress_every=200, deadline=None, clock=time.monotonic, reopen=None, reopen_every=500,
-               reopen_until=0.9):
+               reopen_until=0.9, reopen_beta_max=3e7):
     """Run the chains. w0 (B, n), kappa (B, 1), stage_lists: one list of Stage per row, equal total evaluations.
 
     on_stage_end(row, stage_index, evals_done, w_row, info) is called once per row and stage;
     info = {"beta", "smooth", "exact", "accepted", "rejected", "restarts", "reopened"} describes the row's
     current point.
     reopen: one eta per row (0 = never). Every `reopen_every` evaluations, during the first `reopen_until` of the
-    budget, the rows with eta > 0 get their first-order-violating closed cells opened (see reopen_cells). Each
-    such event costs one extra batched evaluation, counted in "extra_evals" and not in the stage budgets.
+    budget, the rows with eta > 0 whose current beta is at most `reopen_beta_max` get their first-order-violating
+    closed cells opened (see reopen_cells). Each such event costs one extra batched evaluation, counted in
+    "extra_evals" and not in the stage budgets.
     Returns {"evals", "stopped_early", "best_w", "best_exact", "first_exact", "x", "smooth", "exact", "stage"}.
     """
     b = w0.shape[0]
@@ -88,12 +89,21 @@ def run_chains(xp, w0, kappa, m, stage_lists, *, history=8, on_stage_end=None, o
             stopped_early = True
             break
         if reopen_rows and evals % reopen_every == 0 and evals <= reopen_until * total:
-            _, _, aux = evaluate(xp, opt.x, beta, kappa, m)
-            opt.x, counts = reopen_cells(xp, opt.x, aux["grad_f"], eta)
-            extra_evals += 1
-            for i, cnt in enumerate(counts.tolist()):
-                reopened[i] += int(cnt)
-            opt.mark_fresh(reopen_rows)
+            # only while the row is hot: at beta >= 1e9 the smoothed derivative is valid over relative steps of
+            # about 1e-9, and an opening costs more exact score than the polish recovers (measured: eta = 1e-3
+            # costs 2e-5 at beta = 1e9 and comes back at about 1e-6 per 50 evaluations)
+            hot = [i for i in reopen_rows
+                   if stage[i] < len(stage_lists[i]) and stage_lists[i][stage[i]].beta <= reopen_beta_max]
+            if hot:
+                eta_now = xp.zeros_like(eta)
+                for i in hot:
+                    eta_now[i, 0] = eta[i, 0]
+                _, _, aux = evaluate(xp, opt.x, beta, kappa, m)
+                opt.x, counts = reopen_cells(xp, opt.x, aux["grad_f"], eta_now)
+                extra_evals += 1
+                for i, cnt in enumerate(counts.tolist()):
+                    reopened[i] += int(cnt)
+                opt.mark_fresh(hot)
         xt = opt.trial()
         phi, grad, aux = evaluate(xp, xt, beta, kappa, m)
         took = opt.update(xt, phi, grad)

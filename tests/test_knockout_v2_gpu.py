@@ -258,6 +258,9 @@ def test_run_chains_with_reopen_keeps_the_budget():
     assert ((out["x"][1] != 0) & (f0[1] == 0)).any()             # the other row opened cells
     assert sorted(e[:2] for e in ends) == [(0, 60), (0, 120), (1, 60), (1, 120)]
     assert (out["best_exact"] >= out["first_exact"] - 1e-15).all()
+    # cells are opened only while the chain is hot (beta <= reopen_beta_max): here during the first stage only
+    hot = run_chains(np, w0, kappa, m, stages, reopen=[0.0, 1e-2], reopen_every=30, reopen_beta_max=5e3)
+    assert hot["extra_evals"] == 2 and hot["evals"] == 120
 
 
 def test_run_chains_stops_at_deadline():

@@ -298,17 +298,14 @@ def plan_reopen16(start: str, evals: int) -> list[ChainSpec]:
     exactly those cells, every 500 evaluations, instead of flooring all 1.5 million zero cells."""
     chains = [ChainSpec("control", start, anneal(1e9, 1e11, 2, evals),
                         hypothesis="control: no reheat, support fixed, polish from beta = 1e9 to 1e11")]
-    for eta in (1e-4, 1e-3, 1e-2):
-        chains.append(ChainSpec(f"polish-reopen{eta:g}", start, anneal(1e9, 1e11, 2, evals), reopen=eta,
-                                hypothesis=f"polish from beta = 1e9 to 1e11, closed cells with a positive "
-                                           f"derivative opened every 500 evaluations (eta = {eta:g})"))
-    for tag, b0, etas in (("b8", 1e8, (1e-3, 1e-2)), ("b7", 1e7, (1e-3, 1e-2)), ("b6", 1e6, (1e-3, 1e-2)),
-                          ("b5", 1e5, (1e-2,)), ("b4", 1e4, (1e-2,))):
+    for tag, b0, etas in (("b7", 1e7, (1e-4, 1e-3, 1e-2)), ("b6", 1e6, (1e-4, 1e-3, 1e-2)),
+                          ("b5", 1e5, (1e-4, 1e-3, 1e-2)), ("b4", 1e4, (1e-3, 1e-2))):
         for eta in etas:
             chains.append(ChainSpec(
                 f"{tag}-reopen{eta:g}", start, _with_polish(b0, 1e9, 3, evals, 0.25), reopen=eta,
-                hypothesis=f"reheat at beta = {b0:.0e}, slow cooling to 1e9, polish to 1e11; closed cells with a "
-                           f"positive derivative opened every 500 evaluations (eta = {eta:g})"))
+                hypothesis=f"reheat at beta = {b0:.0e}, slow cooling to 1e9, polish to 1e11; while beta <= 3e7, "
+                           f"closed cells with a positive derivative are opened every 500 evaluations "
+                           f"(eta = {eta:g})"))
 
     def kick(sigma, seed, eta):
         tag = f"k{sigma:g}-b5-s{seed}" + (f"-reopen{eta:g}" if eta else "")
@@ -316,7 +313,7 @@ def plan_reopen16(start: str, evals: int) -> list[ChainSpec]:
                          hypothesis=f"log-normal cell kick of width {sigma:g} (seed {seed}), slow cooling from "
                                     f"beta = 1e5 to 1e9, polish to 1e11" + (f"; reopen eta = {eta:g}" if eta else ""))
 
-    chains += [kick(0.1, 1, 0.0), kick(0.3, 1, 0.0), kick(0.1, 1, 1e-2), kick(0.3, 1, 1e-2)]
+    chains += [kick(0.03, 1, 0.0), kick(0.1, 1, 0.0), kick(0.3, 1, 0.0), kick(0.1, 1, 1e-3)]
     return chains
 
 

@@ -318,7 +318,7 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
                     "smooth": float(out["smooth"][i]), "exact": float(out["exact"][i]),
                     "accepted": out["accepted"][i], "rejected": out["rejected"][i], "restarts": out["restarts"][i]}
             store(i, "partial", out["x"][i], info, out["evals"], {"final": True, "stopped_early": True})
-        if best_exact[i] > start_exact_gpu[i]:
+        if best_exact[i] > start_exact_gpu[i] + 1e-13:      # above the start by more than float64 rounding
             store(i, "best", out["best_w"][i], {"exact": best_exact[i]}, out["evals"],
                   {"best": True, "start_exact_gpu": start_exact_gpu[i]})
     flush(wait=True)
