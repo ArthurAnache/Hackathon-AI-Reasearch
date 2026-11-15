@@ -39,6 +39,9 @@ Three rules that the code enforces:
   nodes of its own declared owner; nothing else. It can never change a node that a
   trusted import wrote (whatever owner it declares), revive a dead end, change the
   kind of a node we already tested, or bring a verdict or a runner.
+- An id names ONE idea, for ever: verdicts and experiments are attached to it. A
+  refresh that replaces a node's text by an unrelated text (ids made from row numbers
+  shift when a row is inserted) is refused; the new idea needs a new id.
 - The verdict words depend on the kind, and verdict_status() is the only place that
   maps evidence to a word:
       worked / untested_idea   it gained -> reproduced     no gain, enough tries -> refuted
@@ -70,6 +73,7 @@ recall ideas.
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
 import math
@@ -92,6 +96,8 @@ REFEREE_WORDS = ("invalid", "verifier_disagreement", "valid_below_record", "beat
 SOURCE_FIELDS = ("id", "kind", "problem", "content", "citations", "status", "author", "source",
                  "written_on")
 MAX_CONTENT = 4000
+SAME_IDEA = 0.75     # below this text similarity, a refreshed node reads as another idea under the same id.
+                     # A heuristic: on the scout's real file two different rows reach 0.62, an edited row gives 1.0.
 SCOPE = "import-research-map"                # memory scope of the idea facts
 
 ID_RE = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9_.\-]{0,62}[A-Za-z0-9])?")      # used with fullmatch
@@ -123,6 +129,14 @@ def check_id(idea_id: Any) -> str:
         raise InvalidIdea("idea id must be 1-64 ASCII letters, digits, '_', '-' or '.', starting and "
                           "ending with a letter or digit: %r" % (idea_id,))
     return idea_id
+
+
+def same_idea(old_text: str, new_text: str) -> float:
+    """How much of the shorter version of a node's text survives in the other, 0..1.
+    An edit, a new rank or a note in front keeps it near 1; another idea does not."""
+    a, b = old_text[:1500], new_text[:1500]
+    blocks = difflib.SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks()
+    return sum(m.size for m in blocks) / max(1, min(len(a), len(b)))
 
 
 def verdict_status(kind: str, gained: bool, exhausted: bool) -> str:
@@ -461,6 +475,11 @@ class IdeaStore:
                     if not same_kind and old["verdict"] is not None:
                         raise InvalidIdea("%s already has a verdict from our experiments: its kind cannot "
                                           "be changed by an untrusted file" % node["id"])
+                    alike = same_idea(old["content"], node["content"])
+                    if alike < SAME_IDEA:
+                        raise InvalidIdea("%s would become a different idea (text similarity %.2f): an id names "
+                                          "one idea for ever, verdicts are attached to it. Use a new id; ids "
+                                          "must not come from row numbers" % (node["id"], alike))
                 nodes[i] = merged
                 self._write(nodes)
                 return "updated"

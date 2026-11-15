@@ -805,6 +805,15 @@ def test_an_owner_can_refresh_its_own_nodes_and_nobody_elses():
     assert store.get("S1")["kind"] == "untested_idea" and ideas.is_dead(store.get("S1"))
     facts = {f["fact_id"]: f for f in _idea_facts()}
     assert "v2 (new numbers)" in facts["idea-S1"]["content"] and facts["idea-S1"]["metadata"]["dead"] is True
+    # ids made from row numbers shift when the scout inserts a row: S2 would silently become another
+    # idea, and every verdict attached to it would change owner. Refused; a note in front of the text is fine.
+    shifted = [dict(v1[1], content="Averaging two record solutions scores -281 delta at the midpoint.")]
+    assert import_knowledge.main([_write_rows(d, shifted)] + argv) == 1
+    assert store.get("S2")["content"] == "Uniform rescale."
+    note = [dict(v1[1], content="REFUTED 16:40 PT, see row S9 | Uniform rescale.")]
+    assert import_knowledge.main([_write_rows(d, note)] + argv) == 0 and store.get("S2")["content"].startswith("REFUTED")
+    assert ideas.same_idea("RANK 2 | S2 slow-manifold extrapolation of the window masses",
+                           "REFUTED (see S2 row) | was RANK 2 | S2 slow-manifold extrapolation of the window masses") > 0.7
 
 
 def test_bad_lines_are_skipped_and_reported_good_lines_still_imported():
