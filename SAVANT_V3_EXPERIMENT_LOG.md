@@ -220,3 +220,11 @@ Pending Stage-3. Pilot uses 1CPU/4GiB WS3 containers (same as V2) until a contro
 - vs Iter8: **+8.55e-10**; vs live 2783: **+5.32e-8**; gap to target: **9.947e-6** (not beats_record).
 - Promoted to uns/v3/best/ and rtifacts/savant-v3/.
 
+
+## Iteration 9 — 20261115T195749Z-v3it09 COMPLETE
+
+- App `ap-cJUBf4b0kteGMYl2OCOKdx`, 6/6 jobs ok, est/committed **$0.7337**, rem **$295.11**.
+- Best `engineG-lse-s101` sha `51f3792ebd62…`: pinned **0.9636616152231015**, indep **0.9636616152231022**.
+- vs Iter8: **+8.55e-10**; vs live: **+5.32e-8**; gap to live+δ: **9.947e-6** (still not beats_record).
+- Promoted to `runs/v3/best/` and `artifacts/savant-v3/`.
+
