@@ -28,7 +28,7 @@ from knockout.v2.gpu import schedule as sch
 from knockout.v2.gpu.chain import initial_w, run_chains
 from knockout.v2.gpu.cpu_score import problem
 from knockout.v2.gpu.objective import evaluate, exact_score, fft_length, kappa_for
-from knockout.v2.gpu.starts import coarsen_blocks, kick
+from knockout.v2.gpu.starts import along_records, coarsen_blocks, kick
 
 PROBLEM_URL = "https://einsteinarena.com/problems/second-autocorrelation-inequality"
 
@@ -235,7 +235,13 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
     m = fft_length(n, spec.get("fft", "smooth"))
     rows = [np.maximum(arrays[c.start], 0.0) for c in chains]
     start_exact_gpu = exact_score(torch, torch.from_numpy(np.stack(rows)).to(dev), m).tolist()
+    records_pair = None
+    if any(c.along != 0 for c in chains):     # the two stored records, read-only
+        records_pair = (np.maximum(np.load(_start_path(vol, "frozen")), 0.0),
+                        np.maximum(np.load(_start_path(vol, "live")), 0.0))
     for i, c in enumerate(chains):    # changes of the start, made on CPU so they are the same on any device
+        if c.along != 0:
+            rows[i] = along_records(rows[i], records_pair[0], records_pair[1], c.along)
         if c.coarsen > 1:
             rows[i] = coarsen_blocks(rows[i], c.coarsen, c.masked)
         if c.jitter > 0:
@@ -335,7 +341,7 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
         table.append({
             "chain": c.name, "start": c.start, "start_score": start_scores[c.start], "floor": c.floor,
             "jitter": c.jitter, "seed": c.seed, "reopen": c.reopen, "reopened": out["reopened"][i],
-            "coarsen": c.coarsen, "masked": c.masked, "block": c.block,
+            "coarsen": c.coarsen, "masked": c.masked, "block": c.block, "along": c.along,
             "beta_start": c.stages[0].beta, "beta_end": c.stages[-1].beta, "stages": len(c.stages),
             "evals": out["evals"], "final_id": final and final["experiment_id"],
             "final_score": final and final["score"], "final_gain_over_start": final and final["gain_over_start"],

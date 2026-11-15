@@ -13,7 +13,7 @@ from knockout.v2.gpu import schedule as sch
 from knockout.v2.gpu.chain import initial_w, reopen_cells, run_chains
 from knockout.v2.gpu.lbfgs import BatchedLBFGS
 from knockout.v2.gpu.objective import autoconvolution, evaluate, exact_score, fft_length, kappa_for
-from knockout.v2.gpu.starts import coarsen_blocks, kick
+from knockout.v2.gpu.starts import along_records, coarsen_blocks, kick
 
 
 def _start(n=60, rows=2, seed_=0, sparse=True):
@@ -291,6 +291,15 @@ def test_start_changes_keep_block_masses():
     assert coarsen_blocks(f, 1, True) is f
     spec = sch.ChainSpec("x", "live", (sch.Stage(1e9, 5),), jitter=1.0, block=100, coarsen=4, masked=True)
     assert sch.ChainSpec.from_dict(spec.to_dict()) == spec
+    older, newer = f, kick(f, 0.2, 9, block=10)
+    assert along_records(newer, older, newer, 0.0) is newer
+    assert along_records(older, older, newer, 1.0) == pytest.approx(newer / newer.sum(), abs=1e-15)
+    beyond = along_records(newer, older, newer, 0.5)
+    assert (beyond >= 0).all() and beyond == pytest.approx(
+        np.maximum(newer / newer.sum() + 0.5 * (newer / newer.sum() - older / older.sum()), 0), abs=1e-15)
+    directed = sch.build_plan("directed16", "live", 6000)
+    assert len(directed) == 16 and sum(1 for c in directed if c.along != 0) == 10
+    assert sch.ChainSpec.from_dict(directed[3].to_dict()) == directed[3]
     plan = sch.build_plan("blockkick16", "live", 6000)
     assert len(plan) == 16 and sum(1 for c in plan if c.jitter > 0 and c.block > 0) == 12
     assert sum(1 for c in plan if c.coarsen > 1 and c.masked) == 3

@@ -40,6 +40,7 @@ class ChainSpec:
     coarsen: int = 0                # before the chain: block means over this many cells (starts.py); 0 = off
     masked: bool = False            # coarsen inside the support only (zero cells stay zero)
     block: int = 0                  # the kick keeps the mass of every block of this many cells; 0 = free kick
+    along: float = 0.0              # start moved by this many steps "solution 2782 -> solution 2783" (starts.py)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -53,7 +54,7 @@ class ChainSpec:
                          seed=int(d.get("seed", 0)), hypothesis=d.get("hypothesis", ""),
                          jitter=float(d.get("jitter", 0.0)), reopen=float(d.get("reopen", 0.0)),
                          coarsen=int(d.get("coarsen", 0)), masked=bool(d.get("masked", False)),
-                         block=int(d.get("block", 0)))
+                         block=int(d.get("block", 0)), along=float(d.get("along", 0.0)))
 
 
 def geometric(beta_start: float, beta_end: float, n: int) -> list[float]:
@@ -379,8 +380,65 @@ def plan_blockkick16(start: str, evals: int) -> list[ChainSpec]:
     return chains
 
 
+def plan_blockkick8(start: str, evals: int) -> list[ChainSpec]:
+    """Eight chains instead of sixteen, so each one gets twice the evaluations in the same wall time (one chain
+    saturates the GPU). Round 2 showed that a kick of width 0.3 followed by a cooling from beta = 1e4 comes back
+    to within about 2e-5 of its start, far better than from 1e5: this plan asks whether more evaluations and a
+    kick that keeps block masses close that gap. `k0.3-free-b4-s1` repeats a round 2 chain with a longer budget."""
+    def kicked(sigma, block, b0, seed):
+        tag = f"k{sigma:g}-{'blk' + str(block) if block else 'free'}-b{int(round(math.log10(b0)))}-s{seed}"
+        keeps = f"that keeps the mass of every block of {block} cells" if block else "with free block masses"
+        return ChainSpec(tag, start, _with_polish(b0, 1e9, 3, evals, 0.25), seed=seed, jitter=sigma, block=block,
+                         hypothesis=f"log-normal cell kick of width {sigma:g} (seed {seed}) {keeps}, then one "
+                                    f"slow cooling from beta = {b0:.0e} to 1e9 and a polish to 1e11")
+
+    return [kicked(0.3, 100, 1e4, 1), kicked(0.3, 100, 1e4, 2), kicked(0.3, 100, 1e4, 3),
+            kicked(0.3, 1000, 1e4, 1), kicked(0.3, 0, 1e4, 1), kicked(0.1, 100, 1e4, 1),
+            kicked(0.3, 100, 1e3, 1),
+            ChainSpec("c4m-b4", start, _with_polish(1e4, 1e9, 3, evals, 0.25), coarsen=4, masked=True,
+                      hypothesis="block means over 4 cells inside the support (the limit of a kick that keeps "
+                                 "block masses), then one slow cooling from beta = 1e4 to 1e9 and a polish to "
+                                 "1e11")]
+
+
+def plan_directed16(start: str, evals: int) -> list[ChainSpec]:
+    """Round 3: kicks that keep the envelope, random and directed.
+
+    Random: a log-normal kick of width 0.3 (it moves 23.5 % of the mass, the distance between the two records)
+    that keeps the mass of every block of 100 or 1,000 cells. Directed: the start moved along the step from
+    solution 2782 to solution 2783, the one rearrangement known to gain. From the live #1 a positive `along`
+    extrapolates beyond it; from the frozen certificate, 0 < along < 1 walks towards the live #1, which tells
+    whether a chain started part of the way falls back to its own record or goes on to the better one."""
+    chains = [ChainSpec("control", start, anneal(1e9, 1e11, 2, evals),
+                        hypothesis="control: start unchanged, polish from beta = 1e9 to 1e11")]
+
+    def moved(t, b0):
+        tag = f"x{t:g}-b{int(round(math.log10(b0)))}"
+        return ChainSpec(tag, start, _with_polish(b0, 1e9, 3, evals, 0.25), along=t,
+                         hypothesis=f"start moved by {t:g} times the step from solution 2782 to solution 2783, "
+                                    f"then one slow cooling from beta = {b0:.0e} to 1e9 and a polish to 1e11")
+
+    def kicked(sigma, block, seed):
+        return ChainSpec(f"k{sigma:g}-blk{block}-b4-s{seed}", start, _with_polish(1e4, 1e9, 3, evals, 0.25),
+                         seed=seed, jitter=sigma, block=block,
+                         hypothesis=f"log-normal cell kick of width {sigma:g} (seed {seed}) that keeps the mass of "
+                                    f"every block of {block} cells, then one slow cooling from beta = 1e4 to 1e9 "
+                                    f"and a polish to 1e11")
+
+    chains += [moved(t, 1e7) for t in (0.02, 0.05, 0.1, 0.2)]
+    chains += [moved(t, 1e4) for t in (0.05, 0.1, 0.2, 0.5)]
+    chains += [moved(-0.1, 1e7), moved(-0.5, 1e4)]
+    chains += [kicked(0.3, 100, 1), kicked(0.3, 100, 2), kicked(0.3, 1000, 1), kicked(0.1, 100, 1)]
+    chains.append(ChainSpec("c4m-b4", start, _with_polish(1e4, 1e9, 3, evals, 0.25), coarsen=4, masked=True,
+                            hypothesis="block means over 4 cells inside the support (the limit of a kick that "
+                                       "keeps block masses), then one slow cooling from beta = 1e4 to 1e9 and a "
+                                       "polish to 1e11"))
+    return chains
+
+
 PLANS = {"smoke": plan_smoke, "deep": plan_deep, "deep16": plan_deep16, "kick16": plan_kick16,
-         "reopen16": plan_reopen16, "coarse16": plan_coarse16, "blockkick16": plan_blockkick16}
+         "reopen16": plan_reopen16, "coarse16": plan_coarse16, "blockkick16": plan_blockkick16,
+         "blockkick8": plan_blockkick8, "directed16": plan_directed16}
 
 
 def build_plan(name: str, start: str, evals: int) -> list[ChainSpec]:

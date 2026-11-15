@@ -28,6 +28,18 @@ def kick(f: np.ndarray, sigma: float, seed: int, block: int = 0) -> np.ndarray:
     return out
 
 
+def along_records(f: np.ndarray, older: np.ndarray, newer: np.ndarray, t: float) -> np.ndarray:
+    """f moved by t times the step between two records: f/sum(f) + t (newer/sum - older/sum), clipped at 0.
+
+    The step from solution 2782 to solution 2783 is the one rearrangement known to gain (2.3e-5); it keeps the
+    envelope by construction, since both records have the same block masses. From `newer`, t > 0 extrapolates
+    beyond it and t < 0 goes back towards `older`; from `older`, 0 < t < 1 interpolates."""
+    if t == 0:
+        return f
+    step = newer / newer.sum() - older / older.sum()
+    return np.maximum(f / f.sum() + t * step, 0.0)
+
+
 def coarsen_blocks(f: np.ndarray, k: int, masked: bool) -> np.ndarray:
     """Block means over blocks of k cells (the last block may be shorter). The total mass is unchanged.
 
