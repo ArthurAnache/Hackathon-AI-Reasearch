@@ -1,0 +1,15 @@
+{
+  "file": "runs\\v3\\best\\54140cd2e955df0cef6f521b94650bd78545f2743847af382539ca55ca9d97ea.json.gz",
+  "file_bytes": 5620034,
+  "n_values": 1999999,
+  "sha256_best_json": "54140cd2e955df0cef6f521b94650bd78545f2743847af382539ca55ca9d97ea",
+  "sha256_canonical_recomputed": "54140cd2e955df0cef6f521b94650bd78545f2743847af382539ca55ca9d97ea",
+  "sha_match": true,
+  "pinned": 0.9636616143678811,
+  "independent": 0.9636616143678813,
+  "indep_method": "exact rational: dyadic -> integers, Kronecker substitution squared with decimal (libmpdec), closed-form piecewise-linear integrals",
+  "pin_indep_diff": -2.220446049250313e-16,
+  "gain_vs_live": 5.230579591675166e-08,
+  "gap_to_live_plus_delta": 9.947694204037738e-06,
+  "beats_record": false
+}

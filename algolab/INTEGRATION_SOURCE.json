@@ -1,0 +1,26 @@
+{
+  "source_worktree": "C:\\Users\\thiba\\Desktop\\Berkeley\\AIRESEARCHACK\\savant-sci-audit",
+  "integrated_at": "2026-11-15T05:11:44Z",
+  "note": "Algorithm Lab from savant-sci-audit integrated into savant-struct for SAVANT V2",
+  "sha256": {
+    "algolab\\__init__.py": "1da0c6436f61607f74e55e9b93db5b1a0aa91ecb160b88c401f62fc4091680c3",
+    "algolab\\author.py": "e9727f40815d03d7931e0bf8d86b25c47c2e9f0bedd914a0decc27ab77a022b2",
+    "algolab\\bench.py": "2307cfbd6f2592e4d0b27a6395c67f34fb6ce9e13709123d0b4b7697340f6bf1",
+    "algolab\\campaign.py": "6207ff443e77c018fc9d1cd8d9c4bdadae6484a514b434909d69c7053949dc45",
+    "algolab\\child.py": "ef3035bfb2c91380a3faad9b1db96c7d697368a4f5786384553e3d15c687fdba",
+    "algolab\\gate.py": "e0d11ad4513b4822b48f00445d3f296afe8c5303b6049d47a414efa3875ea55a",
+    "algolab\\image.py": "78e7f76b606fa6af71967b8b29dcae0548a7d0bd4cb0793521882bda6c367fda",
+    "algolab\\kit.py": "5d731bc32d2449043c61de321228eea981381f548ffe79926f674da369b67982",
+    "algolab\\live_record.py": "51b4bd36674c9ba5706932d30301b6743656b1371040527523ec7057bc35616b",
+    "algolab\\modal_app.py": "77b6fde9434e4c55049bfc2650992dcb1cf62c51d678e2ba675ea0a45f4fc94d",
+    "algolab\\plugins\\control_blockshift.py": "ee6781631e0b1c0c3d262cd6393f0aeb83f81066330b6c9ab89e4d1f66108139",
+    "algolab\\plugins\\dinkelbach_kelley.py": "6dc2e1c56a5db3e2b53e5aedb0030dc1ee1a981a3ddc35c50dce918bec7b34ee",
+    "algolab\\plugins\\hostile_example.py": "a2128321fe06bee0c451fbdb8ba86ab94e4567f56bb35d40269cf618199476a5",
+    "algolab\\plugins\\lp_packet_ascent.py": "2ae303a2b252021d4d83e020b0d0680454b48691f429419e0d980a31d681adab",
+    "algolab\\plugins\\lse_lbfgs_spectral.py": "74f172ee25bec2b4ab0a00104233a063d87e5e90bbe7bf5c9192dfb8b84a6532",
+    "algolab\\plugins\\runtime_probe.py": "c5e04ea09a5fafb14a7937317eb2fe9357f9028f87fd00e002b746835979b4b3",
+    "algolab\\plugins\\two_box_envelope.py": "576aa033db1870a4bccd472851434f4683d32ccc866040b242f9060309211030",
+    "algolab\\promote.py": "ed6cbe6fe8992fd2c62273a58e0b29290cffe383543c2ea765c18a91dce0e2c0",
+    "optimizers\\second-autocorrelation-inequality_algolab.py": "23580fa299340db2a9a39c652c8a3529bbfd7f09b5947738f1620a729c472398"
+  }
+}

@@ -1,0 +1,33 @@
+{
+ "source_worktree": "C:\\Users\\thiba\\Desktop\\Berkeley\\AIRESEARCHACK\\savant",
+ "source_commit": "c1e2ef6 (+ untracked files)",
+ "copied_at": "2026-11-14T20:39:26-0800",
+ "sha256": {
+  "savant/__init__.py": "11974f5344267a5b56103883e34cc042e2067e79c1e9f199a37ba3789c76202a",
+  "savant/__main__.py": "8788a62fe6952c07cdd98fe601abca7a5fc3a097b34f5017438f0d8aaae1274d",
+  "savant/ab_eval.py": "eb448cb2037af0fcc78ed937f4cdb89e3a993eb95827b8d56fe850e381d5d0e4",
+  "savant/config.py": "edeb628878cc3a26577857ddecd2519e15a3ac77248457e4e724d69b6a0a2def",
+  "savant/debate.py": "32a6c8ba7ba7794b978cfaf7e93b62f6035dfb90bb49693724cabcd59b99f17e",
+  "savant/ingest.py": "23658e5f61094f9695d72a58e26123fcce7d3b9c188cb5a400882324eefb0e2e",
+  "savant/llm.py": "f35036472d569c2856e7cd0547112523daa14f50b17cf0a9392e3886754c9d20",
+  "savant/loop.py": "a25c75f0c5b97b5bca375e67eb1293251c06aa67e68e3435feffd386e11879c5",
+  "savant/memory.py": "945e24fc6a1bd553cd51949c8653801aa289305933365699f457d97d6a01a282",
+  "savant/planner.py": "e26e0cdc3e0e727fbd3cd6371bf772f1b55573be1e20fcea7e0fd179e1e8d79c",
+  "savant/problem_report.py": "5c81f2b23758fb2a7e5cff61bdb75cd7de56015edbaefd3a896d3b87385c8c94",
+  "savant/report.py": "b74d53d57c431c94afbd2985b0168301a13c8c0821d808620b0781907f86616d",
+  "savant/researchers.py": "f50c8509f67120a02565df8ba4693349a35b5693142c1ab1f2b54e3db4be0531",
+  "savant/schemas.py": "f0ceb4d3df8e4f22e8a6d13f586c304346f835f63780875d94129cde6b365152",
+  "savant/stats.py": "1f2376ccce5a8a95b8015ffed4231f2a32708dea03f719c90fe43216bcf0fcb3",
+  "savant/templates.py": "77476e9797ec379d55d510e4552b289f2e628adf577519a8002d2aae1c899a33",
+  "ws3_bench/__init__.py": "b72043c08e4a6675e79b42fb368ec9259c44b60245065a173dd488b7203c86d1",
+  "ws3_bench/__main__.py": "02a3e71979d813859bac9b57970628ef8a0a100ba6b71679292c051fb2a4662d",
+  "ws3_bench/campaign.py": "79b31119789b3fcea590e86ba948a92d569cef8c32f30178e4db2666cac015aa",
+  "ws3_bench/image.py": "88eb94bcbedfc0911f407095cd1b60616a39cbd53d3d781fbcaded0158572abe",
+  "ws3_bench/modal_app.py": "18d5940140faa4664d2c46eedd41210e98161a9bb9947a6c78fdcebdfd1737b4",
+  "ws3_bench/worker.py": "fade46cfe1664dc3af22e05f345fc45d796c79353358fc35380218183ff82110",
+  "tests/test_savant.py": "ab502fad7eaf63e5f4a8a88e50da5aaa16beefda1c4e1c3f3eb18336b4f615ef",
+  "tests/test_savant_astra.py": "71a01291e8a06fd29e75db382c96b90c0ada2d3518c39090864b996ac37c1c35",
+  "tests/test_savant_capacity.py": "f152cb6de6c4a13d6a711bf5d20e013bd0a4d5272239818a57b07639f3ddde2f",
+  "tests/test_ws3_bench.py": "04ca88221728cd24a95c36173cfb6ad06ccb5300803a415c214fbee44c2b2b3a"
+ }
+}
