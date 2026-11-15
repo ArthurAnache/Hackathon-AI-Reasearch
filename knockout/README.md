@@ -17,7 +17,7 @@ and the results. Status labels: **verified** (reproduced here), **hypothesis**, 
 | M2 | knock-out gate, negative genes, anti-cycling and novelty filters, re-audit | **done** (2026-11-14) |
 | M3 | fidelity ladder, promotion gate, `report.py` | **done** (2026-11-14) |
 | M4 | operator and model bandits, formulation islands, migration, lineage freezing | **done** (2026-11-14) |
-| M5 | strategist, Exa scout, linkage, `replay.py`, Modal executor | **code done** (2026-11-14); the Modal path has not run yet |
+| M5 | strategist, Exa scout, linkage, `replay.py`, Modal executor | **done** (2026-11-14); one 15-minute run completed on Modal |
 
 M1 to M5 were written in one pass on 2026-11-14, at Arthur's request, without the per-milestone toy run the brief
 asks for. What was checked instead is listed under "Results". Read the "Limitations" before trusting a mechanism.
@@ -210,6 +210,20 @@ saved solution):
 - The promotion gate logged one `record_claim` on the toy: 2.63598308 against the toy reference 2.63598 + 1e-6,
   confirmed by the exact `Fraction` check. **This is not a record**: the toy reference is an unverified value kept
   only so that the gate has something to test, and the toy is a fixture.
+
+**Both arms on Modal, main problem, `gpt-6.1-sol`, 2026-11-14** (`20261115T021632Z-…-26d8f15`, commit `26d8f15`,
+`launch.yaml` as committed: 15 min, 5 USD cap, 16 children per batch, up to 32 CPU workers):
+- The run ended on its budget after 849 s, with no crash: 56 experiments (38 main, 18 control), 52 LLM calls, none
+  failed, about 2.0 USD by the governor's estimate (LLM + Modal compute; the real bill is on the dashboards).
+- Workers ran every LLM-written program with the network denied (`unshare -rn` inside a `block_network` container).
+- Best verified score: 0.9636616139976134 (main arm), a gain of 5.19e-8 over the live #1. `verify_claim.py`:
+  `VALID_BELOW_RECORD`. **No record.**
+- At equal spend the control arm was ahead of the main arm by about 2e-9 (0.6 USD each); the main arm finished
+  ahead by 3e-10 only after spending 2.3 times more. These differences are at the level of timing noise: this run
+  does not show that either arm is better.
+- Genes: 13 born, one refuted by its gate (0 wins, 3 losses), one still open (2 wins, 1 loss), none validated;
+  2 islands opened; 1 strategist patch, later kept or reverted by rule. `replay.py` re-derived 146 decisions and
+  matched 43 programs to the LLM cache.
 
 **Tests** (verified, 2026-11-14): `tests/test_knockout_m0.py` 21 passed, `tests/test_knockout_m1_m5.py` 16 passed
 (gate thresholds, credit, genome construction, filters, strategist allow-list, promotion gate, and a recorded
