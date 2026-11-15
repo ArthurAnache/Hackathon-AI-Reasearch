@@ -59,6 +59,18 @@ def bandit_update(arms: dict[str, list[float]], chosen: str, successes: float, f
     return out
 
 
+def shift_arms(arms: dict[str, list[float]], old_priors: dict[str, list[float]],
+               new_priors: dict[str, list[float]], floor: float = 0.05) -> dict[str, list[float]]:
+    """Apply new priors to bandit arms without erasing what the arms have learned: each arm moves by the
+    difference between its new and its old prior."""
+    out = {}
+    for k, (a, b) in arms.items():
+        oa, ob = old_priors.get(k, [1.0, 1.0])
+        na, nb = new_priors.get(k, [oa, ob])
+        out[k] = [max(floor, a + na - oa), max(floor, b + nb - ob)]
+    return out
+
+
 def select_parent(ranked_ids: list[str], power: float, seed: int) -> dict:
     """Rank-based power law: the member of rank r (0 = best) is drawn with weight (r + 1) ** -power."""
     w = np.array([(r + 1.0) ** -float(power) for r in range(len(ranked_ids))])

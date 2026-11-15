@@ -210,9 +210,11 @@ class Strategist:
         progress_before = self._progress(max(0.0, frac - window), frac)
         snapshot = {k: list(v) for k, v in arm.operator_arms.items()}
         previous = st.apply_patch(clean) if clean else {}
-        if "operator_priors" in clean:      # new priors restart the operator bandit from them
-            arm.operator_arms = {k: [float(a), float(b)] for k, (a, b) in clean["operator_priors"].items()
-                                 if k in arm.operator_arms}
+        if "operator_priors" in clean:
+            # New priors shift the operator arms; the evidence they hold is kept. (Campaign of 2026-11-14: each
+            # of 4 patches reset the arms, erasing 84 straight failures of `fresh`.)
+            arm.operator_arms = D.shift_arms(arm.operator_arms, previous["operator_priors"],
+                                             clean["operator_priors"])
         born = []
         island = next(i for i in arm.islands.values() if i.canonical)
         for g in clean.get("seed_genes", []):

@@ -225,6 +225,33 @@ saved solution):
   2 islands opened; 1 strategist patch, later kept or reverted by rule. `replay.py` re-derived 146 decisions and
   matched 43 programs to the LLM cache.
 
+**1-hour campaign on Modal, main problem, `gpt-6.1-sol`, 2026-11-14** (`20261115T023802Z-…-45e7be9`, commit
+`45e7be9`: 3600 s, 50 USD cap, 32 children per batch, 12 control edits per round, `eps_rel = 1e-10`):
+- Ended on its time budget after 3608 s, no crash: 442 experiments (366 main, 76 control), 371 LLM calls, none
+  failed, 16.8 USD by the governor's estimate. `replay.py` re-derived 1,295 decisions and matched 353 programs.
+- Best verified score: **0.9636616147548017, from the control arm**, a gain of 5.27e-8 over the live #1.
+  `verify_claim.py`: `VALID_BELOW_RECORD` (needs 1e-5). **No record.**
+- **The control arm beat the main arm** (verified in the ledger): at every equal spend up to 3.0 USD the control
+  arm was ahead by 1.2e-9 to 2.1e-9, and it finished ahead (5.269e-8 against 5.191e-8) with 3.0 USD against
+  13.8 USD for the main arm.
+- Why the main arm did worse (verified in the ledger unless marked):
+  - 284 children: 13 beat their parent. The gain of a child over a replay of its parent has median 0, 90th
+    percentile 2e-12, maximum 4.8e-10. The five best children are all `restructure` edits that optimise run or
+    packet amplitudes instead of single cells.
+  - `fresh` (no parent shown): 0 of 84 children beat their comparison parent.
+  - 5 of the 9 batches went to the 4 islands opened by `reformulate`: 160 children, none beat its parent. A new
+    island starts at Beta(1, 1), above the canonical island once that one has failures, and one visit costs a full
+    batch. Those islands had no candidate gene (genes are local, and only validated genes migrate), so no gate
+    pair ran after the fourth batch.
+  - The gate tested 2 of 19 genes in an hour: one refuted (3 losses of 3.5e-10 to 6.6e-10), one retired after 8
+    pairs (7 ties below `eps_rel`). No gene was validated, so no genome ever carried a gene.
+  - The strategist patched 4 times; 2 of the 3 patches that reached their check were reverted. Each patch reset
+    the operator bandit (fixed after this run: priors now shift the arms).
+  - With the ratchet, 18 to 23 parents were replayed in each batch on the canonical island.
+- Reading (hypothesis): on this problem every program sits on the same plateau near +5.2e-8, so "child beats
+  parent" carries almost no signal, and the machinery that feeds on that signal (credit, gate, bandits) cannot
+  learn. The control arm, which spends everything on edits of one incumbent, wastes less.
+
 **Tests** (verified, 2026-11-14): `tests/test_knockout_m0.py` 21 passed, `tests/test_knockout_m1_m5.py` 16 passed
 (gate thresholds, credit, genome construction, filters, strategist allow-list, promotion gate, and a recorded
 55-second toy run of both arms with a fake LLM: ledger schema, report, replay, 4 kinds of tampering detected),
@@ -240,8 +267,10 @@ saved solution):
 - Modal costs in the governor are estimates from `strategy.yaml` prices (check https://modal.com/pricing); the
   Modal dashboard has the real bill.
 - `OfflineParamEditor` only rewrites `PARAMS`. Real edits come from the LLM editor.
-- **No run has shown that the main arm beats the control arm.** The 60-minute run on the main problem used the
-  control arm only (it predates the main arm).
+- **The main arm has not beaten the control arm.** In the only long run with both arms (1 hour on Modal, see
+  "Results") the control arm was ahead at equal spend and at the end.
+- Known weaknesses of the main arm seen in that run, not fixed: a new island costs a full batch per visit and has
+  no gene to test; `fresh` children never won; the gate has no power when effects are below `eps_rel`.
 - The three main-problem runs listed under "Results" predate the LLM cache and the logged decision inputs, so
   `replay.py` rejects them ("no cached response"). Runs made from this commit on can be replayed.
 - **Replay is per decision, not a re-simulation.** Each event is re-derived from its own recorded inputs. A wrong

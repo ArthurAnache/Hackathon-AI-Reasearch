@@ -107,6 +107,9 @@ def test_promote_top_third_and_bandit_discount():
     assert arms == {"a": [3.0, 1.0], "b": [1.0, 1.0]}                  # nothing decays below Beta(1, 1)
     arms = D.bandit_update({"a": [3.0, 1.0], "b": [1.0, 5.0]}, "b", 0.0, 1.0, 0.95)
     assert arms == {"a": [pytest.approx(2.85), 1.0], "b": [1.0, pytest.approx(5.75)]}
+    # new priors from the strategist move the arms, they do not erase what the arms learned
+    assert D.shift_arms({"fresh": [1.0, 40.0], "refine": [6.0, 2.0]}, {"fresh": [1.0, 1.0], "refine": [1.0, 1.0]},
+                        {"fresh": [1.0, 3.0], "refine": [2.0, 1.0]}) == {"fresh": [1.0, 42.0], "refine": [7.0, 2.0]}
     pick = D.thompson_pick({"a": [50.0, 1.0], "b": [1.0, 50.0]}, seed=3)
     assert pick["choice"] == "a" and pick == D.thompson_pick({"a": [50.0, 1.0], "b": [1.0, 50.0]}, seed=3)
 
