@@ -40,8 +40,14 @@ def time_budget() -> float:
 
 
 # ---------------------------------------------------------------- frozen files
+# WS2's truth layer. WS1's EinsteinArena problems (problems/<slug>/, catalog.py, _frozen.py) are frozen by
+# WS1 itself (problems/MANIFEST.json + tests/test_ws1_frozen_problems.py), so they are not listed here.
+WS2_PROBLEM_FILES = ("__init__.py", "common.py", "p1a.py", "p1b.py", "p1d.py", "p10c.py", "p11a.py")
+
+
 def frozen_files() -> list[Path]:
-    return [ROOT / "prepare.py", ROOT / "interfaces.py"] + sorted((ROOT / "problems").glob("*.py"))
+    return ([ROOT / "prepare.py", ROOT / "interfaces.py", ROOT / "certificates.py"]
+            + [ROOT / "problems" / f for f in WS2_PROBLEM_FILES])
 
 
 def compute_hashes() -> dict[str, str]:
@@ -76,7 +82,7 @@ def run(optimizer_path: str) -> dict:
     if r["score"] is not None:
         print(f"score:          {r['score']:.15g}")
     for key in ("status", "experiment_id", "problem", "best_before", "beats_record", "error",
-                "budget_s", "duration_s", "seed", "algorithm_version", "solution_path"):
+                "budget_s", "duration_s", "seeds", "optimizer_hash", "certificate_path"):
         if r.get(key) is not None:
             print(f"{key + ':':<15} {r[key]}")
     print(f"{'direction:':<15} {problem.direction}")
@@ -91,6 +97,7 @@ def run(optimizer_path: str) -> dict:
 def _cli(argv: list[str]) -> int:
     import interfaces as I
     import problems
+    from certificates import CertificateStore
 
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
@@ -114,7 +121,11 @@ def _cli(argv: list[str]) -> int:
             print("usage: python prepare.py verify <problem> <solution.json> [--exact]")
             return 2
         p = I.get_problem(argv[1])
-        data = json.loads(Path(argv[2]).read_text())
+        src = argv[2]
+        if not Path(src).exists() and "/" in src:      # a certificate id such as 1d/3f2a9c1d0b4e
+            print(f"certificate {src}: re-verified on load")
+            src = CertificateStore().load(p, src).path
+        data = json.loads(Path(src).read_text())
         cand = data.get("solution", data)   # a solutions/<id>/*.json file or a bare candidate
         if not p.verify(cand):
             print(f"invalid:      {p.why_invalid(cand)}")

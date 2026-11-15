@@ -55,7 +55,7 @@ of hacky code is probably not worth keeping. Removing code and getting an equal 
 great outcome.
 
 **Records.** Every summary prints `beats_record:`. If it ever says `True`, stop and tell the human.
-Certify the result first with `python prepare.py verify <problem> <solution_path> --exact`.
+Certify the result first with `python prepare.py verify <problem> <certificate_path> --exact`.
 
 **The first run**: your very first run should always establish the baseline, so run `search.py` as is.
 
@@ -74,8 +74,9 @@ beats_record:   False
 budget_s:       60.0
 duration_s:     57.0
 seed:           42
-algorithm_version: 3f2a9c1d0b4e
-solution_path:  solutions/1d/exp_0007.json
+seeds:          [42]
+optimizer_hash: 3f2a9c1d0b4e
+certificate_path: 1d/9c41e0a7b2d3
 direction:      minimize
 best_known:     1.457854884921989
 decision:       keep
@@ -87,7 +88,7 @@ the `error:` line says why, and the decision is `reset`.
 ## Logging results
 
 The harness logs every experiment for you: one record per run in `experiments.jsonl` (hypothesis, config,
-`algorithm_version`, score, status, ...). Do NOT commit it. `python analysis.py` summarises it: best so far per
+`optimizer_hash`, score, status, ...). Do NOT commit it. `python analysis.py` summarises it: best so far per
 problem, keep rate, and the gap to the record.
 
 ## The experiment loop

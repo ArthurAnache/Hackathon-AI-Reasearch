@@ -21,9 +21,9 @@ RNG = lambda: np.random.default_rng(0)
 
 
 def rec(i, score, status="keep", strategy="manual", parent=None, **cfg):
-    return {"experiment_id": f"exp_{i:04d}", "problem": "1d", "algorithm_version": OPT.version(), "budget_s": 1.0,
+    return {"experiment_id": f"exp_{i:04d}", "problem": "1d", "optimizer_hash": OPT.version(), "budget_s": 1.0,
             "status": status, "score": score, "config": {**OPT.default_config(), **cfg},
-            "rationale": f"strategy={strategy}; parent={parent or 'none'}", "solution_path": f"solutions/1d/exp_{i:04d}.json"}
+            "rationale": f"strategy={strategy}; parent={parent or 'none'}", "certificate_path": f"1d/cert{i:04d}"}
 
 
 def kn(*records):
@@ -47,7 +47,7 @@ def test_space_roundtrip_and_key(record):
     back = SPACE.from_unit(SPACE.to_unit(cfg), cfg)
     record(original={k: cfg[k] for k in SPACE.names}, roundtrip={k: back[k] for k in SPACE.names})
     assert all(math.isclose(back[k], cfg[k], rel_tol=1e-5) for k in SPACE.names)
-    assert SPACE.key(cfg) != SPACE.key({**cfg, INIT_KEY: "solutions/1d/exp_0000.json"})
+    assert SPACE.key(cfg) != SPACE.key({**cfg, INIT_KEY: "1d/cert0000"})
 
 
 # ---------------------------------------------------------------- knowledge
@@ -121,7 +121,7 @@ def test_combine_and_evidence_and_refine(record):
            refine_after_two_flat=Refine().propose(stale, RNG()))
     assert comb.config["LR"] == 0.02 and comb.config["BETA_END"] == 60000.0
     assert hint.config["LR"] == 0.004 and "arXiv:x" in hint.why
-    assert ref.config[INIT_KEY] == "solutions/1d/exp_0000.json"
+    assert ref.config[INIT_KEY] == "1d/cert0000"
     assert Refine().propose(stale, RNG()) == []
 
 
@@ -142,9 +142,9 @@ def test_agent_closed_loop_on_known_objective(record):
         score = f(cfg)
         best = min((r["score"] for r in history if r["status"] == "keep"), default=math.inf)
         status = "keep" if score < best else "discard"
-        history.append({"experiment_id": f"exp_{i:04d}", "problem": "1d", "algorithm_version": OPT.version(),
+        history.append({"experiment_id": f"exp_{i:04d}", "problem": "1d", "optimizer_hash": OPT.version(),
                         "budget_s": 1.0, "status": status, "score": score, "config": cfg,
-                        "rationale": exp.rationale, "solution_path": None})
+                        "rationale": exp.rationale, "certificate_path": None})
         agent.review(history[-1])
     traj = [min(r["score"] for r in history[:n] if r["status"] == "keep") for n in (1, 10, 20, 40)]
     used = sorted({r["rationale"].split(";")[0] for r in history})
@@ -161,4 +161,4 @@ def test_agent_uses_warm_start_once_something_is_kept(record):
     record(warm_start=agent.warm_start, first=first.hypothesis, second=second.hypothesis,
            second_init=second.config.get(INIT_KEY))
     assert agent.warm_start and first.config == {}
-    assert second.config[INIT_KEY] == "solutions/1d/exp_0000.json" and "strategy=refine" in second.rationale
+    assert second.config[INIT_KEY] == "1d/cert0000" and "strategy=refine" in second.rationale

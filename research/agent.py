@@ -44,7 +44,7 @@ class FeedbackAgent:
     # ------------------------------------------------------------ helpers
     def knowledge(self, history: list[dict]) -> Knowledge:
         v = self.optimizer.version()
-        mine = [r for r in history if r["problem"] == self.problem.id and r.get("algorithm_version") == v]
+        mine = [r for r in history if r["problem"] == self.problem.id and r.get("optimizer_hash") == v]
         if mine:
             budget = mine[-1]["budget_s"]
             mine = [r for r in mine if r["budget_s"] == budget]
@@ -84,7 +84,7 @@ class FeedbackAgent:
         for s in self.strategies:
             for c in s.propose(kn, rng):
                 if self.warm_start:
-                    c.config[INIT_KEY] = kn.best.solution_path
+                    c.config[INIT_KEY] = kn.best.certificate
                 elif INIT_KEY in self.space.defaults:
                     c.config[INIT_KEY] = None
                 if not kn.tried(c.config) and not kn.near_failure(c.config):

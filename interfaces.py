@@ -29,6 +29,7 @@ from typing import Any, Protocol, runtime_checkable
 
 import problems
 import prepare
+from certificates import CertificateError, CertificateStore
 from problems import InvalidSolution
 
 ROOT = Path(__file__).resolve().parent
@@ -171,12 +172,35 @@ class ResearchAgent(Protocol):
 
 
 # ===================================================================== WS2/WS4: experiment store
+# One record schema for every writer: Karpathy mode, the scripted loop, every evolution island and
+# every (local or Modal) worker. Append-only. CSV is an export of it (analysis.py --csv), never a source.
 RECORD_FIELDS = (
-    "experiment_id", "timestamp", "problem", "hypothesis", "rationale", "agent", "optimizer",
-    "algorithm_version", "git_commit", "config", "seed", "budget_s", "valid", "score", "status",
-    "best_before", "beats_record", "duration_s", "error", "evidence", "solution_path",
+    # identity and provenance
+    "experiment_id", "timestamp", "problem", "agent", "arm", "island", "worker_id",
+    "optimizer", "optimizer_hash", "source_sha", "parent_id", "genes",
+    # what was tried and why
+    "hypothesis", "rationale", "config", "warm_start", "evidence",
+    # the fixed protocol
+    "seeds", "budget_s",
+    # outcome (score = mean of the verified per-seed scores)
+    "scores", "score", "valid", "status", "best_before", "beats_record", "duration_s", "error",
+    "certificate_path",
+    # LLM spend (evolution's structural editor; 0.0 / None when no call produced this candidate)
+    "llm_cost_usd", "llm_usage",
 )
 STATUSES = ("keep", "discard", "invalid", "crash", "void")
+
+
+def new_record(**fields) -> dict:
+    """A complete record: every RECORD_FIELDS key present (None / [] defaults). Unknown keys are refused."""
+    unknown = set(fields) - set(RECORD_FIELDS)
+    if unknown:
+        raise ValueError(f"unknown record fields: {sorted(unknown)}")
+    rec = {k: None for k in RECORD_FIELDS}
+    rec.update(genes=[], evidence=[], seeds=[], scores=[], valid=False, llm_cost_usd=0.0)
+    rec["timestamp"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    rec.update(fields)
+    return rec
 
 
 @runtime_checkable
@@ -214,9 +238,11 @@ def _alarm(signum, frame):
     raise _Watchdog()
 
 
-def _git_commit(path: Path) -> str | None:
+def source_sha(path: Path | None = None) -> str | None:
+    """git commit of the code that ran (best effort)."""
+    path = path or ROOT / "interfaces.py"
     try:
-        out = subprocess.run(["git", "rev-parse", "--short=7", "HEAD"], cwd=path.parent,
+        out = subprocess.run(["git", "rev-parse", "--short=7", "HEAD"], cwd=Path(path).parent,
                              capture_output=True, text=True, timeout=5)
         return out.stdout.strip() or None
     except (OSError, subprocess.SubprocessError):
@@ -232,19 +258,23 @@ def best_record(history: list[dict], problem: Problem, budget_s: float) -> dict 
     return pick(kept, key=lambda r: r["score"])
 
 
-def save_solution(problem: Problem, experiment_id: str, candidate, score: float) -> Path:
-    d = prepare.SOLUTIONS_DIR / problem.id
-    d.mkdir(parents=True, exist_ok=True)
-    path = d / f"{experiment_id}.json"
-    path.write_text(json.dumps({"problem": problem.id, "experiment_id": experiment_id, "score": score,
-                                "solution": candidate}))
-    return path
+def resolve_warm_start(problem: Problem, config: dict, certs: CertificateStore) -> tuple[dict, str | None]:
+    """config[INIT] must be a certificate id. Returns (config with INIT -> verified file path, certificate id).
+    Raises CertificateError for anything else (free-form paths are not allowed warm starts)."""
+    cid = (config or {}).get("INIT")
+    if not cid:
+        return dict(config or {}), None
+    cert = certs.load(problem, str(cid))          # re-verified on load
+    return {**config, "INIT": str(cert.path)}, cert.id
 
 
 def run_experiment(problem: Problem, optimizer: Optimizer, experiment: ExperimentConfig,
                    store: ExperimentStore, *, budget_s: float | None = None, seed: int = prepare.SEED,
-                   agent: str = "human", evidence: list[Evidence] | None = None) -> dict:
-    """Run one experiment under the fixed protocol and append its record to the store."""
+                   agent: str = "human", evidence: list[Evidence] | None = None,
+                   certs: CertificateStore | None = None) -> dict:
+    """Run one experiment (one seed) under the fixed protocol and append its record to the store.
+    Multi-seed, parallel evaluation goes through execution/ (Executor) and evolution/."""
+    certs = certs or CertificateStore()
     budget_s = prepare.time_budget() if budget_s is None else float(budget_s)
     history = store.read()
     experiment_id = f"exp_{len(history):04d}"
@@ -258,12 +288,18 @@ def run_experiment(problem: Problem, optimizer: Optimizer, experiment: Experimen
         except Exception:  # broken file: reported as a crash by run() below
             pass
 
-    candidate, error, status = None, None, None
+    candidate, error, status, warm = None, None, None, None
+    run_config = experiment.config
+    try:
+        run_config, warm = resolve_warm_start(problem, experiment.config, certs)
+    except CertificateError as e:
+        status, error = "invalid", f"warm start rejected: {e}"
     old = signal.signal(signal.SIGALRM, _alarm)
     signal.alarm(int(budget_s * prepare.HARD_KILL_FACTOR + 30))
     t0 = time.monotonic()
     try:
-        candidate = optimizer.run(problem, budget_s, seed, experiment.config)
+        if status is None:
+            candidate = optimizer.run(problem, budget_s, seed, run_config)
     except _Watchdog:
         status, error = "crash", f"killed by watchdog after {prepare.HARD_KILL_FACTOR}x budget + 30s"
     except Exception as e:  # a crash is a result, not a reason to stop the loop
@@ -291,30 +327,21 @@ def run_experiment(problem: Problem, optimizer: Optimizer, experiment: Experimen
             else:
                 status = "discard"
 
-    record = {
-        "experiment_id": experiment_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "problem": problem.id,
-        "hypothesis": experiment.hypothesis,
-        "rationale": experiment.rationale,
-        "agent": agent,
-        "optimizer": str(path.relative_to(ROOT)) if path and path.is_relative_to(ROOT) else getattr(optimizer, "name", "?"),
-        "algorithm_version": optimizer.version() if hasattr(optimizer, "version") else None,
-        "git_commit": _git_commit(path) if path else None,
-        "config": effective,
-        "seed": seed,
-        "budget_s": budget_s,
-        "valid": valid,
-        "score": score,
-        "status": status,
-        "best_before": best["score"] if best else None,
-        "beats_record": bool(valid and status in ("keep", "discard") and problem.beats_record(score)),
-        "duration_s": round(duration, 2),
-        "error": error,
-        "evidence": [asdict(e) for e in (evidence or [])],
-        "solution_path": None,
-    }
+    record = new_record(
+        experiment_id=experiment_id, problem=problem.id, agent=agent, arm="manual", island=None,
+        worker_id="local",
+        optimizer=str(path.relative_to(ROOT)) if path and path.is_relative_to(ROOT) else getattr(optimizer, "name", "?"),
+        optimizer_hash=optimizer.version() if hasattr(optimizer, "version") else None,
+        source_sha=source_sha(path), parent_id=None, genes=[],
+        hypothesis=experiment.hypothesis, rationale=experiment.rationale, config=effective, warm_start=warm,
+        evidence=[asdict(e) for e in (evidence or [])],
+        seeds=[seed], budget_s=budget_s, scores=[score] if score is not None else [], score=score, valid=valid,
+        status=status, best_before=best["score"] if best else None,
+        beats_record=bool(valid and status in ("keep", "discard") and problem.beats_record(score)),
+        duration_s=round(duration, 2), error=error,
+    )
     if valid and status != "void":
-        record["solution_path"] = str(save_solution(problem, experiment_id, candidate, score).relative_to(ROOT))
+        cert = certs.put(problem, candidate, score, {"experiment_id": experiment_id, "agent": agent})
+        record["certificate_path"] = cert.id
     store.append(record)
     return record

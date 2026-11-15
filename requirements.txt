@@ -8,3 +8,4 @@ sympy
 requests
 exa-py
 python-dotenv
+openai>=3.40  # optional: evolution LLM editor (--llm openai)

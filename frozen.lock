@@ -1,7 +1,8 @@
 {
-  "interfaces.py": "cacefc15361e431a928ef38eb4741a3485a4684e0f164db47b74cb18ab224493",
-  "prepare.py": "41df02373846dd8dfc629aefc33593aa3a272dbdcb104e3f08295f101b55ed6a",
-  "problems/__init__.py": "1aa8a402739ec0e9b52161d2b5960e350c78ba1a74c3aba389931a85f939b9f1",
+  "certificates.py": "b775d81be05b422e1c709d16ad151d0f76d4562397c6a8988db75a44b0f8acfa",
+  "interfaces.py": "61b141cab8b48d541e2bdc5c6b8db6fef29c05141b9483c4edf25ba0bdb36a1d",
+  "prepare.py": "6828ba1fc7fba9c5182becac0dda0d8c5ae71dee719527d47a25391d890cc941",
+  "problems/__init__.py": "2c266a2825518bc689752bd5504e4c703af2c486bb8f50b38441a5a206fc5d9f",
   "problems/common.py": "a67afde831e40dba9cfba88ca2531e4db50a9e2fd7678789fd7b2538c2f3c944",
   "problems/p10c.py": "ead386ebf1e09e6d0aa23641501073a283b8375b3a3a993a83e5b1c12ceb7b13",
   "problems/p11a.py": "1ae11ed4496c40476ac102a6a0e6d47e201288b200227c47a1715d588c11c32a",

@@ -30,7 +30,7 @@ class Obs:
     status: str
     strategy: str
     parent: str | None
-    solution_path: str | None
+    certificate: str | None       # certificate id (the only allowed warm start)
     tags: dict = field(default_factory=dict)
 
 
@@ -54,7 +54,7 @@ class Knowledge:
                 id=r["experiment_id"], config=r["config"] or {}, x=space.to_unit(r["config"] or {}),
                 utility=self.sign * r["score"] if ok else None, score=r["score"] if ok else None,
                 status=r["status"], strategy=tags.get("strategy", "manual"), parent=tags.get("parent"),
-                solution_path=r.get("solution_path"), tags=tags))
+                certificate=r.get("certificate_path"), tags=tags))
         self.by_id = {o.id: o for o in self.obs}
         kept = [o for o in self.obs if o.status == "keep"]
         self.best: Obs | None = max(kept, key=lambda o: o.utility) if kept else None

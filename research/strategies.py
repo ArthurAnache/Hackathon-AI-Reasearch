@@ -161,12 +161,12 @@ class Refine:
     name = "refine"
 
     def propose(self, kn: Knowledge, rng) -> list[Candidate]:
-        if not kn.best.solution_path:
+        if not kn.best.certificate:
             return []
         gains = kn.warm_start_gains()
         if len(gains) >= 2 and max(gains[-2:]) <= 0:
             return []                       # refining stopped paying off
-        cfg = {**_around_best(kn), INIT_KEY: kn.best.solution_path}
+        cfg = {**_around_best(kn), INIT_KEY: kn.best.certificate}
         why = f"start from the best solution so far ({kn.best.id})"
         if gains:
             why += f"; last refinement gained {gains[-1]:.3g}"

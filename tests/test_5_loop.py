@@ -67,7 +67,7 @@ def test_karpathy_mode(workspace, record):
     assert log[:2] == ["flat profile", "deterministic start"]
     recs = [json.loads(l) for l in (workspace / "experiments.jsonl").read_text().splitlines()]
     assert [r["status"] for r in recs] == [s for s, _ in steps]
-    assert len({r["algorithm_version"] for r in recs}) == 5            # each experiment's code is identified
+    assert len({r["optimizer_hash"] for r in recs}) == 5            # each experiment's code is identified
     tracked = _git(workspace, "ls-files").split()
     assert not {"experiments.jsonl", "run.log"} & set(tracked)
     assert _git(workspace, "status", "--porcelain").strip() == ""

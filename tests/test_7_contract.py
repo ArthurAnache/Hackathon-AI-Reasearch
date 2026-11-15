@@ -64,6 +64,7 @@ def test_agent_and_store_protocols(record, tmp_path):
 @P
 def test_record_has_contract_fields(record):
     """The experiment record carries the suggested contract fields."""
-    required = {"experiment_id", "hypothesis", "algorithm_version", "config", "seed", "budget_s", "valid", "score"}
+    required = {"experiment_id", "hypothesis", "optimizer_hash", "config", "seeds", "budget_s", "valid", "score",
+                "worker_id", "island", "source_sha", "parent_id", "genes", "arm", "certificate_path"}
     record(fields=list(I.RECORD_FIELDS))
     assert required <= set(I.RECORD_FIELDS)

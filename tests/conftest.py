@@ -106,9 +106,10 @@ def workspace(tmp_path):
     """A throwaway copy of the repo in its own git repo (main branch, one commit)."""
     root = tmp_path / "repo"
     root.mkdir()
-    for name in ("prepare.py", "interfaces.py", "loop.py", "analysis.py", "frozen.lock", "program.md", ".gitignore"):
+    for name in ("prepare.py", "interfaces.py", "certificates.py", "importers.py", "loop.py", "analysis.py", "compare.py",
+                 "frozen.lock", "program.md", ".gitignore"):
         shutil.copy(REPO / name, root / name)
-    for d in ("problems", "optimizers", "research"):
+    for d in ("problems", "optimizers", "research", "execution", "evolution", "integrations"):
         shutil.copytree(REPO / d, root / d, ignore=shutil.ignore_patterns("__pycache__"))
     _git(root, "init", "-q", "-b", "main")
     _git(root, "config", "user.email", "test@example.com")

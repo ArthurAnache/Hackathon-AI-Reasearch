@@ -38,8 +38,8 @@ def test_summary_block_and_record(workspace, record):
     record(summary=f, record_fields=sorted(r))
     assert proc.returncode == 0
     assert float(f["score"]) == pytest.approx(2.0) and f["status"] == "keep" and f["decision"] == "keep"
-    assert r["hypothesis"] == "flat profile scores 2" and r["valid"] is True and r["seed"] == 42
-    assert r["budget_s"] == 1.0 and r["algorithm_version"] and r["status"] == "keep"
+    assert r["hypothesis"] == "flat profile scores 2" and r["valid"] is True and r["seeds"] == [42]
+    assert r["budget_s"] == 1.0 and r["optimizer_hash"] and r["status"] == "keep"
 
 
 @P
@@ -164,7 +164,7 @@ def test_solution_saved_and_certifiable(workspace, record):
             return {"values": [0.3, 1.0, 0.7, 0.2]}
     ''')
     f, _, _ = run_search(workspace)
-    out = subprocess.run([sys.executable, "prepare.py", "verify", "1a", f["solution_path"], "--exact"],
+    out = subprocess.run([sys.executable, "prepare.py", "verify", "1a", f["certificate_path"], "--exact"],
                          cwd=workspace, capture_output=True, text=True).stdout
     lines = dict(l.split(":", 1) for l in out.strip().splitlines())
     record(logged=f["score"], reverified=lines["score"].strip(), exact=lines["exact"].strip())

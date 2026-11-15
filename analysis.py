@@ -3,6 +3,8 @@
     python analysis.py                      # report for experiments.jsonl
     python analysis.py --json               # machine-readable (dashboard)
     python analysis.py path/to/experiments.jsonl
+    python analysis.py --csv out.csv        # CSV export (an export only: the JSONL store stays the source of truth)
+    python analysis.py --arms               # per-arm comparison (keep rate, mean gain) for the evolution loop
 """
 from __future__ import annotations
 
@@ -38,7 +40,7 @@ def summarise(records: list[dict]) -> dict:
             "best": best["score"] if best else None,
             "best_experiment": best["experiment_id"] if best else None,
             "best_hypothesis": best["hypothesis"] if best else None,
-            "best_solution": best["solution_path"] if best else None,
+            "best_certificate": best["certificate_path"] if best else None,
             "best_known": p.best_known,
             "best_known_source": p.best_known_source,
             "gap_to_record": None if best is None else abs(best["score"] - p.best_known),
@@ -68,13 +70,61 @@ def report(summary: dict) -> str:
     return "\n".join(lines)
 
 
+def export_csv(records: list[dict], path: Path) -> int:
+    import csv
+    with path.open("w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(I.RECORD_FIELDS))
+        w.writeheader()
+        for r in records:
+            w.writerow({k: json.dumps(v) if isinstance(v, (list, dict)) else v for k, v in r.items()
+                        if k in I.RECORD_FIELDS})
+    return len(records)
+
+
+def arms(records: list[dict]) -> dict:
+    """Per (problem, arm): candidates, keep rate, mean gain over the parent, compute used, and the score
+    distribution over all seeds (median, best) plus how many new verified bests the arm produced."""
+    out: dict = {}
+    for r in records:
+        if not r.get("arm") or r["arm"] == "manual":
+            continue
+        a = out.setdefault(f"{r['problem']}:{r['arm']}", {"candidates": 0, "keep": 0, "gains": [], "job_seconds": 0.0,
+                                                           "seed_scores": [], "new_bests": 0})
+        a["candidates"] += 1
+        a["seed_scores"] += [s for s in (r.get("scores") or [r.get("score")]) if s is not None]
+        a["new_bests"] += bool(r.get("certificate_path")) and r.get("best_before") is not None
+        a["keep"] += r["status"] == "keep"
+        a["job_seconds"] += (r.get("budget_s") or 0) * len(r.get("seeds") or [])
+        if r.get("score") is not None and r.get("best_before") is not None:
+            sign = -1 if I.get_problem(r["problem"]).direction == "minimize" else 1
+            a["gains"].append(sign * (r["score"] - r["best_before"]))
+    for k, a in out.items():
+        g = a.pop("gains")
+        a["keep_rate"] = round(a["keep"] / a["candidates"], 3)
+        a["mean_gain"] = sum(g) / len(g) if g else None
+        s = sorted(a.pop("seed_scores"))           # judge on the distribution over seeds (WS3), not one run
+        if s:
+            p = I.get_problem(k.split(":")[0])
+            a.update(seeds_run=len(s), median=s[len(s) // 2], best=s[0] if p.direction == "minimize" else s[-1])
+    return out
+
+
 def main(argv: list[str]) -> int:
     args = [a for a in argv if not a.startswith("--")]
+    if "--csv" in argv:
+        out = Path(argv[argv.index("--csv") + 1])
+        args = [a for a in args if a != str(out)]
     store = I.JsonlStore(Path(args[0])) if args else I.JsonlStore()
     records = store.read()
     if not records:
         print(f"no experiments in {store.path}")
         return 1
+    if "--csv" in argv:
+        print(f"wrote {export_csv(records, out)} rows to {out}")
+        return 0
+    if "--arms" in argv:
+        print(json.dumps(arms(records), indent=2))
+        return 0
     summary = summarise(records)
     print(json.dumps(summary, indent=2) if "--json" in argv else report(summary))
     return 0

@@ -22,6 +22,8 @@ experiments.jsonl
 experiments_*.jsonl
 run.log
 solutions/
+certificates/
+optimizers/generated/
 reports/
 
 # WS4 local state: spend counters, query cache, disabled keys, local memory
@@ -29,3 +31,8 @@ reports/
 
 # old prototype output (local only)
 runs/
+
+# LLM spend ledger (evolution/llm.py), local to this machine
+llm_spend.json
+llm_spend.tmp
+llm_spend.lock
