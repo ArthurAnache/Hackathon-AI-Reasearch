@@ -152,6 +152,9 @@ def test_plans_build_and_estimate():
         assert est["usd"] > 0 and est["wall_s"] > est["loop_s"]
     e2 = pl.build("e2", "live", 2000, (8,))
     assert [b.name for b in e2] == ["e2-v8"] and e2[0].ups == (2, 2, 2) and len(e2[0].rows) == 16
+    mixed = pl.build("e1:2:4,e2:64:4", "frozen", 2000)
+    assert [b.name for b in mixed] == ["e1-p2", "e1-p4", "e2-v64", "e2-v4"] and len(mixed[2].level_evals) == 7
+    assert len(pl.build("e3", "frozen", 2000)[0].rows) == 16
     # 16 rows of 2,000,000 cells for 10,000 evaluations: the E0 rate of knockout/v2/gpu (0.0334 s per evaluation)
     one = pl.build("e2-blend", "frozen", 10_000)
     assert pl.estimate(one, overhead_s=0, score_s_per_batch=0)["loop_s"] == pytest.approx(336, rel=0.02)

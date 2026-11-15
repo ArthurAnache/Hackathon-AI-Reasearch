@@ -1,8 +1,8 @@
 """Modal app for the coarse-to-fine runs (GPU, float64) on second-autocorrelation-inequality.
 
     modal run -m knockout.v2.multires.modal_app::launch --job prepare      # store the warm starts on the Volume
-    modal run --detach -m knockout.v2.multires.modal_app::launch --plan e1,e2 --start frozen --evals 8000 \
-        --pools 4,64 --max-usd 3 --source-commit $(git rev-parse --short HEAD)
+    modal run --detach -m knockout.v2.multires.modal_app::launch --plan e1,e2:64:4 --start frozen --evals 8000 \
+        --max-usd 3 --source-commit $(git rev-parse --short HEAD)
     modal volume get knockout-v2-multires <run_id>/summary.json .          # results; solutions are .npy files
 
 Same image and same rules as knockout/v2/gpu/modal_app.py (CLAUDE.md, "WS3 — Modal compute and GPUs"): float64 on

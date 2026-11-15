@@ -27,7 +27,7 @@ POLISH = (3e9, 1e10, 3e10, 1e11)
 # Measured on an H100 in float64 by knockout/v2/gpu (E0 and its 30,000-evaluation runs): 16 chains of 2,000,000
 # cells take 0.0334 s per batched evaluation, i.e. about 1.05e-9 s per chain, cell and evaluation.
 S_PER_CELL_EVAL = 1.05e-9
-S_PER_EVAL_FLOOR = 0.0025             # a batched evaluation never costs less than this (kernel launches)
+S_PER_EVAL_FLOOR = 0.0035             # a batched evaluation never costs less than this (measured: 0.0033)
 
 
 @dataclass(frozen=True)
@@ -220,8 +220,9 @@ def plan_e2_blend(start: str, evals: int, pools=(4, 16, 64, 256)) -> list[BatchS
 
 def plan_e3(start: str, evals: int, pools=(32, 128, 512)) -> list[BatchSpec]:
     """E3, micro-structure redraw at a fixed envelope: the mass of every block of 32, 128 or 512 cells is kept
-    and the arrangement inside the blocks is redrawn (shuffle, shift, bootstrap redraw, log-normal resample), on
-    all blocks or on a tenth of them, then one cooling and a polish at full resolution."""
+    and the arrangement inside the blocks is redrawn (shift, shuffle, bootstrap redraw, log-normal resample), on
+    all the blocks or on a small share of them, then one cooling and a polish at full resolution. Measured on
+    CPU before the run: every such redraw costs 2e-2 to 5e-1 at once, even on 1 % of the blocks."""
     rows = [_row("control", beta0=1e9, beta1=1e9, hypothesis="control: no redraw, polish only")]
 
     def add(kind, block, seed, frac=1.0, b0=1e4, **params):
@@ -229,16 +230,17 @@ def plan_e3(start: str, evals: int, pools=(32, 128, 512)) -> list[BatchSpec]:
         tag = f"{kind}{block}" + (f"-f{frac:g}" if frac < 1 else "") + f"-s{seed}"
         rows.append(_row(tag, seed, pre=(spec,), beta0=b0,
                          hypothesis=f"redraw at fixed envelope: {kind} inside blocks of {block} cells "
-                                    f"({frac:.0%} of the blocks, seed {seed}), cooling from beta = {b0:.0e}"))
+                                    f"({frac:.1%} of the blocks, seed {seed}), cooling from beta = {b0:.0e}"))
 
     for block in pools:
         add("shift", block, 1, max_shift=2)
-        add("shift", block, 1, frac=0.1, max_shift=2)
-        add("shuffle", block, 1, frac=0.1)
-        add("resample", block, 1, sigma=1.0)
-    add("shuffle", pools[0], 1)
-    add("redraw", pools[1], 1, frac=0.1)
-    add("shift", pools[1], 2, frac=0.1, max_shift=2)
+        add("shift", block, 1, frac=0.01, max_shift=2)
+        add("shuffle", block, 1, frac=0.01)
+        add("resample", block, 1, sigma=0.3)
+    mid = pools[min(1, len(pools) - 1)]
+    add("shift", mid, 1, frac=0.001, max_shift=2)
+    add("redraw", mid, 1, frac=0.01)
+    add("shuffle", mid, 1, frac=0.1)
     return [BatchSpec("e3-redraw", "E3", start, 1, (), (evals,), tuple(rows[:16]))]
 
 
@@ -246,14 +248,18 @@ PLANS = {"smoke": plan_smoke, "e1": plan_e1, "e2": plan_e2, "e2-blend": plan_e2_
 
 
 def build(names, start: str, evals: int, pools=None) -> list[BatchSpec]:
-    """The batches of the plans `names` (comma-separated string or list), checked."""
+    """The batches of the plans `names` (comma-separated string or list), checked. A plan may carry its own
+    factors after colons, e.g. "e1,e2:64:4" (E1 with its default factors, then V-cycles of depth 64 and 4);
+    `pools` applies to the plans that carry none."""
     if isinstance(names, str):
         names = [x for x in names.split(",") if x]
     out = []
-    for name in names:
+    for token in names:
+        name, *own = token.split(":")
         if name not in PLANS:
             raise ValueError(f"unknown plan {name!r} (known: {sorted(PLANS)})")
-        out += PLANS[name](start, evals, pools) if pools else PLANS[name](start, evals)
+        factors = tuple(int(x) for x in own) or pools
+        out += PLANS[name](start, evals, factors) if factors else PLANS[name](start, evals)
     seen = [b.name for b in out]
     if len(set(seen)) != len(seen):
         raise ValueError("batch names must be distinct")
