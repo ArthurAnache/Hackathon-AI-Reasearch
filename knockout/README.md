@@ -171,6 +171,10 @@ at most 3 wins and 2 lessons, one line of at most 200 chars per fact. The "do no
     facts exist.
   - Whether memory helps is still a **hypothesis**. Testing it needs longer runs, many more children and more
     pairs.
+- **`memory.since` fail-safe**: when a recall with `occurredFrom` fails, it is logged as `memory_error`
+  (`op: recall_since`) and retried without the date filter, which is then applied locally on each fact's
+  timestamp. Facts without a timestamp are dropped. **Verified** offline with a store that answers 400 to
+  `occurredFrom`, as past.dev did.
 - **limitation, first A/B attempt (discarded)**: with `memory.since` set, every recall got `HTTP 400 on POST
   /recall` from past.dev (2 per ON run, `runs/ab/`). Each of those runs also stopped after one round at about
   0.05 USD. The rerun above drops `since`; the scope suffix alone isolates the A/B.

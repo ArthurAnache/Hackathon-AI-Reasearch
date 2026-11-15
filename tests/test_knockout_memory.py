@@ -171,6 +171,39 @@ def test_many_small_wins_do_not_crowd_out_refuted_ideas_or_failed_edits(tmp_path
     assert all(len(x) <= 200 for x in block.splitlines()[1:]) and len(block) <= 2500
 
 
+class _NoSinceStore:
+    """Answers like past.dev did on 2026-11-15: HTTP 400 whenever occurredFrom is sent."""
+    name = "fake-pastdev"
+
+    def __init__(self, facts):
+        self.facts, self.calls = facts, []
+
+    def ingest(self, *a, **k):
+        return "ok"
+
+    def recall(self, query, identity, limit, occurred_from=None):
+        self.calls.append(occurred_from)
+        if occurred_from:
+            raise PastDevError("HTTP 400 on POST /recall")
+        return self.facts[:limit]
+
+
+def test_since_falls_back_to_a_local_date_filter(tmp_path):
+    def fact(i, ts):
+        return {"fact_id": f"f{i}", "author": "main@old", "kind": "refuted", "content": f"idea {i}",
+                "metadata": {"problem": SLUG, "scope": SLUG, "kind": "refuted", "run_id": f"r{i}",
+                             "headline": f"idea {i}", "timestamp": ts}}
+    store = _NoSinceStore([fact(1, "2026-11-15T10:00:00Z"), fact(2, "2026-11-15T12:00:00Z"),
+                           {**fact(3, ""), "metadata": {**fact(3, "")["metadata"], "timestamp": None}}])
+    a = _ctx(tmp_path, "runS", since="2026-11-15T11:00:00Z")
+    m = RunMemory(a, store=store)
+    block = m.recall_block("main", 0, "idea")
+    assert "idea 2" in block and "idea 1" not in block and "idea 3" not in block
+    assert None in store.calls and "2026-11-15T11:00:00Z" in store.calls
+    errs = _events(a, "memory_error")
+    assert errs and all(e["op"] == "recall_since" for e in errs)          # the 400 stays visible
+
+
 class _BrokenStore:
     name = "broken"
 

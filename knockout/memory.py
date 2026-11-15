@@ -167,9 +167,9 @@ class RunMemory:
         q2 = (f"[scope {self.scope}] refuted ideas, failed batch: edits and children that did not gain, "
               f"for {self.slug}")
         ident = self.identity(arm)
-        r1 = self._retry("recall", lambda: self.store.recall(q1, ident, self.recall_k, self.since))[1] or []
+        r1 = self._recall(q1, ident, self.recall_k)
         # twice the candidates for the "do not retry" query: refuted ideas and failed edits must not be crowded out
-        r2 = self._retry("recall", lambda: self.store.recall(q2, ident, 2 * self.recall_k, self.since))[1] or []
+        r2 = self._recall(q2, ident, 2 * self.recall_k)
         r2 = [f for f in r2 if (f.get("metadata") or {}).get("kind") in ("refuted", "failed_batch")]
         facts = self._filter(r1 + r2, set(visible_ids))
         block = self._render(facts)
@@ -191,6 +191,21 @@ class RunMemory:
                                              if (f.get("metadata") or {}).get("kind") in ("refuted", "failed_batch")])
         self._cache[ck] = block
         return block
+
+    def _recall(self, query: str, identity: str, limit: int) -> list[dict]:
+        """One recall. With `memory.since`, the date filter goes to the server (occurredFrom); if that call fails
+        (past.dev answered HTTP 400 to it on 2026-11-15), it is logged as a `memory_error` with op `recall_since`,
+        then the recall is retried without the date filter and the filter is applied here, on each fact's own
+        timestamp (facts without one are dropped)."""
+        if self.since:
+            try:
+                return self.store.recall(query, identity, limit, self.since)
+            except Exception as exc:  # noqa: BLE001
+                self._error("recall_since", exc)
+            ok, facts = self._retry("recall", lambda: self.store.recall(query, identity, limit, None))
+            return [f for f in (facts or [])
+                    if str((f.get("metadata") or {}).get("timestamp") or f.get("timestamp") or "") >= self.since]
+        return self._retry("recall", lambda: self.store.recall(query, identity, limit, None))[1] or []
 
     def _filter(self, facts: list[dict], visible: set) -> list[dict]:
         out, seen_ids, seen_head = [], set(), set()
