@@ -1,4 +1,4 @@
-# Problem 1d: upper bound below the best announced value
+# Problem 1d: upper bound below the best value listed on the Tao page (not the best known)
 
 Problem: signed autocorrelation constant C_1d from the Tao optimization-constants list
 (https://teorth.github.io/optimizationproblems/constants/1d.html). A step function with N equal cells gives the
@@ -16,10 +16,19 @@ upper bound `2N * max_k |(v*v)_k| / (sum v)^2`; lower is better.
 
 Reference values on the page, as read on 14 Nov 2026:
 
-- 1.457854884921989, SCiEL, 800 cells. Best announced value, marked with an asterisk (minimal verification).
-- 1.4630715826075594, 300 cells. Best value replayed by a second party.
+- 1.457854884921989, SCiEL, 800 cells. Best value in the page's table, marked with an asterisk (minimal
+  verification).
+- 1.4630715826075594, 300 cells. Best value in the table replayed by a second party.
 
-All five files score below both. Each was checked with the frozen verifier of the WS2 loop:
+All five files score below both.
+
+**This is not the best known bound.** Open, unmerged pull requests on github.com/teorth/optimizationproblems claim
+lower values, as read on 14 Nov 2026: 1.4546733414 (#345, 163,840 cells), 1.4546733458 (#270, 163,840 cells),
+1.454727664528751 (#312, 81,920 cells), 1.4556234448 (#271, 40,960 cells) and 1.455682936505816 (#269, 10,240
+cells). Our files use 800 to 1,600 cells and are 0.0026 above the best of these claims. The verifier's
+`beats_record: True` compares against the SCiEL value only.
+
+Each file was checked with the frozen verifier of the WS2 loop:
 
     python prepare.py verify 1d records/1d/<file> --exact      # prints beats_record: True
 
@@ -27,13 +36,19 @@ The seed-162 map-loop file was also recomputed with exact fractions outside the 
 
 ## What the result does and does not show
 
-- The record comes from many independent starts (100 seeds in parallel on Modal CPUs, 10 experiments of 45 s
+- The result comes from many independent starts (100 seeds in parallel on Modal CPUs, 10 experiments of 45 s
   each), with the WS3 optimizer `optimizers/1d_tuned.py`. Every search starts from random noise.
-- **Both loops beat the announced value.** The old loop has the best single result, so the record is not due to
-  the research map.
+- **Both loops beat the value listed on the page.** The old loop has the best single result, so that result is
+  not due to the research map.
 - **The map loop is the more reliable loop.** On the same seeds and budget it wins 85 of 100 paired runs on Modal
-  (`comparison_modal_100seeds.csv`; median 1.46375 against 1.47274) and 13 of 15 on a laptop
+  against the old loop (`comparison_modal_100seeds.csv`; median 1.46375 against 1.47274) and 13 of 15 on a laptop
   (`comparison_local_15seeds.csv`, 16 experiments of 30 s).
+- **It also beats one long run of the tuned optimizer** (same seeds, 1 experiment of 450 s instead of 10 of 45 s):
+  86 of 100 paired runs, median 1.46375 against 1.47263. The single run and the old loop are level (54 of 100).
+  The best single values of the three arms are the same to 3e-4 (1.45718, 1.45729, 1.45741): the map improves the
+  typical run, not the best one. The map had four runnable ideas, all variants of the tuned optimizer (default,
+  1,600 cells, 300 cells with a higher final beta, lower learning rate), and the baseline optimizer marked as a
+  dead end, so it spent no experiment on it.
 - The values are not on the Tao page. A submission there needs a pull request with a permanent link to the
   certificate, and the entry would carry an asterisk until a second party replays it.
 
