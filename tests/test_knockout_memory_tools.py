@@ -36,15 +36,12 @@ def test_backfill_is_deterministic_and_refutes_gene_and_operator(tmp_path: Path)
 
 
 def test_push_without_memory_client_exits_two_with_guidance(tmp_path: Path, monkeypatch, capsys) -> None:
+    # Since the merge with feature/ws2-pastdev-memory the client exists, so its absence is simulated in-process
+    # (a subprocess would now really push, and must never reach past.dev from a test).
     facts_path = tmp_path / "facts.jsonl"
     facts_path.write_text("", encoding="utf-8")
-    import knockout.memory_backfill as backfill
-
-    def missing_client(_name):
-        raise ImportError("simulated missing client")
-
-    monkeypatch.setattr(backfill.importlib, "import_module", missing_client)
-    assert backfill.push_facts(facts_path) == 2
+    monkeypatch.setitem(sys.modules, "knockout.pastdev", None)
+    assert push_facts(facts_path) == 2
     assert "run --push after merging feature/ws2-pastdev-memory" in capsys.readouterr().err
 
 

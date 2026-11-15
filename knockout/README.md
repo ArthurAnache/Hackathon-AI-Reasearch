@@ -98,20 +98,58 @@ prompts are byte-identical to before.
 .venv/bin/python -m knockout.run --problem toy --editor openai --wall-clock 120 --max-usd 1 --set memory.enabled=true
 ```
 
+**Backfill and metrics** (merged from `feature/ws2-pastdev-tools`): `knockout/memory_backfill.py` turns the
+committed v1 ledgers into facts that keep their original timestamps. A dry run writes them to
+`runs/memory_backfill/facts.jsonl`; `--push FILE` ingests them through `knockout.pastdev`.
+`knockout/memory_metrics.py --on RUN --off RUN [--facts FILE]` compares two runs.
+
+**Block layout.** Refuted ideas and failed batches come first, alternating so neither crowds out the other, then
+at most 3 wins and 2 lessons, one line of at most 200 chars per fact. The "do not retry" query asks for twice
+`recall_k` candidates.
+
 **Results (2026-11-15)**
-- **verified** (offline tests, `tests/test_knockout_memory.py`, 14 tests):
-  - two recorded toy runs share one store, and run 2's prompts carry facts written by run 1;
-  - both runs validate and replay;
+- **verified** (offline tests, `tests/test_knockout_memory.py` and `tests/test_knockout_memory_tools.py`, 21):
+  - two recorded toy runs share one store, and run 2's prompts carry run 1's facts;
+  - replay passes;
   - facts of another problem or scope are never shown;
   - store failures only log `memory_error`;
-  - the block stays under `max_chars`.
-- **verified** (local store, real LLM, toy, 2 x 120 s, 0.63 USD): run 1 wrote 6 facts (3 `win`, 2 `failed_batch`,
-  1 `lesson`). Both of run 2's recalls (control round 0, main batch 0) contained facts authored by run 1 (6 and 7
-  facts). Repeat rate 0 of 10, 5 of 10 children beat their parent, 0.062 LLM USD per winning child.
-- **not yet run**: the same through past.dev (needs `PAST_API_KEY`), the main problem with memory, and the A/B on
-  equal budget. Two toy runs say nothing about whether memory improves the search (**hypothesis**).
-- **limitation**: the baseline test `test_recorded_run_uses_both_arms_and_gates_genes` also fails on the untouched
-  `60e3856`, so it predates this change.
+  - the block stays under its cap;
+  - small wins do not crowd out refuted ideas or failed batches;
+  - tests force the local store, so they never reach past.dev.
+- **verified** (live past.dev):
+  - a smoke ingest was processed in 11 s and then recalled;
+  - two toy runs (`20261115T190228Z-toy-circles-26-60121e8`, `20261115T190750Z-toy-circles-26-60121e8`, 0.31 USD
+    each): all 4 past.dev recalls of run 2 returned 4 facts authored by run 1's `control`, `main` and `run`
+    identities (`runs/<id>/pastdev_log.jsonl`), with 0 memory errors;
+  - credits: 1 -> 27.
+- **verified** (backfill): 84 facts from the 3 committed v1 runs (57 win, 7 refuted, 17 failed_batch, 3 lesson),
+  pushed with 84 ingestions for 103 credits.
+- **verified** (main problem, memory on, `20261115T192052Z-second-autocorrelation-inequality-e8fbf6d`; profile
+  `large-warm-start`, init live, OpenAI editor, 640 s, 0.69 USD of a 4 USD cap):
+  - 3 recalls through past.dev, and all 3 prompts contained facts from other runs (40 of 41, mostly the v1
+    backfill);
+  - 9 facts written, 0 errors, replay passes;
+  - best 0.9636616035856773 (+4.15e-8 vs the live #1). No record.
+- `memory_metrics`, against v1's 60-min run `20261115T023802Z-...-45e7be9` (memory off):
+
+  | Metric | Memory on (10 min) | Memory off (v1, 60 min) |
+  |---|---:|---:|
+  | Repeat rate | 0.0 % | 0.0 % |
+  | Children beating their reference | 26.9 % (7/26) | 6.8 % (30/442) |
+  | USD per winning child | 0.099 | 0.560 |
+  | Memory events | 3 recalls, 41 facts (41 from another run/agent), 0 errors | none |
+  | Best gain over warm start (diagnostic) | +4.09e-8 | +4.99e-8 |
+
+  **Not a matched comparison.** The runs differ in length (10 vs 60 min), and early batches near the warm start
+  win more often, so the higher win share and lower USD per win cannot be credited to memory (**hypothesis** at
+  best). A repeat rate of 0 % on both sides means this metric does not separate them here. A fair answer needs
+  the A/B on equal budget with isolated scopes (`memory.scope_suffix`, `memory.since`), which is not run.
+- **limitation**: before the tests were made offline, one test run wrote about 57 test facts to the live past.dev
+  project, tagged `toy-circles-26` and `another-problem` (runs `runA`, `runB`, `runO`, `run1`, `run2`; about 78
+  credits). They are kept, by decision. They never reach main-problem prompts, but a toy demo would recall them.
+- **limitation**: `test_recorded_run_uses_both_arms_and_gates_genes` (v1) also fails on the untouched `60e3856`.
+- past.dev credits for the whole session: 1 -> 238 spent (smoke and toy runs 26, stray tests about 78,
+  backfill 103, block probes and step 9 the remaining 30).
 
 ## Status
 
