@@ -21,11 +21,18 @@ Families and the meaning of `strength`:
 | `transfer_mass` | moves mass from one window (1 % of the grid) to another | share of the window's mass |
 | `shift_runs` | shifts the runs of one window by 1 or 2 cells | window width / grid |
 | `open_gradient` | opens the zero cells where the gradient of the smoothed score is largest | cells opened / support |
+| `envelope` | continues the slow drift of the leader's envelope (needs the reference solutions) | drift, in units of 1e-5 of the leader's score gain |
+| `clear_band` | scales down the sparse band between 65 % and 90 % of the grid | share of the band's mass removed |
 
 `region_noise` and `swap_support` come from comparing solutions 2782 and 2783 (the previous and the current #1 of
 the same team): 25,554 small cells holding 0.7 % of the mass disappeared, 23,191 cells appeared, and on common
 cells the ratio has quartiles 0.79 and 1.24 (a log-normal with sigma about 0.32), all of it on the ramp and the end
 block.
+
+`envelope` and `clear_band` come from the four successive solutions of that team on 2026-11-14 (2780, 2781, 2782,
+2783; +1.3e-5, +1.3e-5, +2.3e-5). Cell by cell their steps look like a random walk (cosine between successive
+displacements 0.03 to 0.10), but the displacement of the mass of blocks of 65,536 cells keeps its direction
+(cosine 0.90 to 0.93): the first 5 % of the grid gains mass at every step and the sparse band loses mass.
 """
 from __future__ import annotations
 
@@ -163,6 +170,34 @@ def open_gradient(f, rng, strength, beta: float = 1e8, amplitude: float = 0.005)
     return out
 
 
+def envelope(f, rng, strength, references=None, block: int = 65536, first: str = "sol2780", last: str = "sol2783",
+             gain: float = 4.868e-5):
+    """Multiply f by exp(strength * e(x)), where e is the drift of the block masses from `first` to `last` (log
+    ratio, per 1e-5 of the score gained between them), linear between block centres. Blocks with less than 1e-4
+    of the mass are left alone, and e is clipped at 5 times its median size."""
+    a, b = references[first], references[last]
+    n = len(f)
+    block = min(block, max(1, n // 8))
+    k = n // block
+    mass_a = a[: k * block].reshape(k, block).sum(1) / a.sum()
+    mass_b = b[: k * block].reshape(k, block).sum(1) / b.sum()
+    drift = np.zeros(k)
+    ok = (mass_a > 1e-4) & (mass_b > 1e-4)
+    if not ok.any():
+        return f.copy()
+    drift[ok] = np.log(mass_b[ok] / mass_a[ok]) / (gain / 1e-5)
+    cap = 5.0 * np.median(np.abs(drift[ok]))
+    drift = np.clip(drift, -cap, cap)
+    e = np.interp(np.arange(n), (np.arange(k) + 0.5) * block, drift)
+    return f * np.exp(strength * e)
+
+
+def clear_band(f, rng, strength, lo: float = 0.65, hi: float = 0.90):
+    out = f.copy()
+    out[int(lo * len(f)):int(hi * len(f))] *= 1.0 - strength
+    return out
+
+
 MOVES = {
     "reheat": reheat,
     "lognormal": lognormal,
@@ -175,15 +210,21 @@ MOVES = {
     "transfer_mass": transfer_mass,
     "shift_runs": shift_runs,
     "open_gradient": open_gradient,
+    "envelope": envelope,
+    "clear_band": clear_band,
 }
+
+# Moves that read other solutions: they get `references`, a dict name -> solution.
+NEEDS_REFERENCES = {"envelope"}
 
 # Evaluations a move spends itself; the episode takes them off the polish budget.
 MOVE_EVALS = {"open_gradient": 1.5}
 
 
-def apply_move(family: str, f: np.ndarray, seed: int, strength: float) -> np.ndarray:
+def apply_move(family: str, f: np.ndarray, seed: int, strength: float, references: dict | None = None) -> np.ndarray:
     """Run one move and check its contract. Raises ValueError on a broken result."""
-    out = MOVES[family](np.asarray(f, dtype=np.float64), np.random.default_rng(seed), float(strength))
+    extra = {"references": references or {}} if family in NEEDS_REFERENCES else {}
+    out = MOVES[family](np.asarray(f, dtype=np.float64), np.random.default_rng(seed), float(strength), **extra)
     out = np.asarray(out, dtype=np.float64)
     if out.shape != f.shape or not np.all(np.isfinite(out)) or out.min() < 0.0 or out.sum() <= 0.0:
         raise ValueError(f"move {family} broke its contract")

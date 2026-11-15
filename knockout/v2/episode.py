@@ -67,7 +67,7 @@ def run_episode(spec: EpisodeSpec, f_start: np.ndarray, score_fn=frozen_score, r
     the distance of the final solution to each of them."""
     t0 = time.monotonic()
     f_start = np.asarray(f_start, dtype=np.float64)
-    moved = apply_move(spec.family, f_start, spec.seed, spec.strength)
+    moved = apply_move(spec.family, f_start, spec.seed, spec.strength, references)
     best_f, info = polish(moved, spec.schedule, spec.budget - MOVE_EVALS.get(spec.family, 0.0))
     starts, _ = runs(best_f)
     record = {

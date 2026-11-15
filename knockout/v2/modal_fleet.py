@@ -162,11 +162,12 @@ def estimate_usd(specs: list[dict]) -> float:
 
 @app.local_entrypoint()
 def launch(plan: str = "smoke", plan_file: str = "", source_commit: str = "", best_known_score: float = 0.0,
-           max_usd: float = 5.0, baselines: bool = True):
+           max_usd: float = 5.0, baselines: bool = True, references: str = "sol2782,sol2783"):
     """Start a run in the background. `plan` names a function of knockout/v2/plans.py; `plan_file` is a JSON list
     of episode specs and wins over `plan`. The launch is refused when the cost estimate exceeds `max_usd`.
     `--no-baselines` leaves the polish-alone episodes out, when another run already has them (finalize then takes
-    both run ids)."""
+    both run ids). `references` names the start solutions each record gets a distance to; the `envelope` move
+    needs sol2780 and sol2783 among them."""
     from knockout.v2 import plans
 
     specs = json.loads(Path(plan_file).read_text()) if plan_file else plans.PLANS[plan]()
@@ -181,7 +182,7 @@ def launch(plan: str = "smoke", plan_file: str = "", source_commit: str = "", be
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_id = f"{stamp}-{name}"
     meta = {"source_commit": source_commit or None, "best_known_score": best_known_score or None,
-            "references": ["sol2782", "sol2783"], "plan": name}
+            "references": [r for r in references.split(",") if r], "plan": name}
     call = drive.spawn(run_id, specs, meta)
     print(f"run_id={run_id} episodes={len(specs)} evaluations={sum(s['budget'] for s in specs)} "
           f"estimate_usd={usd:.2f} call={call.object_id}")

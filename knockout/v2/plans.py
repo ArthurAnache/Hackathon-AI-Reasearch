@@ -22,6 +22,11 @@ STRENGTHS = {
     "shift_runs": [1e-5, 1e-4, 1e-3, 1e-2],
     "open_gradient": [1e-4, 1e-3, 1e-2, 1e-1],
 }
+# The two families taken from the leader's trajectory (added after E1 was launched, so E1 does not hold them).
+TRAJECTORY_STRENGTHS = {
+    "envelope": [0.01, 0.1, 1.0, 3.0],
+    "clear_band": [0.01, 0.1, 0.5, 1.0],
+}
 REHEAT_SCHEDULES = ["a7", "a6", "a5", "mm6", "mm7", "mm8"]
 
 
@@ -110,10 +115,31 @@ def direct() -> list[dict]:
             for s in reheats(start, (1500, 6000), ("f:p0", "f:a7", "f:h7", "f:a5"))]
 
 
+def e1_extra() -> list[dict]:
+    """E1, second part: the two trajectory families from solution 2782 (baselines are in the E1 run)."""
+    out = []
+    for family, strengths in TRAJECTORY_STRENGTHS.items():
+        for strength in strengths:
+            out += [spec("sol2782", family, strength, 1, schedule, 1500) for schedule in ("p0", "a7")]
+            out.append(spec("sol2782", family, strength, 2, "a7", 3000))
+    return out
+
+
+def e2_moves() -> list[dict]:
+    """E2, second part: every family from the live #1 (solution 2783), at its two mildest strengths (E1 showed
+    that stronger moves are not recovered), followed by the anneal a7, the schedule that recovered best in E1.
+    Baselines are in the e2_reheat run."""
+    out = []
+    for family, strengths in {**STRENGTHS, **TRAJECTORY_STRENGTHS}.items():
+        out += [spec("sol2783", family, strength, 1, "a7", 3000) for strength in strengths[:2]]
+        out.append(spec("sol2783", family, strengths[0], 2, "a7", 1500))
+    return out
+
+
 def deep_holds() -> list[dict]:
     """Holds at beta = 1e5 from both starts (the baselines are in the `holds` run)."""
     return [s for start in ("sol2782", "sol2783") for s in reheats(start, (6000, 12000), ("h5",))]
 
 
 PLANS = {"smoke": smoke, "e1": e1, "e1_wide": e1_wide, "e2_reheat": e2_reheat, "holds": holds, "direct": direct,
-         "deep_holds": deep_holds}
+         "deep_holds": deep_holds, "e1_extra": e1_extra, "e2_moves": e2_moves}

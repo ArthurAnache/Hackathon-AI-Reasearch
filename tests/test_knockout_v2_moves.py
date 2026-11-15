@@ -110,9 +110,10 @@ class PolishTest(unittest.TestCase):
 class MovesTest(unittest.TestCase):
     def test_contract_and_determinism(self):
         f = comb(2000)
+        refs = {"sol2780": comb(2000, seed=1), "sol2783": comb(2000, seed=2)}
         for family in MOVES:
-            a = apply_move(family, f, 7, 0.1)
-            b = apply_move(family, f, 7, 0.1)
+            a = apply_move(family, f, 7, 0.1, refs)
+            b = apply_move(family, f, 7, 0.1, refs)
             np.testing.assert_array_equal(a, b, err_msg=family)
             self.assertEqual(a.shape, f.shape, family)
             self.assertGreaterEqual(a.min(), 0.0, family)
@@ -145,6 +146,17 @@ class MovesTest(unittest.TestCase):
         grown = MOVES["open_gradient"](f, rng(), 0.1, beta=30.0)
         self.assertGreaterEqual(np.count_nonzero(grown), np.count_nonzero(f))
         np.testing.assert_array_equal(grown[f > 0], f[f > 0])
+
+    def test_envelope_follows_the_block_drift_and_clear_band_empties_the_band(self):
+        f = np.ones(4000)
+        refs = {"sol2780": np.ones(4000), "sol2783": np.ones(4000)}
+        refs["sol2783"][:2000] *= 1.2                        # the first half gained mass
+        out = MOVES["envelope"](f, None, 1.0, references=refs, block=500)
+        self.assertGreater(out[:1500].min(), out[2500:].max())
+        np.testing.assert_array_equal(MOVES["envelope"](f, None, 0.0, references=refs, block=500), f)
+        cleared = MOVES["clear_band"](f, None, 1.0)
+        self.assertEqual(cleared[2600:3600].sum(), 0.0)
+        self.assertEqual(cleared[:2600].sum() + cleared[3600:].sum(), 3000.0)
 
     def test_broken_move_is_rejected(self):
         MOVES["_bad"] = lambda f, rng, s: -f
