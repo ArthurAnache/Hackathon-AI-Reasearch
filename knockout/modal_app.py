@@ -62,8 +62,20 @@ def _llm_key() -> str:
     return key
 
 
-# Attached to the orchestrator only. Inside a container this resolves to the value Modal injected at launch.
-llm_secret = modal.Secret.from_dict({"OPENAI_API_KEY": _llm_key()})
+def _past_key() -> str:
+    """PAST_API_KEY of the launcher (environment, then .env), for the shared memory (knockout/memory.py)."""
+    key = os.environ.get("PAST_API_KEY", "").strip()
+    env_file = REPO / ".env"
+    if not key and env_file.exists():
+        from dotenv import dotenv_values
+
+        key = (dotenv_values(env_file).get("PAST_API_KEY") or "").strip()
+    return key
+
+
+# Attached to the orchestrator only (never to evaluate_job). Inside a container this resolves to the values Modal
+# injected at launch. PAST_API_KEY is empty when memory is not used: the loop then falls back to its local store.
+llm_secret = modal.Secret.from_dict({"OPENAI_API_KEY": _llm_key(), "PAST_API_KEY": _past_key()})
 
 # include_source=False: the image above already holds the whole package, at the same place Modal would mount it.
 app = modal.App(_CFG["app_name"], image=image, include_source=False)

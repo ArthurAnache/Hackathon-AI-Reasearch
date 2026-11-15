@@ -33,6 +33,8 @@ EVENT_TYPES = (
     "llm_call", "warm_start_update",
     # main arm: islands and linkage (decisions with no type of their own in the prompt's list)
     "island_opened", "island_replaced", "linkage",
+    # shared memory (knockout/memory.py, past.dev)
+    "memory_recall", "memory_write", "memory_error",
 )
 
 

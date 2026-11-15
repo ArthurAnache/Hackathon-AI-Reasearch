@@ -125,6 +125,9 @@ def run(problem_id: str, *, runs_root: str | Path = "runs", run_id: str | None =
     init_score = float(problem.score(init)) if init is not None else None
     ctx = RunContext(run_id, problem, strategy, ledger, governor, executor, source_commit,
                      device="cpu", init=init, init_score=init_score)
+    from knockout.memory import RunMemory
+
+    ctx.memory = RunMemory(ctx)            # disabled unless memory.enabled; never stops the run
     rng = np.random.default_rng(int(strategy["run.seed"]))
     editor = editor or make_editor(ctx)
     seed_source = seed_path.read_text()
@@ -220,6 +223,11 @@ def run(problem_id: str, *, runs_root: str | Path = "runs", run_id: str | None =
                    # True only when the promotion gate logged a record_claim (section 5.11); still to be
                    # confirmed by selection/verify_claim.py.
                    "record_claims": [e["refs"][0] for e in claims], "beats_record": bool(claims)}
+        try:
+            ctx.memory.close(summary)       # end-of-run lesson, then drain the write queue (bounded wait)
+            summary["memory"] = {k: v for k, v in ctx.memory.stats.items()}
+        except Exception as exc:  # noqa: BLE001
+            on_round(f"memory close failed: {type(exc).__name__}: {exc}")
         ledger.event("run_end", seed=None, refs=[top["best_experiment"]] if top["best_experiment"] else [],
                      **{k: v for k, v in summary.items() if k not in ("control_curve", "main_curve")})
         (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
