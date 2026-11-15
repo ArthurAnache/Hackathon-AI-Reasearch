@@ -1,0 +1,110 @@
+{
+ "candidates": {
+  "milo_replay_25600_c_remelt": {
+   "file": "milo_replay_25600_c_remelt.json.gz",
+   "n": 25600,
+   "sha256_json": "6262db4f37d66e8087be46cb1f01231360a5562242f1591a1243c6ebb9e128f2",
+   "score_pinned_verifier": 1.448825267560211,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4488252675602122,
+   "pinned_minus_exact": -1.3322676295501878e-15,
+   "argmax_lag": 38437,
+   "below_live_top1_by": 0.00028452177170001924,
+   "below_live_top1_by_over_delta": 28.45217717000192,
+   "below_milo_claim_by": 6.074670455258335e-05,
+   "below_milo_claim_by_over_delta": 6.074670455258334,
+   "run": {
+    "experiment_id": "scout-third-autocorr/milo_replay_25600_c_remelt",
+    "checked_on": "2026-11-15T05:18:32+00:00",
+    "start": "selection/.cache/scout/third-autocorrelation-inequality/runs/milo_replay_25600_c/best.json",
+    "upsample": 1,
+    "up_noise": 0.001,
+    "config": {
+     "t_hot": 0.001,
+     "t_cold": 1e-08,
+     "stages": 14
+    },
+    "budget_s": 420.0,
+    "wall_s": 420.0,
+    "device": "local CPU, 1 process"
+   }
+  },
+  "milo_replay_25600_c": {
+   "file": "milo_replay_25600_c.json.gz",
+   "n": 25600,
+   "sha256_json": "dd1f75f8a9f38332171d538458b709d6510a95160c595e45c85844a98946fc5f",
+   "score_pinned_verifier": 1.448827989657653,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.448827989657653,
+   "pinned_minus_exact": 0.0,
+   "argmax_lag": 38439,
+   "below_live_top1_by": 0.00028179967425789876,
+   "below_live_top1_by_over_delta": 28.179967425789872,
+   "below_milo_claim_by": 5.802460711046287e-05,
+   "below_milo_claim_by_over_delta": 5.802460711046286,
+   "run": {
+    "experiment_id": "scout-third-autocorr/milo_replay_25600_c",
+    "checked_on": "2026-11-15T05:03:34+00:00",
+    "start": "selection/.cache/scout/third-autocorrelation-inequality/milo/milo_record_x8_25600.json",
+    "upsample": 1,
+    "up_noise": 0.0,
+    "config": {
+     "t_hot": 0.01,
+     "t_cold": 1e-08,
+     "stages": 16
+    },
+    "budget_s": 420.0,
+    "wall_s": 420.0,
+    "device": "local CPU, 1 process"
+   }
+  },
+  "milo_replay_25600_e": {
+   "file": "milo_replay_25600_e.json.gz",
+   "n": 25600,
+   "sha256_json": "18e6520db96ecfda0bdf98e3250e6ea8527b3070980d2fc600b1f4c091f3c40b",
+   "score_pinned_verifier": 1.448835478669337,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.448835478669337,
+   "pinned_minus_exact": 0.0,
+   "argmax_lag": 39233,
+   "below_live_top1_by": 0.0002743106625739955,
+   "below_live_top1_by_over_delta": 27.431066257399547,
+   "below_milo_claim_by": 5.053559542655961e-05,
+   "below_milo_claim_by_over_delta": 5.053559542655961,
+   "run": {
+    "experiment_id": "scout-third-autocorr/milo_replay_25600_e",
+    "checked_on": "2026-11-15T05:18:32+00:00",
+    "start": "selection/.cache/scout/third-autocorrelation-inequality/milo/milo_record_x8_25600.json",
+    "upsample": 1,
+    "up_noise": 0.0,
+    "config": {
+     "t_hot": 0.1,
+     "t_cold": 1e-08,
+     "stages": 18
+    },
+    "budget_s": 420.0,
+    "wall_s": 420.0,
+    "device": "local CPU, 1 process"
+   }
+  }
+ },
+ "slug": "third-autocorrelation-inequality",
+ "delta": 1e-05,
+ "status": "candidates only: not submitted, not arbitrated by selection/verify_claim.py, not a record claim",
+ "provenance": "Re-optimized by selection/scout_third_autocorr.py from the plot-resolution copy of MILO's record published at https://jprithwish.github.io/MILO/static/einstein-run.js (Jana et al., arXiv:2609.38349). Any use must credit MILO for the starting construction.",
+ "live_top1_when_packed": {
+  "score": 1.449109789331911,
+  "agent": "Atris",
+  "read_on": "2026-11-15T04:37:05+00:00"
+ },
+ "milo_claimed_record": 1.4488860142647635,
+ "milo_published_copy": {
+  "file": "milo_published_copy_3200.json.gz",
+  "sha256_json": "ef87d878fc52477fe0ea8a0f055151885c995d98ba64ee8a4a4451acaba98707",
+  "what": "3,200 of the 25,600 values of MILO's record, 6 decimals, as published in the demo data file",
+  "source_url": "https://jprithwish.github.io/MILO/static/einstein-run.js",
+  "accessed_on": "2026-11-15T04:50:41+00:00",
+  "source_file_sha256": "12864825cad36ccc5f9797dd51a79d64f98278267faf5ab1c29143e3ddaa237e",
+  "score_as_published": 1.6557955266483575
+ }
+}

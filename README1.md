@@ -92,6 +92,14 @@ Pinned sources:
 | `integrations/arena_register.py` | One-time agent registration (challenge + proof of work), run only with Arthur's approval |
 | `integrations/submit.py` | Gated single-shot submission and `--status` check |
 | `selection/submissions.jsonl` | Every submission attempt (sent / blocked / error) and status check, with reasons |
+| `selection/scout_refresh.py`, `selection/scout_live.jsonl` | Problem scout: live #1, #2, δ and recent movement of every live problem |
+| `selection/scout_milo_replay.py`, `selection/scout_milo_replay.json` | Extracts the copy of MILO's third-autocorrelation record published on its project page; claim and source hashes |
+| `selection/scout_third_autocorr.py`, `selection/scout_third_autocorr_runs.jsonl` | Experiment on third-autocorrelation (`scan`, `refine`, `chain`, `compare`) and its run log |
+| `selection/scout_third_autocorr_exact.py` | Independent exact-rational scorer for third-autocorrelation (standard library only) |
+| `selection/scout_two_deletion.py`, `selection/scout_two_deletion_runs.jsonl` | Local-search probe on two-deletion-code-16 and its run log |
+| `selection/scout_decide.py`, `selection/problem_scout.jsonl` | Scout decisions: one line per live problem, with evidence |
+| `selection/scout_pack_candidates.py`, `selection/scout_candidates/` | Third-autocorrelation candidates (gzip) with `MANIFEST.json`; candidates, not records |
+| `docs/problem_scout.md` | Scout report: ranking, evidence, experiments, recommendation |
 | `selection/.cache/` | Git-ignored: pinned clone, raw API responses, record and best solutions, extracted verifiers |
 
 All registries share the same conventions: one JSON object per line per problem, with `decision`, `rationale`,
@@ -537,7 +545,43 @@ handlers of the pinned commit (`web/src/app/api/**/route.ts`), read to get the e
 - **past.dev: not written.** The adapter exists only on `origin/ws4-sponsor-integrations` and `PAST_API_KEY` is not
   set. To do with WS4.
 
-## 12. Next steps and limitations
+## 12. Problem scout (2026-11-14 evening PT)
+
+**Question:** with the main problem stuck at 0.5 % of δ, does another problem offer a more reachable record?
+Full report: `docs/problem_scout.md`. One line per live problem: `selection/problem_scout.jsonl`.
+
+**What was done:**
+1. `selection/scout_refresh.py` re-read all 28 live problems: #1, #2, δ, and the creation dates of the top 8
+   solutions, as a measure of recent movement (`selection/scout_live.jsonl`).
+2. third-autocorrelation: read the MILO paper (arXiv:2609.38349, App. E) and its project page. The claim is
+   1.4488860143 on 25,600 points with the arena verifier (same definition as ours). The construction is not public,
+   but the project page publishes a plot-resolution copy of it (3,200 of the 25,600 values, 6 decimals).
+   `selection/scout_milo_replay.py` extracts it.
+3. `selection/scout_third_autocorr.py` re-implements the method MILO describes (log-sum-exp surrogate, FFT
+   gradient, L-BFGS on a cooling ladder, re-melt hops). `selection/scout_third_autocorr_exact.py` is an independent
+   exact-rational scorer (standard library only).
+4. `selection/scout_two_deletion.py` probes the live #1 of two-deletion-code-16 with a local search.
+5. `selection/scout_decide.py` writes the decisions; `selection/scout_pack_candidates.py` stores the candidates.
+
+**Results:**
+- From the live #1 of third-autocorrelation, the method gains 0 δ: 12 re-melt hops over 4 workers × 300 s
+  (**verified** with the pinned verifier), and a cold polish and a ×2 upsampling (measured with the FFT scorer only).
+- **Verified:** re-optimized from MILO's published copy, the same method gives seven candidates that the pinned
+  verifier scores 23.7 to 28.5 δ below the live #1 and 1.3 to 6.1 δ below MILO's claimed value, in 5 to 7 minutes
+  of one core each. The best is 1.448825267560211. The exact-rational scorer agrees within 1.3e-15. The three best
+  are stored with a manifest in `selection/scout_candidates/third-autocorrelation-inequality/`.
+- **Verified:** the live #1 of two-deletion-code-16 (226 words) has no free word and a single one-tight word; simple
+  local search gains nothing in 60 s.
+- **Claim:** MILO's own value, and its cost (12.7 days of search).
+- **Limitation:** the candidates derive from MILO's published data, were not submitted, and were not arbitrated by
+  `verify_claim.py` because the problem is not frozen.
+
+**Proposal (Arthur decides):** switch the main effort to third-autocorrelation if a MILO-derived result is
+acceptable with credit; then freeze the problem (pinned verifier, live #1 as certificate, the exact scorer as
+independent verifier), with the record to beat set to the lower of the live #1 and MILO's claimed value.
+kakeya-needle-128 is the next problem to study otherwise.
+
+## 13. Next steps and limitations
 
 **Open items for WS1** (arbitration and data only, no optimization):
 - Arbitrate every claim from WS2/WS3 with `verify_claim.py`. Arthur decides on submission.

@@ -1,0 +1,92 @@
+{
+ "source_url": "https://jprithwish.github.io/MILO/static/einstein-run.js",
+ "page_url": "https://jprithwish.github.io/MILO/",
+ "accessed_on": "2026-11-15T04:50:41+00:00",
+ "raw_sha256": "12864825cad36ccc5f9797dd51a79d64f98278267faf5ab1c29143e3ddaa237e",
+ "claimed_record": 1.4488860142647635,
+ "claimed_record_date": "2026-09-15",
+ "record_n": 25600,
+ "prior": 1.4508066395052834,
+ "prior_who": "Poolish, arena #1 since 2026-08-23",
+ "start_who": "arena rank 3 (BasinHopper, 1.4515829)",
+ "run_started": "2026-09-02T12:46Z",
+ "running_min": [
+  [
+   0.0,
+   1.4515437020489206,
+   "2026-09-02T12:46Z"
+  ],
+  [
+   0.0298,
+   1.4512742687366507,
+   "2026-09-02T13:29Z"
+  ],
+  [
+   1.3902,
+   1.450730923400444,
+   "2026-09-03T22:08Z"
+  ],
+  [
+   1.4892,
+   1.4503843138016275,
+   "2026-09-04T00:31Z"
+  ],
+  [
+   2.6661,
+   1.449943221822229,
+   "2026-09-05T04:45Z"
+  ],
+  [
+   5.7644,
+   1.4499130986314621,
+   "2026-09-08T07:07Z"
+  ],
+  [
+   6.1708,
+   1.4494963817983495,
+   "2026-09-08T16:52Z"
+  ],
+  [
+   9.2569,
+   1.449314855086075,
+   "2026-09-11T18:56Z"
+  ],
+  [
+   9.4366,
+   1.4492034534766398,
+   "2026-09-11T23:15Z"
+  ],
+  [
+   11.7574,
+   1.448917607301793,
+   "2026-09-14T06:57Z"
+  ],
+  [
+   12.7057,
+   1.4489159134913212,
+   "2026-09-15T05:42Z"
+  ],
+  [
+   12.7098,
+   1.4488860142647635,
+   "2026-09-15T05:48Z"
+  ]
+ ],
+ "n_harness_evals": 41,
+ "n_sub_record_constructions": 403,
+ "label": "claim (read on the project page); the full construction is not published",
+ "published_copy": {
+  "start": {
+   "n_published": 3200,
+   "n_original": 25600,
+   "score_as_published": 1.551268003566417,
+   "upsampled_file": "selection/.cache/scout/third-autocorrelation-inequality/milo/milo_start_x8_25600.json"
+  },
+  "record": {
+   "n_published": 3200,
+   "n_original": 25600,
+   "score_as_published": 1.6557955266483575,
+   "upsampled_file": "selection/.cache/scout/third-autocorrelation-inequality/milo/milo_record_x8_25600.json"
+  }
+ }
+}
