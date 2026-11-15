@@ -18,11 +18,19 @@ Which ideas can be chosen:
   map as "no runner yet".
 
 The bandit. One arm per idea, one pull per experiment (crashes included: they cost
-compute). Reward of an experiment = sqrt(min(1, gain/delta)) when it is positive
-evidence (integrations.verdicts), else 0; with delta unknown, 1 for any gain. The
-square root keeps a 0.01-delta gain visible (0.1) without letting it look like a
-record-sized one (1.0); positive evidence never earns less than 0.1 (a `worked`
-claim reproduced below the current best is still worth something: it is a base). Score = mean reward + c * sqrt(ln(total pulls) / pulls).
+compute). The reward of an experiment has two parts, both in [0, 0.5]:
+- standing: how its score ranks among every valid run of the candidate ideas
+  (0.5 x the share of the other runs it beats). This is what lets the bandit
+  concentrate on the best idea while every idea is still below the record, which
+  is the usual case: a verdict needs a gain over the record, a search does not.
+  Without it every reward is 0 and UCB degenerates into round robin.
+- gain: 0.5 + 0.5 * sqrt(min(1, gain/delta)) when the run is positive evidence
+  (integrations.verdicts); with delta unknown, 1. The square root keeps a
+  0.01-delta gain visible without letting it look like a record-sized one.
+The standing is a search heuristic only: it never touches a verdict.
+Exploration: c = 0.4, i.e. the classic 0.8 scaled to rewards that span 0.5 below
+the record. After one experiment per idea the next one goes to the best idea; on
+the first real comparison (4 ideas, 8 experiments) it then gets 4 of the 8. Score = mean reward + c * sqrt(ln(total pulls) / pulls).
 Ideas never tried come first, in the order: claimed to have worked, then untested
 ideas, then revived dead ends; ties keep the order of the map.
 """
@@ -40,11 +48,26 @@ class NoIdeaLeft(RuntimeError):
     """No runnable idea is left on the frontier."""
 
 
-def reward(row: Dict[str, Any]) -> float:
-    if row["evidence"] != "positive":
-        return 0.0
-    g = row["gain_over_delta"]
-    return 1.0 if g is None else max(0.1, math.sqrt(min(1.0, max(0.0, g))))
+def reward(row: Dict[str, Any], standing: Optional[float] = None) -> float:
+    """standing: share of the other runs this run beats, 0..1 (None: unknown, or not a valid run)."""
+    if row["evidence"] == "positive":
+        g = row["gain_over_delta"]
+        return 1.0 if g is None else 0.5 + 0.5 * math.sqrt(min(1.0, max(0.0, g)))
+    return 0.5 * standing if standing is not None else 0.0
+
+
+def standings(rows_by_idea: Dict[str, List[Dict[str, Any]]], sign: float = 1.0) -> Dict[tuple, float]:
+    """{(idea id, run key): share of the other valid runs it beats (a tie counts half)}."""
+    scored = [(i, x["key"], sign * x["score"]) for i, rows in rows_by_idea.items() for x in rows
+              if x["score"] is not None and x["evidence"] not in ("ambiguous", "copy")]
+    out = {}
+    for i, key, u in scored:
+        if len(scored) < 2:
+            out[(i, key)] = 0.5                         # alone: nothing to rank against
+            continue
+        beaten = sum(1.0 if u > v else 0.5 if u == v else 0.0 for j, k, v in scored if (j, k) != (i, key))
+        out[(i, key)] = beaten / (len(scored) - 1)
+    return out
 
 
 def local_history(history: Iterable[Dict[str, Any]], idea_id: str, sign: float = 1.0,
@@ -72,7 +95,7 @@ def local_history(history: Iterable[Dict[str, Any]], idea_id: str, sign: float =
 
 class IdeaChooser:
     def __init__(self, store: ideas.IdeaStore, ref_for: Callable[[Dict[str, Any]], verdicts.Reference],
-                 problems: Optional[Iterable[str]] = None, c: float = 0.8, need_runner: bool = True,
+                 problems: Optional[Iterable[str]] = None, c: float = 0.4, need_runner: bool = True,
                  min_gain_over_delta: float = verdicts.MIN_GAIN_OVER_DELTA,
                  aliases: Optional[Dict[str, str]] = None):
         """problems: map slugs to choose from (None = every problem on the map).
@@ -95,10 +118,11 @@ class IdeaChooser:
     def ranking(self, history: List[Dict[str, Any]], exclude: Iterable[str] = ()) -> List[Dict[str, Any]]:
         """Candidates, best first: [{"id", "node", "pulls", "mean", "score", "why"}]."""
         cands = self.candidates(exclude)
-        stats = {}
-        for n in cands:
-            rows = verdicts.observe(n, history, self.ref_for(n), self.aliases, self.min_gain_over_delta)
-            stats[n["id"]] = (len(rows), sum(reward(x) for x in rows))
+        rows_by_idea = {n["id"]: verdicts.observe(n, history, self.ref_for(n), self.aliases,
+                                                  self.min_gain_over_delta) for n in cands}
+        rank = standings(rows_by_idea, self.ref_for(cands[0]).sign) if cands else {}
+        stats = {i: (len(rows), sum(reward(x, rank.get((i, x["key"]))) for x in rows))
+                 for i, rows in rows_by_idea.items()}
         total = sum(p for p, _ in stats.values()) + 1
         out = []
         for order, n in enumerate(cands):

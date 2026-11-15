@@ -1336,53 +1336,93 @@ def test_chooser_never_proposes_a_dead_end_and_needs_a_runner():
     assert idea_chooser.IdeaChooser(store, lambda n: REF, problems=set()).candidates() == []   # no problem, not all
     assert len(idea_chooser.IdeaChooser(store, lambda n: REF, problems=None, need_runner=False).candidates()) == 4
 
-    # simulate a long run: ws1-007 and ws1-018 never gain, ws1-017 gains on every 2nd run of its own;
+    # simulate a run: ws1-007 and ws1-018 never gain, ws1-017 gains on every 2nd run of its own;
     # verdicts are updated after each experiment, as the loop does
     history, chosen, b = [], [], RECORD
-    for step in range(60):
+
+    def step(i):
         pick = chooser.choose(history)
-        if pick is None:
-            break
         pulls = chosen.count(pick["id"])
         chosen.append(pick["id"])
         best = max([r["score"] for r in history if r["status"] == "keep"] or [b])
-        gain = {"ws1-017": 2e-6 if pulls % 2 == 0 else -1e-6, "ws1-007": -1e-5 * (step + 1)}.get(
-            pick["id"], -1e-4 * (step + 1))
-        history.append(rec(pick["id"], best + gain, best, eid="sim_%03d" % step, dur=LONG))
+        gain = {"ws1-017": 2e-6 if pulls % 2 == 0 else -1e-6, "ws1-007": -1e-5 * (i + 1)}.get(
+            pick["id"], -1e-4 * (i + 1))
+        history.append(rec(pick["id"], best + gain, best, eid="sim_%03d" % i, dur=LONG))
         verdicts.update_verdict(store, pick["id"], history, REF)
+
+    for i in range(40):
+        step(i)
         dead_now = {n["id"] for n in store.all() if ideas.is_dead(n)}
         nxt = chooser.choose(history)
         assert nxt is None or nxt["id"] not in dead_now                    # gone from the very next choice
-    assert "ws1-010" not in chosen
-    for idea_id in ("ws1-018", "ws1-007"):                                 # refuted by us, then never again
-        assert store.get(idea_id)["status"] == "refuted"
-        last = len(chosen) - 1 - chosen[::-1].index(idea_id)
-        assert idea_id not in chosen[last + 1:] and chosen.count(idea_id) == 4   # baseline + 3 negatives
-    assert store.get("ws1-017")["status"] == "reproduced" and chosen.count("ws1-017") == 60 - 8
-    assert chooser.choose(history)["id"] == "ws1-017"
+    assert "ws1-010" not in chosen and chosen[:3] == ["ws1-007", "ws1-017", "ws1-018"]
+    assert store.get("ws1-017")["status"] == "reproduced" and chosen.count("ws1-017") > 25   # it concentrates
+    # an idea our runs refute is never proposed again
+    for k in range(4):
+        history.append(rec("ws1-018", b - 1e-3 * (k + 1), b, eid="kill_%d" % k, dur=LONG))
+    verdicts.update_verdict(store, "ws1-018", history, REF)
+    assert store.get("ws1-018")["status"] == "refuted"
+    seen = len(chosen)
+    for i in range(40, 70):
+        step(i)
+    assert "ws1-018" not in chosen[seen:] and "ws1-010" not in chosen
 
 
 def test_chooser_is_a_bandit_on_gain_over_delta():
     d = _fresh("bandit")
     store = _runnable(d, ids=("ws1-017", "ws1-018"))
-    chooser = idea_chooser.IdeaChooser(store, lambda n: REF, problems={SLUG}, c=0.8)
+    chooser = idea_chooser.IdeaChooser(store, lambda n: REF, problems={SLUG})
     b = RECORD
     history = [rec("ws1-017", b + 1e-6, b), rec("ws1-018", b + 6e-6, b)]    # both tried once: 0.1 vs 0.5 delta
     ranked = chooser.ranking(history)
     assert [x["id"] for x in ranked] == ["ws1-018", "ws1-017"]
-    assert abs(ranked[0]["mean"] - math.sqrt(0.5)) < 1e-6 and abs(ranked[1]["mean"] - math.sqrt(0.1)) < 1e-6
+    assert abs(ranked[0]["mean"] - (0.5 + 0.5 * math.sqrt(0.5))) < 1e-6
+    assert abs(ranked[1]["mean"] - (0.5 + 0.5 * math.sqrt(0.1))) < 1e-6
     assert "UCB" in ranked[0]["why"]
     # exploration: after many pulls of the better arm, the other one gets another try
     many = history + [rec("ws1-018", b, b + 6e-6) for _ in range(40)]
     assert chooser.choose(many)["id"] == "ws1-017"
-    assert idea_chooser.reward({"evidence": "negative", "gain_over_delta": 5}) == 0.0
+    assert idea_chooser.reward({"evidence": "negative", "gain_over_delta": 5}) == 0.0        # a crash, no rank
+    assert idea_chooser.reward({"evidence": "negative", "gain_over_delta": -5}, standing=1.0) == 0.5
     assert idea_chooser.reward({"evidence": "positive", "gain_over_delta": 4.0}) == 1.0      # capped at a record
     assert idea_chooser.reward({"evidence": "positive", "gain_over_delta": None}) == 1.0     # delta unknown
-    assert idea_chooser.reward({"evidence": "positive", "gain_over_delta": -2.0}) == 0.1     # a claim reproduced
+    assert idea_chooser.reward({"evidence": "positive", "gain_over_delta": -2.0}) == 0.5     # a claim reproduced
     # experiments of another problem do not count as pulls
     assert chooser.ranking([rec("ws1-017", b, b, problem="1a")])[0]["pulls"] == 0
     aliased = idea_chooser.IdeaChooser(store, lambda n: REF, problems={SLUG}, aliases={"1a": SLUG})
     assert {x["id"]: x["pulls"] for x in aliased.ranking([rec("ws1-017", b, b, problem="1a")])}["ws1-017"] == 1
+
+
+def test_bandit_favours_the_best_idea_while_every_idea_is_below_the_record():
+    """The first real A/B run (problem 1d, minimised, 4 ideas, 8 experiments, every score above the
+    record): no run is a gain, and the chooser used to fall back to round robin 1,2,3,4,1,2,3,4."""
+    d = _fresh("below-record")
+    store = ideas.IdeaStore(os.path.join(d, "ideas.jsonl"))
+    first = {"cmp-1": 1.4771225470, "cmp-2": 1.4639641798, "cmp-3": 1.4689740595, "cmp-4": 1.4772287547}
+    second = {"cmp-1": 1.4769103795, "cmp-2": 1.4639641798, "cmp-3": 1.4689740595, "cmp-4": 1.4771965939}
+    for i in first:
+        store.upsert({"id": i, "kind": "untested_idea", "problem": "1d", "content": i}, trusted=True)
+        store.set_runner(i, "optimizers/1d_tuned.py", {"PRESET": i})
+    ref = verdicts.Reference(problem="1d", direction="minimize", delta=1e-4, record=1.4557)
+    chooser = idea_chooser.IdeaChooser(store, lambda n: ref, problems={"1d"})
+    history, picks = [], []
+    for step in range(16):
+        pick = chooser.choose(history)["id"]
+        score = first[pick] if pick not in picks else second[pick]
+        picks.append(pick)
+        best = min([r["score"] for r in history] or [None]) if history else None
+        history.append(rec(pick, score, best, status="keep" if best is None or score < best else "discard",
+                           problem="1d", eid="exp_%04d" % step))
+    assert all(x["evidence"] != "positive" for n in store.all() for x in verdicts.observe(n, history, ref))
+    assert picks[:4] == ["cmp-1", "cmp-2", "cmp-3", "cmp-4"]              # one look at each idea
+    assert picks[4] == "cmp-2"                                             # then the best one, at once
+    assert picks[:8].count("cmp-2") == 4 and picks.count("cmp-2") >= 8     # half of 8 experiments, not a quarter
+    assert picks.count("cmp-4") <= 3 and len(set(picks[4:])) > 1           # the worst gets little, exploring goes on
+    rank = idea_chooser.standings({"a": [{"key": "1", "score": 1.0, "evidence": "baseline"},
+                                         {"key": "2", "score": None, "evidence": "none"}],
+                                   "b": [{"key": "1", "score": 3.0, "evidence": "baseline"},
+                                         {"key": "2", "score": 3.0, "evidence": "negative"}]}, sign=-1.0)
+    assert rank == {("a", "1"): 1.0, ("b", "1"): 0.25, ("b", "2"): 0.25}  # minimised: the lowest beats all; a tie is half
 
 
 def test_idea_search_agent_runs_each_idea_with_its_own_tuner():
