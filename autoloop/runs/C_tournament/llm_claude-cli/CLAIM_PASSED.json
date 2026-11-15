@@ -1,0 +1,17 @@
+{
+ "kind": "claim",
+ "cert": "aad0d6e585fb77f00774c24ed3621e21c28cd69219d71a38119f1a96f757f942",
+ "exact": "8307674976920280023604838990465660800/5713258286876856031975364605615287049",
+ "exact_float": 1.454104568666658,
+ "reference": "1.4546733414",
+ "reference_source": "https://github.com/teorth/optimizationproblems/pull/345",
+ "reference_age_s": 1242,
+ "threshold": 1.45467334135,
+ "below_reference": true,
+ "memory_best_exact": 1.4542590631143155,
+ "below_memory": true,
+ "below_target": true,
+ "submitted": false,
+ "text": "TARGET BEATEN: BELOW the live reference and BELOW the memory's best exact 1.4542590631143155 (exact check passed)",
+ "t": 1794726420.852542
+}

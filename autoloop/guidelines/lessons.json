@@ -1,0 +1,608 @@
+[
+ {
+  "id": "P1d01",
+  "text": "**Breadth first: starts are cheap and decide a lot.** A 45 s start ranks almost as well as a 450 s one, and one 450 s run is no better than the best of ten 45 s runs. Among 521 long starts only two were clearly ahead of the rest. Make hundreds of short starts before spending on depth.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d02",
+  "text": "**Do not cut early.** The rank at 800 or 12,800 cells predicts the final rank only roughly: the lineage that won was not the leader before the last stage, and a lineage ranked 7th of 20 became 2nd after refinement. Carry a wide set (at least 20 to 30 lineages) into the high-resolution stage.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d03",
+  "text": "**Soft restarts move lineages; hard ones stall.** At 51,200 cells every restart with p0 >= 16 stayed where it was, while p0 = 4 and 8 dropped the score by more than 1e-3 on the lineages that responded. Not every lineage responds: of three strong ones, one did. So try the soft restart on many lineages, not on the best few.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d04",
+  "text": "**Try soft restarts at every resolution (conjecture).** They were first used only at the last stage. Early numbers of a cold start suggest that p0 = 8 at 3,200 and 12,800 cells lifts mediocre starts more than hard restarts did. Test it on a few lineages against p0 = 16 before relying on it.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d05",
+  "text": "**Chain restarts on the leader.** Each refine from the previous best with p0 in {2, 4, 8, 16, 64, 512} at 51,200 cells gained between 1.3e-5 and 1.3e-4 per round, and gains usually shrank (e.g. 7.0e-5, 3.6e-5, 1.6e-5) over three rounds in all three runs. Keep chaining until the P1d08 stop rule triggers; none of these runs reached it.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md",
+   "llm_claude-cli#242",
+   "llm_claude-cli#256",
+   "llm_claude-cli#267",
+   "llm_openai_gpt-6.1-sol#242",
+   "llm_openai_gpt-6.1-sol#249",
+   "llm_openai_gpt-6.1-sol#263",
+   "rules#245",
+   "rules#256",
+   "rules#270"
+  ],
+  "status": "hint",
+  "generation": 1,
+  "updated": "2026-11-15 00:48",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 1,
+    "action": "update",
+    "reason": "Three independent runs confirm chaining works and show gains of about 1e-5 to 1e-4 that mostly shrink round by round.",
+    "support": [
+     "rules#245",
+     "rules#256",
+     "rules#270",
+     "llm_claude-cli#242",
+     "llm_claude-cli#256",
+     "llm_claude-cli#267",
+     "llm_openai_gpt-6.1-sol#242",
+     "llm_openai_gpt-6.1-sol#249",
+     "llm_openai_gpt-6.1-sol#263"
+    ]
+   },
+   {
+    "generation": 1,
+    "action": "rule",
+    "reason": "tournament arms count as one run: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d06",
+  "text": "**More cells is not better by itself.** At equal time 51,200 cells beat 204,800. Go higher only when a lineage has stalled at 51,200, and give the larger size enough iterations per stage.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d07",
+  "text": "**Costs.** One 1,200 s restart at 51,200 cells costs about USD 0.03; a hundred 45 s starts cost cents. A full 5,400 s run of 5 to 7 refine/certify decisions cost about USD 0.47, so breadth at the soft-restart stage stays cheap.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md",
+   "llm_claude-cli#272",
+   "llm_openai_gpt-6.1-sol#268",
+   "rules#276"
+  ],
+  "status": "hint",
+  "generation": 1,
+  "updated": "2026-11-15 00:48",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 1,
+    "action": "update",
+    "reason": "The run_end rows give a measured per-run cost.",
+    "support": [
+     "rules#276",
+     "llm_claude-cli#272",
+     "llm_openai_gpt-6.1-sol#268"
+    ]
+   },
+   {
+    "generation": 1,
+    "action": "rule",
+    "reason": "tournament arms count as one run: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d08",
+  "text": "**Stop a lineage** when two restart rounds in a row gain less than 1e-5, and move its budget to new starts.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d09",
+  "text": "**Calibration.** The live reference is still 1.4546733 (teorth PR #345). The best exact claimed value is now 1.4540711, the best float is 1.4540306, and a single 51,200-cell soft-restart chain from a 1.45426 certificate reached 1.45403 to 1.45410 within 5,400 s.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md",
+   "llm_claude-cli#272",
+   "llm_openai_gpt-6.1-sol#268",
+   "rules#242",
+   "rules#263",
+   "rules#266",
+   "rules#276"
+  ],
+  "status": "dropped",
+  "generation": 1,
+  "updated": "2026-11-15 00:48",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 1,
+    "action": "update",
+    "reason": "The memory's best exact value is outdated after the new claims.",
+    "support": [
+     "rules#242",
+     "rules#263",
+     "rules#266",
+     "rules#276",
+     "llm_claude-cli#272",
+     "llm_openai_gpt-6.1-sol#268"
+    ]
+   },
+   {
+    "generation": 1,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> dropped; lint: holds a reference value or a score ('reference is')"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d10",
+  "text": "**Truth.** A float score is not a result. Round to integers and check exactly only for finalists, and claim only through the gate, with a reference read in the last 30 minutes.",
+  "scope": "tao-1d",
+  "support": [
+   "handwritten:autoloop_guidelines_1d.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G01",
+  "text": "Breadth first: short starts are cheap and rank almost as well as long ones. Make many short starts before spending on depth.",
+  "scope": "general",
+  "support": [
+   "handwritten:general_lessons.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G02",
+  "text": "Do not cut early: the rank before the last resolution stage predicts the final rank only roughly. Carry a wide set (20 to 30 lineages) into the high-resolution stage.",
+  "scope": "general",
+  "support": [
+   "handwritten:general_lessons.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G03",
+  "text": "Soft restarts (small p0, such as 4 and 8) moved lineages at high resolution; hard restarts (p0 >= 16) mostly stalled. Not every lineage responds, so try soft restarts on many lineages.",
+  "scope": "general",
+  "support": [
+   "handwritten:general_lessons.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G04",
+  "text": "Soft restarts may also help at intermediate resolutions (conjecture): test against a harder setting on a few lineages before relying on it.",
+  "scope": "general",
+  "support": [
+   "handwritten:general_lessons.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G05",
+  "text": "Chain restarts on the leader: after a soft restart that worked, restart again from its result with p0 in 2..16.",
+  "scope": "general",
+  "support": [
+   "handwritten:general_lessons.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G06",
+  "text": "More cells is not better by itself: at equal time a moderate resolution beat a 4x larger one. Go higher only when a lineage has stalled, with enough iterations per stage.",
+  "scope": "general",
+  "support": [
+   "handwritten:general_lessons.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G07",
+  "text": "Breadth at the restart stage is cheap on Modal CPUs (about USD 0.03 per 20-minute 1-CPU job).",
+  "scope": "general",
+  "support": [
+   "handwritten:general_lessons.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G08",
+  "text": "Stop a lineage when two restart rounds in a row gain almost nothing, and move its budget to new starts.",
+  "scope": "general",
+  "support": [
+   "handwritten:general_lessons.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G09",
+  "text": "A float score is not a result: check exactly only for finalists, and claim only through the gate, with a reference read in the last 30 minutes.",
+  "scope": "general",
+  "support": [
+   "handwritten:general_lessons.md"
+  ],
+  "status": "hint",
+  "generation": 0,
+  "updated": "2026-11-15 00:47",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "hand-written from the 14 Nov runs"
+   },
+   {
+    "generation": 0,
+    "action": "rule",
+    "reason": "status by rule from ledger rows: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "P1d11",
+  "text": "**Read the reference just before certifying.** Two certify calls exactly checked a better value but wrote no claim because no reference was younger than 1,800 s, which cost each run a decision. The sequence check_reference, then refine, then certify, then claim passed the gate every time.",
+  "scope": "tao-1d",
+  "support": [
+   "llm_claude-cli#249",
+   "llm_openai_gpt-6.1-sol#256",
+   "rules#242",
+   "rules#252",
+   "rules#254",
+   "rules#263",
+   "rules#266",
+   "rules#268"
+  ],
+  "status": "hint",
+  "generation": 1,
+  "updated": "2026-11-15 00:48",
+  "history": [
+   {
+    "generation": 1,
+    "action": "add",
+    "reason": "The LLM runs lost a decision to a stale reference, and the rules run, which refreshed the reference first, claimed twice and finished best.",
+    "support": [
+     "llm_claude-cli#249",
+     "llm_openai_gpt-6.1-sol#256",
+     "rules#242",
+     "rules#252",
+     "rules#254",
+     "rules#263",
+     "rules#266",
+     "rules#268"
+    ]
+   },
+   {
+    "generation": 1,
+    "action": "rule",
+    "reason": "tournament arms count as one run: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G10",
+  "text": "Refresh the reference immediately before an exact check, because a certify call with a stale reference passes the check but writes no claim and wastes a decision.",
+  "scope": "general",
+  "support": [
+   "llm_claude-cli#249",
+   "llm_openai_gpt-6.1-sol#256",
+   "rules#252",
+   "rules#266"
+  ],
+  "status": "hint",
+  "generation": 1,
+  "updated": "2026-11-15 00:48",
+  "history": [
+   {
+    "generation": 1,
+    "action": "add",
+    "reason": "Two runs hit the claim gate's freshness rule after a successful exact check.",
+    "support": [
+     "llm_claude-cli#249",
+     "llm_openai_gpt-6.1-sol#256",
+     "rules#252",
+     "rules#266"
+    ]
+   },
+   {
+    "generation": 1,
+    "action": "rule",
+    "reason": "tournament arms count as one run: active -> hint"
+   }
+  ],
+  "against": []
+ },
+ {
+  "id": "G11m",
+  "text": "Prune after one entry run, not before: give every lineage one soft entry run (p0 = 4) at the last resolution stage, then spend all further restarts only on the top 3 after it. Rank before that stage predicted the final rank poorly; rank after one entry run predicted it well, and the last stage took most of the CPU.",
+  "scope": "general",
+  "support": [
+   "handwritten:04_debate_log.md D7 (Meridian, cold2, cold3, ea1a_cold1)"
+  ],
+  "against": [],
+  "status": "hint",
+  "generation": 1,
+  "updated": "2026-11-15 04:24",
+  "history": [
+   {
+    "generation": 0,
+    "action": "add",
+    "reason": "Meridian D7: Spearman 0.74/0.44/0.76 before vs 0.96/0.94/0.91 after one p0=4 entry; same best cert in 3 runs with 58-67% CPU saved; three runs, one method family; hint until the rule confirms it on cited ledger rows"
+   }
+  ]
+ }
+]

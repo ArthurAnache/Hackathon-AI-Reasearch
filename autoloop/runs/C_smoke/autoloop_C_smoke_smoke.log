@@ -1,0 +1,13 @@
+Note that running a local entrypoint in detached mode only keeps the last triggered Modal function alive after the parent process has been killed or disconnected.
+✓ Initialized. View run at 
+https://modal.com/apps/<modal-workspace>/main/ap-dqciL3s4KQ6Xc4VDvakHMS
+✓ Created objects.
+├── ✓ Uploaded <workspace>/wt-attack/attack/modal_c1d.py
+├── ✓ Uploaded <workspace>/wt-attack/attack/c1d_exact.py
+├── ✓ Uploaded <workspace>/wt-attack/attack/c1d_refine.py
+└── ✓ Created Function restart.
+[c1d] 1 restarts x 60s on 1.0 cores / 3072 MB: estimated USD 0.00, hard cap USD 0.08 at the 3900 s timeout; retries=0; at most 100 at once. https://modal.com/pricing (read 2026-11-14)
+[c1d] smoke_start_x1_p1024_r0: best 1.4542590631143157 n=51200 evals=3029
+[c1d] best smoke_start_x1_p1024_r0: exact 1.4542590631143155, strictly below record: True (gap -4.143e-04)
+✓ App completed. View run at 
+https://modal.com/apps/<modal-workspace>/main/ap-dqciL3s4KQ6Xc4VDvakHMS

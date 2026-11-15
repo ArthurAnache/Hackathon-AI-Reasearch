@@ -1,0 +1,50 @@
+[
+ {
+  "entrant": "llm:openai:gpt-6.1-sol",
+  "decisions": 5,
+  "wall_s": 6075.1,
+  "cpu_s": 21603.4,
+  "compute_usd": 0.4695,
+  "llm_usd": 0.1229,
+  "llm_tokens": 6440,
+  "fallbacks": 0,
+  "errors": 0,
+  "best": 1.454097766175823,
+  "best_exact": 1.4541162744883922,
+  "claims_below": 0,
+  "time_to_best_s": 6075,
+  "stop": "cap: wall clock 5400.0 s"
+ },
+ {
+  "entrant": "llm:claude-cli:",
+  "decisions": 6,
+  "wall_s": 6077.9,
+  "cpu_s": 21609.4,
+  "compute_usd": 0.4695,
+  "llm_usd": 0.1277,
+  "llm_tokens": 13545,
+  "fallbacks": 0,
+  "errors": 0,
+  "best": 1.45408102934678,
+  "best_exact": 1.454104568666658,
+  "claims_below": 1,
+  "time_to_best_s": 6078,
+  "stop": "cap: wall clock 5400.0 s"
+ },
+ {
+  "entrant": "rules",
+  "decisions": 7,
+  "wall_s": 6076.1,
+  "cpu_s": 21609.3,
+  "compute_usd": 0.4695,
+  "llm_usd": 0.0,
+  "llm_tokens": 0,
+  "fallbacks": 0,
+  "errors": 0,
+  "best": 1.4540306030260068,
+  "best_exact": 1.4540711000681048,
+  "claims_below": 2,
+  "time_to_best_s": 6076,
+  "stop": "cap: wall clock 5400.0 s"
+ }
+]

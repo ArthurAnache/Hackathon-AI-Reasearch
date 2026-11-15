@@ -4,6 +4,32 @@ Problem: signed autocorrelation constant C_1d from the Tao optimization-constant
 (https://teorth.github.io/optimizationproblems/constants/1d.html). A step function with N equal cells gives the
 upper bound `2N * max_k |(v*v)_k| / (sum v)^2`; lower is better.
 
+## Autonomous result: 1.4540711000681048 (15 Nov 2026)
+
+| File (`autonomous/`) | Cells | Exact score |
+|---|---|---|
+| `c006_31bbf628_int56.json` | 51,200 | **1.4540711000681048** = 21267647941510998263770007610303168512/14626277862557668614837367632277156521 |
+
+Found by the autonomous loop in `autoloop/` with its rules policy, run `autoloop/runs/C_tournament/rules`, with no person
+in the loop. It started from a frozen memory of 239 certificates we already had (best 1.4542590631143155, the assisted
+result of the next section), chose which lineages to continue and how to restart them, ran the exact check and passed
+its own claim gate (`autonomous/CLAIM_PASSED.json`: the reference was read 7 s before the claim).
+
+- **Reference.** Best open claim in the Tao repository, re-read on 15 Nov: 1.4546733294 (pull request #371). The claim
+  file records the reference at claim time, 1.4546733414 (#345). The file is 6.02e-4 below both.
+- **Checked by** `highres/check_independent.py` (same fraction, about 50 s), and reproduced by a second agent from a
+  clean checkout.
+- **Same tournament, a model as policy.** Claude: 1.454104568666658, claim passed. gpt-6.1-sol: 1.4541162744883922,
+  no claim, because it never chose to read the reference.
+
+**What this is not.**
+
+- Not from scratch. Four cold-start runs on 1d (empty memory, lessons only) did not pass: best 1.4557078032949418.
+  See `autoloop/RESULTS.md`.
+- Not submitted anywhere, and not verified by the team's arbiter (there is no arbiter pack for 1d yet). It reads
+  "below the reference snapshot, own check".
+- In the run logs under `autoloop/runs/`, local paths were replaced by `<workspace>`; nothing else was edited.
+
 ## High-resolution result: below the best open claim (14 Nov 2026, 22:20 PT)
 
 | File (`highres/`) | Cells | Exact score |
@@ -35,8 +61,7 @@ another team was used.
 
 - Not submitted anywhere, so nobody outside the team has replayed it.
 - Not found by an autonomous system. Every decision in this chain (which lineages to continue, which restart to
-  try, when to stop) was made by Claude Code agents under human supervision. An autonomous version of the chain is
-  being built and tested separately.
+  try, when to stop) was made by Claude Code agents under human supervision. The autonomous loop's result is the section above.
 - The reference is the Tao repository (page table and open pull requests). Other venues were not searched.
 
 ## 800-cell results (14 Nov 2026, afternoon)

@@ -1,0 +1,50 @@
+[
+ {
+  "entrant": "rules",
+  "decisions": 3,
+  "wall_s": 0.0,
+  "cpu_s": 4.1,
+  "compute_usd": 0.0041,
+  "llm_usd": 0.0,
+  "llm_tokens": 0,
+  "fallbacks": 0,
+  "errors": 0,
+  "best": 1.4729869613281892,
+  "best_exact": 1.4729869613281892,
+  "claims_below": 0,
+  "time_to_best_s": 0,
+  "stop": "cap: 3 decisions"
+ },
+ {
+  "entrant": "llm:fake:",
+  "decisions": 3,
+  "wall_s": 0.0,
+  "cpu_s": 0.0,
+  "compute_usd": 0.0,
+  "llm_usd": 0.006,
+  "llm_tokens": 583,
+  "fallbacks": 0,
+  "errors": 0,
+  "best": null,
+  "best_exact": null,
+  "claims_below": 0,
+  "time_to_best_s": null,
+  "stop": "cap: 3 decisions"
+ },
+ {
+  "entrant": "llm:claude-cli:",
+  "decisions": 3,
+  "wall_s": 21.5,
+  "cpu_s": 12.0,
+  "compute_usd": 0.012,
+  "llm_usd": 0.6449,
+  "llm_tokens": 117938,
+  "fallbacks": 0,
+  "errors": 0,
+  "best": 1.4648949820427317,
+  "best_exact": null,
+  "claims_below": 0,
+  "time_to_best_s": 21,
+  "stop": "cap: 3 decisions"
+ }
+]
