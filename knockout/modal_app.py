@@ -133,7 +133,8 @@ def launch(source_commit: str = "", launch_file: str = "", wait: bool = False):
     init_spec = spec.get("init")
     commit = (source_commit or "nogit")[:12]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    run_id = f"{stamp}-{spec['problem']}-{commit[:7]}"
+    tag = str(spec.get("tag") or "").strip()      # optional: keeps two runs launched together apart
+    run_id = f"{stamp}-{spec['problem']}-{commit[:7]}" + (f"-{tag}" if tag else "")
     print(f"run_id={run_id} problem={spec['problem']} wall_clock_s={spec['wall_clock_s']} max_usd={max_usd} "
           f"editor={editor} profile={profile} init={init_spec}")
     if wait:
