@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
-from knockout.memory_backfill import FACT_KEYS, facts_for_run, write_facts
+from knockout.memory_backfill import FACT_KEYS, facts_for_run, push_facts, write_facts
 from knockout.memory_metrics import analyze_run
 
 
@@ -40,6 +41,30 @@ def test_push_without_memory_client_exits_two_with_guidance(tmp_path: Path) -> N
     assert "run --push after merging feature/ws2-pastdev-memory" in proc.stderr
 
 
+def test_push_uses_agent_one_store_signature_and_metadata(tmp_path: Path, monkeypatch) -> None:
+    class Store:
+        def __init__(self):
+            self.calls = []
+
+        def ingest(self, *args):
+            self.calls.append(args)
+
+    store = Store()
+    monkeypatch.setitem(sys.modules, "knockout.pastdev", SimpleNamespace(get_store=lambda: store))
+    fact = {
+        "fact_id": "win-abc", "kind": "win",
+        "content": "[scope toy] [win] refine: useful idea\ngain +0.1",
+        "timestamp": "2026-01-01T00:00:00Z", "identity": "backfill@run-a", "scope": "toy",
+        "metadata": {"problem": "toy", "kind": "win", "run_id": "run-a", "agent": "backfill"},
+    }
+    facts_path = tmp_path / "facts.jsonl"
+    _jsonl(facts_path, [fact])
+    assert push_facts(facts_path) == 0
+    assert store.calls == [("win-abc", fact["content"], "win", fact["timestamp"],
+                            "backfill@run-a", {**fact["metadata"], "scope": "toy",
+                                                "author": "backfill@run-a", "headline": "[win] refine: useful idea"})]
+
+
 def test_metrics_repeat_rate_win_fraction_and_usd_per_win(tmp_path: Path) -> None:
     on = tmp_path / "on"
     on.mkdir()
@@ -55,7 +80,9 @@ def test_metrics_repeat_rate_win_fraction_and_usd_per_win(tmp_path: Path) -> Non
     _jsonl(on / "experiments.jsonl", experiments)
     _jsonl(on / "events.jsonl", [
         {"type": "llm_call", "payload": {"usd": 0.3}},
-        {"type": "memory_recall", "payload": {"fact_ids": ["f1"]}},
+        {"type": "memory_recall", "payload": {"arm": "main", "query": "toy refine",
+                                                   "fact_ids": ["f1"], "authors": ["agent-a@prior"]}},
+        {"type": "memory_write", "payload": {"arm": "main", "kind": "failed_batch", "fact_id": "f2"}},
     ])
     facts = [{"fact_id": "f1", "kind": "refuted",
               "content": "[scope toy] alpha beta gamma delta epsilon zeta eta theta",
@@ -67,3 +94,27 @@ def test_metrics_repeat_rate_win_fraction_and_usd_per_win(tmp_path: Path) -> Non
     assert abs(result["usd_per_win"] - 0.6) < 1e-12
     assert result["facts_recalled"] == 1
     assert result["external_facts_recalled"] == 1
+    assert result["has_memory_events"] is True
+
+
+def test_metrics_uses_self_written_memory_write_fact(tmp_path: Path) -> None:
+    run = tmp_path / "self-memory"
+    run.mkdir()
+    (run / "strategy.yaml").write_text("selection:\n  eps_rel: 0.000001\n", encoding="utf-8")
+    hypothesis = "one two three four five six seven eight"
+    _jsonl(run / "experiments.jsonl", [{
+        "experiment_id": "e1", "run_id": "self-memory", "problem": "toy",
+        "timestamp": "2026-01-02T00:00:00Z", "hypothesis": hypothesis,
+        "score": 0.9, "config": {"operator": "refine", "ref_score": 1.0},
+    }])
+    _jsonl(run / "events.jsonl", [{
+        "type": "memory_write", "timestamp": "2026-01-01T12:00:00Z",
+        "payload": {"fact_id": "self-fact", "kind": "refuted"},
+    }])
+    _jsonl(run / "pastdev_log.jsonl", [{
+        "op": "ingest", "fact_id": "self-fact", "kind": "refuted",
+        "content": f"[scope toy] {hypothesis}", "timestamp": "2026-01-01T12:00:00Z",
+        "metadata": {"problem": "toy", "run_id": "self-memory"},
+    }])
+    result = analyze_run(run)
+    assert result["repeat_rate"] == 1.0

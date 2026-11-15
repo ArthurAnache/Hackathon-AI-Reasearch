@@ -33,6 +33,8 @@ def _run_facts(run_dir: Path, known: dict[str, dict]) -> list[dict]:
         candidates = row.get("facts") or row.get("results") or row.get("sources") or []
         if isinstance(candidates, dict):
             candidates = [candidates]
+        if not candidates and row.get("content"):
+            candidates = [row]
         for item in candidates:
             if not isinstance(item, dict):
                 continue
@@ -59,11 +61,26 @@ def _run_facts(run_dir: Path, known: dict[str, dict]) -> list[dict]:
 
 def _identity_fields(fact: dict) -> tuple[str | None, str | None]:
     meta = fact.get("metadata") or {}
-    identity = fact.get("identity") or fact.get("author")
+    identity = fact.get("identity") or fact.get("author") or meta.get("author")
     run = meta.get("run_id") or fact.get("run_id")
     agent = meta.get("agent") or fact.get("agent")
     return (str(run) if run is not None else None,
             str(agent or identity) if (agent or identity) is not None else None)
+
+
+def _author_is_external(author: Any, run_id: str, arm: str | None) -> bool:
+    if isinstance(author, dict):
+        author_run = author.get("run_id")
+        author_name = author.get("identity") or author.get("author") or author.get("agent")
+        if author_run is not None:
+            return str(author_run) != run_id
+        author = author_name
+    if not author:
+        return False
+    name = str(author)
+    if name.endswith(f"@{run_id}"):
+        return bool(arm and name != f"{arm}@{run_id}")
+    return name not in {run_id, "backfill@" + run_id}
 
 
 def analyze_run(run_dir: str | Path, facts: list[dict] | None = None) -> dict[str, Any]:
@@ -124,27 +141,27 @@ def analyze_run(run_dir: str | Path, facts: list[dict] | None = None) -> dict[st
     for event in recall_events:
         payload = event.get("payload") or {}
         ids = payload.get("fact_ids") or []
-        if isinstance(ids, list):
-            recalled_ids.extend(str(i) for i in ids)
+        if not isinstance(ids, list):
+            ids = []
+        ids = [str(i) for i in ids]
+        recalled_ids.extend(ids)
         authors = payload.get("authors") or event.get("authors") or []
-        if isinstance(authors, list):
-            for author in authors:
-                if isinstance(author, dict):
-                    author_run = author.get("run_id")
-                    author_name = author.get("agent") or author.get("identity")
-                else:
-                    author_run, author_name = None, str(author)
-                if (author_run and author_run != run_id) or (author_name and author_name not in {run_id, "backfill", ""}):
-                    external += 1
+        if isinstance(authors, dict):
+            author_by_id = authors
+        elif isinstance(authors, list):
+            author_by_id = {fid: authors[i] for i, fid in enumerate(ids) if i < len(authors)}
+        else:
+            author_by_id = {}
+        arm = payload.get("arm") or event.get("arm")
+        for fid in ids:
+            author = author_by_id.get(fid)
+            if author is not None:
+                external += int(_author_is_external(author, run_id, arm))
+            elif fid in fact_map:
+                author_run, author_agent = _identity_fields(fact_map[fid])
+                external += int((author_run is not None and author_run != run_id) or
+                                (author_agent is not None and author_agent not in {run_id, f"{arm}@{run_id}"}))
     known_ids = set(fact_map)
-    # Recall logs may include facts directly, so collect their authors as a fallback.
-    recalled_facts = [fact_map[i] for i in recalled_ids if i in fact_map]
-    for fact in recalled_facts:
-        author_run, author_agent = _identity_fields(fact)
-        if (author_run and author_run != run_id) or (author_agent and author_agent not in {run_id, "backfill", ""}):
-            # Prefer authors attached to the recall event when supplied; otherwise use fact metadata.
-            if not any(((e.get("payload") or {}).get("authors") or e.get("authors")) for e in recall_events):
-                external += 1
     max_gain = max((x[2] for x in scored), default=None)
     return {
         "run_id": run_id,

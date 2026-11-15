@@ -300,8 +300,16 @@ def push_facts(path: str | Path) -> int:
         return 2
     store = get_store()
     for fact in read_jsonl(Path(path)):
+        metadata = dict(fact["metadata"])
+        metadata.setdefault("scope", fact.get("scope"))
+        metadata.setdefault("author", fact.get("identity"))
+        headline = (fact.get("content") or "").split("\n", 1)[0]
+        prefix = f"[scope {fact.get('scope')}] "
+        if headline.startswith(prefix):
+            headline = headline[len(prefix):]
+        metadata.setdefault("headline", headline)
         store.ingest(fact["fact_id"], fact["content"], fact["kind"], fact["timestamp"],
-                     fact["identity"], fact["metadata"])
+                     fact["identity"], metadata)
     return 0
 
 
