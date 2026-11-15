@@ -1,10 +1,45 @@
-# Problem 1d: upper bound below the best value listed on the Tao page (not the best known)
+# Problem 1d: results
 
 Problem: signed autocorrelation constant C_1d from the Tao optimization-constants list
 (https://teorth.github.io/optimizationproblems/constants/1d.html). A step function with N equal cells gives the
 upper bound `2N * max_k |(v*v)_k| / (sum v)^2`; lower is better.
 
-## Result (14 Nov 2026)
+## High-resolution result: below the best open claim (14 Nov 2026, 22:20 PT)
+
+| File (`highres/`) | Cells | Exact score |
+|---|---|---|
+| `c1d_n51200_1.4542590631143155.json` | 51,200 | **1.4542590631143155** = 132922799643235991523198037060598323200/91402421353029087699033936155957709001 |
+| `c1d_n51200_1.454406313885605.json` | 51,200 | 1.454406313885605 = 33230699911294658122227553895833414400/22848291838417025440738871578647258529 |
+
+Best claim we found for 1d: 1.4546733414 (open pull request #345 on github.com/teorth/optimizationproblems, 163,840
+cells), re-read on 14 Nov at 22:21 PT. The best file is 4.14e-4 below it. Integer heights, max |v| = 2^56.
+
+**Checked by:** `highres/c1d_exact.py` (Kronecker substitution, a direct sum at the deciding knot, a check modulo a
+61-bit prime), the frozen verifier of the WS2 loop (`problems/p1d.py`, same fraction), and
+`highres/check_independent.py`, written separately and sharing no code with the first:
+
+    python records/1d/highres/check_independent.py records/1d/highres/c1d_n51200_1.4542590631143155.json   # about 50 s
+
+**How it was obtained.** A chain of three stages on one of our own starts (old loop, seed 162):
+800 cells from random noise, 1.4573206 (`best_1d_oldloop_seed162.json`) -> split and refined to 12,800 cells, 1.4560723
+(`highres/lineage_seed162_n12800.npy`) -> split to 51,200 cells and restarted with a soft p-norm (p0 = 4), then once
+more at p0 = 8. Of 55 restarts over five lineages in the first round, 2 were below the open claim, both from seed 162
+at p0 = 4; every restart with p0 >= 16 stayed at 1.4558 to 1.4561.
+
+**Method credit.** The recipe (split the cells, minimise log ||v*v||_p - 2 log |sum v| with L-BFGS while p is doubled,
+restart from a low p) is the one described in pull requests #312, #345 and #270 of the Tao repository. The code
+(`highres/c1d_refine.py`, `c1d_round.py`, `c1d_exact.py`) and the starting solutions are ours; no certificate of
+another team was used.
+
+**What this is not.**
+
+- Not submitted anywhere, so nobody outside the team has replayed it.
+- Not found by an autonomous system. Every decision in this chain (which lineages to continue, which restart to
+  try, when to stop) was made by Claude Code agents under human supervision. An autonomous version of the chain is
+  being built and tested separately.
+- The reference is the Tao repository (page table and open pull requests). Other venues were not searched.
+
+## 800-cell results (14 Nov 2026, afternoon)
 
 | File | Loop | Seed | Cells | Exact score |
 |---|---|---|---|---|
@@ -22,7 +57,7 @@ Reference values on the page, as read on 14 Nov 2026:
 
 All five files score below both.
 
-**This is not the best known bound.** Open, unmerged pull requests on github.com/teorth/optimizationproblems claim
+**These 800-cell values are not the best known bound.** Open, unmerged pull requests on github.com/teorth/optimizationproblems claim
 lower values, as read on 14 Nov 2026: 1.4546733414 (#345, 163,840 cells), 1.4546733458 (#270, 163,840 cells),
 1.454727664528751 (#312, 81,920 cells), 1.4556234448 (#271, 40,960 cells) and 1.455682936505816 (#269, 10,240
 cells). Our files use 800 to 1,600 cells and are 0.0026 above the best of these claims. The verifier's
