@@ -1,6 +1,7 @@
 # Problem scout: is another record more reachable?
 
-WS1, 2026-11-14 evening PT (live data read 2026-11-15 04:36 UTC). Written for the team; Arthur decides.
+WS1, 2026-11-14 evening PT (live data read 2026-11-15 04:36 UTC; the third-autocorrelation leaderboard re-read at
+06:20 UTC). Written for the team; Arthur decides. Section 3.4 is a follow-up run the same evening.
 Labels: **verified** = reproduced here with the pinned verifier; **claim** = read, not reproduced; **limitation**.
 Nothing was submitted, and nothing here is a record claim.
 
@@ -8,14 +9,17 @@ Nothing was submitted, and nothing here is a record claim.
 
 **Yes: `third-autocorrelation-inequality` (minimize, δ = 1e-5).**
 
-- We hold seven candidates that the pinned verifier scores **23.7 to 28.5 δ below the live #1** and **1.3 to
-  6.1 δ below the best published claim** (MILO, 1.4488860143). The best is 1.448825267560211. An independent
-  exact-rational scorer agrees within 1.3e-15 on every one (section 3).
-- They cost 5 to 7 minutes of one CPU core each.
-- **Caveat that Arthur must rule on:** they are not found from scratch. They are re-optimized from a
-  plot-resolution copy of MILO's record that the MILO authors publish on their project page. Any use must credit
-  MILO.
-- Without that starting point the same method gains nothing: 0 δ from the live #1 in 5 minutes.
+We hold two kinds of candidates, kept strictly apart (sections 3.3 to 3.5). Every one is scored by the pinned
+verifier in a clean process and by an independent exact-rational scorer, which agree within 2e-15.
+
+- **Track A, from MILO's published copy:** best 1.4488128798873552, **29.7 δ below the live #1** and **7.3 δ
+  below the best published claim** (MILO, 1.4488860143). These are re-optimized from a plot-resolution copy of
+  MILO's record that its authors publish on their project page. Any use must credit MILO, and whether that
+  counts is Arthur's call.
+- **Track B, from the live #1 only, no MILO data:** best 1.4490529129656413, **5.7 δ below the live #1**. It
+  would top the leaderboard, but it stays about 17 δ above MILO's claimed value.
+- Polishing the live #1 on its own grid gains nothing: 0 δ in 5 minutes.
+- A first candidate costs 5 to 15 minutes of one CPU core.
 
 Recommendation: move the main effort to this problem, keep the two running attacks on the current problem as they
 are, and have WS1 freeze and arbitrate before anything else (section 5).
@@ -27,7 +31,7 @@ problem, in `selection/problem_scout.jsonl`.
 
 | Rank | Problem | δ | Live #1 (agent, date of the solution) | Sign of headroom | What we measured | Decision |
 |---|---|---|---|---|---|---|
-| 1 | third-autocorrelation | 1e-5 | 1.449109789331911 (Atris, 2026-10-13), **verified** | MILO claims 1.4488860143 with the same verifier, 22 δ lower (**claim**) | candidates up to 28.5 δ below the live #1 (**verified**, section 3) | `switch_candidate` |
+| 1 | third-autocorrelation | 1e-5 | 1.449109789331911 (Atris, 2026-10-13), **verified** | MILO claims 1.4488860143 with the same verifier, 22 δ lower (**claim**) | candidates 29.7 δ below the live #1 from MILO's published copy, and 5 δ below it from public data only (**verified**, section 3) | `switch_candidate` |
 | 2 | kakeya-needle-128 | 1e-9 | 0.10675138995168142 (kgrey, 2026-11-10) | record moved 2,550 δ four days ago, 46,400 δ in 60 days, five successive holders | nothing beyond stage 3 (no gain) | `keep_as_backup` |
 | 3 | second-autocorrelation (current main) | 1e-5 | 0.9636615620620852 (MLAI_YONSEI, 2026-11-14) | #1 moved four times on 2026-11-14, +7.3 δ | our best is 0.5 % of δ (knockout v1) | `keep_as_backup` |
 | 4 | two-deletion-code-16 | 1 | 226 (kgrey, 2026-11-12) | +1 three times in 28 hours, 11 above the best reported value | live #1 is rigid to simple moves: 0 gain in 60 s (**verified**) | `not_now` |
@@ -71,7 +75,7 @@ shared with other jobs. Final scores come from the pinned verifier in a clean pr
 | # | Start | Method, budget | Result | Gain |
 |---|---|---|---|---|
 | A1 | live #1 (65,536) | cold polish, T 1e-6 → 1e-9, 52 s | ends at 1.449109797, never below the start (*printed*) | **0 δ** |
-| A2 | live #1 block-repeated ×2 (131,072) + noise | cooling 1e-6 → 1e-9, 75 s | 1.4491115017, 1.7e-6 above the live #1 (*printed*) | **0 δ** |
+| A2 | live #1 block-repeated ×2 (131,072) + noise | cooling 1e-6 → 1e-9, 75 s | 1.4491115017, 1.7e-6 above the live #1 (*printed*). Not submittable anyway: the schema allows at most 100,000 values (section 3.4) | **0 δ** |
 | A3 | live #1 (65,536) | re-melt hops, 4 workers × 300 s, 12 hops | none landed; pinned score unchanged (**verified**) | **0 δ** |
 | B1 | BasinHopper #2493 (25,600; 1.4515718639), the family MILO started from | one cooling path 1e-4 → 1e-7, 40 s | 1.4515679350 (*printed*) | 0.39 δ over its own start; still 246 δ above the live #1 |
 | C0 | decimated copy of MILO's *starting point* (BasinHopper), block-repeated ×8 — control | one cooling path 1e-3 → 1e-7, 45 s | 1.4517381 (*printed*) | returns to BasinHopper's level: the method alone does not find MILO's basin |
@@ -131,6 +135,160 @@ What they are:
   presented as "a balanced repair of MILO's rounded public replay" with credit [t279, CristianBudala] (untrusted
   data).
 
+### 3.4 Follow-up: two tracks at scale (2026-11-14, 21:40 to 22:25 PT)
+
+The coordinator re-scored the best candidate of section 3.3 independently (1.448825267560211) and asked for two
+things: widen the margin, and test whether anything is reachable without MILO's data. Arthur has not ruled on the
+provenance question, so nothing was frozen or submitted.
+
+The two tracks never share a start vector, a Modal call, a Volume folder, a log or a candidate name. Each job
+records the sha256 of the vector it started from.
+
+| Track | Provenance | Starts | Log |
+|---|---|---|---|
+| A | `milo_published_copy` | MILO's published copy (block-repeated ×8) and the candidates of section 3.3 | `selection/scout_third_autocorr_trackA_runs.jsonl` |
+| B | `public_leaderboard_only` | the live #1 (solution 2617, Atris) and #2 (solution 2609, Ghazt), nothing else | `selection/scout_third_autocorr_trackB_runs.jsonl` |
+
+**Setup**
+
+- Runner: `selection/scout_third_autocorr_modal.py` (Modal app and Volume `scout-third-autocorr`), and
+  `selection/scout_third_autocorr_local.py` for four local jobs. A job is a list of steps (`run_steps` in
+  `selection/scout_third_autocorr.py`): sum-pool, block average onto another grid, keep one value in k,
+  block-repeat, one cooling path, re-melt hops with a ratchet.
+- One 48-core container per track and round, one core per job. The workspace's container limit was taken by the
+  team's other campaigns (99 containers running), so one-core containers stayed queued.
+- **Schema limit: at most 100,000 values** (`values: z.array(num).min(1).max(100_000)` in the problem file of the
+  pinned commit `5baf636`; the live API does not expose it, limitation). From 25,600 values only ×2 and ×3 are
+  allowed; from 65,536 nothing. `run_steps` refuses larger grids.
+- Every kept point is re-scored by the pinned verifier in a clean process and by the exact-rational scorer. The
+  other jobs carry the FFT score computed on Modal.
+
+**Rounds**
+
+| Round | Jobs A + B | Budget per job | What ran |
+|---|---|---|---|
+| r1 | 48 + 48 | 1200 s (A stopped after 10 min) | A: hop chains with 216 s hops, direct paths, ×2 and ×3. B: hot re-melts at 65,536 values, coarse-to-fine (sum-pool by 2, 4, 8, then repeat ×2 step by step), hop chains, other grids |
+| r1b | 48 + 48 | 1080 s (A stopped after 7 min) | A: direct paths. B: block average to 3,200–8,192 values, repeat ×8, hot path, hops |
+| r1c | 48 + 48 | 1980 s planned, stopped after 20 min | one long path per job. A: 30 hops from the candidates, 12 direct paths, 6 at ×2 or ×3. B: block average to 1,600–6,400 values, repeat to 25,600 or 32,768 |
+| r1d | 48 + 48 | 1860 s planned, stopped after 17 min | one long path per job. A: 48 direct paths. B: sum-pool ×2, keep one value in 4, 8 or 16, repeat back: what MILO's page did to its record, applied to the public solutions |
+| local1 | 2 + 2 | 840 s on local cores | A: two hop chains. B: two coarse pipelines |
+
+| r2 | 48 + 48 | 1020 s, after the thread fix | one long path per job. A: 24 hops from the best candidates, 20 direct paths, 4 at ×2 or ×3. B: 24 coarse copies of the live #1 (3,200 values ×8), 12 hops from the best track B point, 12 other coarse variants |
+| local2 | 0 + 5 | 780 s on local cores | B: five coarse copies of the live #1, one path each |
+| local3 | 0 + 4 | 700 s on local cores | B: hops, one long hop and one ×2 step from the best local1 point |
+| local4 | 0 + 5 | 600 s on local cores | B: five long hops from the best local3 point |
+
+**The Modal thread problem (limitation).** r1, r1b, r1c and r1d ran about 250 times too slowly and are not
+converged. A Modal container with `cpu=48` exports `OMP_NUM_THREADS=48` and `OPENBLAS_NUM_THREADS=48`; our module
+used `setdefault`, so each of the 48 job processes kept 48 threads. Measured in such a container: 541 ms per
+objective evaluation with 48 processes, against about 2 ms on a local core. Their results say nothing about the
+method; they were stopped as soon as this was found, the runner now forces one thread, and r2 ran with the fix.
+
+**Track B: yes, by a thin margin.** Everything below starts from the live #1 (solution 2617) only.
+
+| Step | Round | Score (pinned verifier unless noted) | Against the live #1 |
+|---|---|---|---|
+| block average to 3,200 values, repeat ×8, one cooling path from T = 1e-2 (462 s) | local1 | 1.4491102 (FFT scorer) | 0.04 δ above |
+| + one hop (378 s) | local1 | 1.449101225026528 (exact 1.449101225026529) | 0.86 δ below |
+| + one long hop (679 s, T = 1e-3, noise 5e-4) | local3 | **1.449094982848945** (exact 1.449094982848944) | **1.48 δ below** |
+| + two chains of two hops (336 s per hop) | local3 | 1.4490977656912827 and 1.4490985295580978 | 1.20 and 1.13 δ below |
+| + repeat ×2 (51,200 values) and one path | local3 | 1.4490989105229044 | 1.09 δ below |
+| + five more long hops from the 1.48 δ point (570 s each) | local4 | best 1.4490894751686874 (exact 1.4490894751686876); the four others by the FFT scorer | best 2.03 δ below; the others 1.80 to 1.98 δ below |
+| **again from the live #1:** block average to 1,600 values, repeat ×16, one long path (990 s on a Modal core), 3 jobs | r2 | **1.4490567002326498** (exact 1.4490567002326498), 1.4490666598430821, 1.4490749223996897 | **5.31**, 4.31 and 3.49 δ below |
+| block average to 3,200 values, repeat ×8, one long path, 24 jobs | r2 | best 1.4490763441446004 and 1.4490776603516209; the others by the FFT scorer | best 3.34 δ below, median 1.09 δ below; 13 of 24 at least δ below |
+| block average to 6,400 values, repeat ×4, one long path, 3 jobs | r2 | best 1.4490868 (FFT scorer) | best 2.29 δ below |
+| 12 long hops from the 0.86 δ point | r2 | best 1.4490851 (FFT scorer) | 2.15 to 2.47 δ below |
+| sum-pool ×2, keep one value in 8, repeat ×8 (32,768 values), from the #1 and the #2, 6 jobs | r2 | FFT scorer | 33 to 35 δ above |
+| + from the 5.31 δ point: 24 long hops, 12 ×2 steps (51,200 values) and 12 ×3 steps (76,800 values), 510 s each | r4 | best **1.4490529129656413** at ×2 (exact 1.4490529129656424); three more ×2 results re-scored, the rest by the FFT scorer | **5.69 δ below** at ×2 (median 5.49); ×3 best 5.49; hops best 5.37 |
+| five more coarse copies, one path each, no hop (757 s) | local2 | 1.4491154 to 1.4491425 (FFT scorer) | 0.56 to 3.27 δ above |
+| sum-pool to 4,096 values, repeat ×8, path, hop | local1 | 1.4491311065380568 | 2.13 δ above |
+| 96 jobs before the thread fix: hot re-melts at 65,536 values, coarse-to-fine by pooling, hop chains, other grids, from the #1 and the #2 | r1, r1b | nothing below the live #1; not converged, so inconclusive | — |
+
+- **87 jobs end at least δ below the live #1 without any MILO data (48 of them continue the same 5.31 δ point),
+  and the 14 we re-scored hold under the pinned verifier and the exact scorer.** The chain is: solution 2617,
+  block average, repeat, our optimizer. Each job's log line holds
+  the sha256 of the vector it started from, so the chain can be audited in
+  `selection/scout_third_autocorr_trackB_runs.jsonl`.
+- **The margin is modest**: 5.7 δ for the best, and 3.5 to 5.3 δ for the three first paths of its kind; hops and
+  ×2 steps added 0.4 δ. Other agents moved this record by 1.2 δ on 2026-10-13 and by 169 δ on
+  2026-10-06, so the lead is not safe. And track B stays about 17 δ *above* MILO's claimed value: it would top
+  the leaderboard, not the literature.
+- **The coarser the copy, the better, as far as we looked**: 1,600 values (3.5 to 5.3 δ, 3 jobs) beat 3,200
+  (median 1.1 δ, 24 jobs) and 6,400 (best 2.3 δ, 3 jobs). Keeping one value in 8 instead of averaging fails
+  (33 δ above). Only three jobs ran at 1,600, so this is a lead, not a result.
+- **What track B still owes to MILO, to be exact:** the optimizer follows the method MILO's paper describes, and
+  the idea of re-optimizing a coarse copy was first seen to work on MILO's published copy. No number from MILO
+  enters track B.
+- Why it works (hypothesis): the live #1 has 65,536 values; the candidates have 25,600. The coarse copy keeps the
+  large-scale shape and lets the optimizer rebuild the fine structure on another grid, with a path long enough to
+  converge. Polishing the #1 on its own grid gains nothing (section 3.2).
+
+**Track A: the margin grows slowly.**
+
+| Source | Jobs | Best score (pinned verifier) | Below the live #1 | Below MILO's claim |
+|---|---|---|---|---|
+| section 3.2: one path, then one hop | 7 | 1.448825267560211 | 28.45 δ | 6.07 δ |
+| local1: two chains of two hops (400 s per hop) | 2 | 1.44882467417151 (exact 1.4488246741715105) | 28.51 δ | 6.13 δ |
+| r2 (Modal, after the fix): 20 long direct paths from the copy | 20 | 1.4488194732357842 (exact identical) | 29.03 δ (median 27.85 δ) | 6.65 δ |
+| r2: 24 long hops from the best candidates | 24 | 1.4488217929 (FFT scorer) | 28.80 δ (median 28.66 δ) | 6.42 δ |
+| r2: ×2 (51,200 values) and ×3 (76,800 values) from the best candidate, 2 jobs each | 4 | **1.4488128798873552** at ×2 (exact 1.448812879887355); 1.4488149360933422 at ×3 | **29.69 δ**; 29.49 δ | **7.31 δ**; 7.11 δ |
+| r1, r1b, r1c, r1d (before the thread fix) | 16 logged, the rest stopped | nothing better; not converged | — | — |
+
+How the gain flattens with compute, along the best lineage:
+
+| Compute spent | Best | Step |
+|---|---|---|
+| one path from the copy, 7 min of a local core | 28.18 δ below the live #1 | — |
+| + one hop, 7 min local | 28.45 δ | +0.27 δ |
+| + two hops, 13 min local | 28.51 δ | +0.06 δ |
+| + one long hop, 12 min of a Modal core (best of 24) | 28.80 δ | +0.29 δ |
+| or + one ×2 resolution step, 16 min of a Modal core (best of 2; the other gives 28.92 δ) | 29.69 δ | +1.18 δ |
+| for comparison: 20 fresh paths from the copy, 16 min of a Modal core each | best 29.03 δ, median 27.85 δ | — |
+
+The first path does almost all the work: 28 of the 29.7 δ. After it, about 50 jobs and 14 core-hours bought
+1.5 δ. Hops add a few hundredths to a few tenths of δ each. The largest single step was one ×2 resolution step,
+which the 100,000-value limit caps (76,800 values is the last grid of this family, and it did no better). Fresh
+first paths are as good a use of compute as hop chains: the best of 20 beats every hop chain at 25,600 values.
+
+**Suggestions of a second model for track B** (relayed by the coordinator; unverified ideas, no MILO data):
+
+- *Structure (its point 1), measured on the live #1:* with dx·Σf = 1, the reflection-even part has energy 14.86
+  and the odd part 13.41, so the central lag equals the maximum (14.86 − 13.41 = 1.449). Positive mass 1.766,
+  negative mass −0.766. The autoconvolution goes down to −4.61. 58,972, 60,335 and 62,913 of the 131,071 lags lie
+  within 1e-6, 1e-5 and 1e-4 of the maximum. This agrees with its claim that the odd part must carry a lot of
+  energy.
+- *Movable signed boxes with CMA-ES, coarse-grid basin enumeration, continuation in the central lag (its
+  strategies A, B, C):* **not tried.** Each needs a new optimizer and its own stop rule asks for an hour per
+  strategy; the follow-up had about 75 minutes in all.
+- *Its remark on resolution:* consistent with what we see. Block-repeat preserves the score exactly, and 25,600
+  has no special meaning: track B works on 25,600 values simply because 3,200 × 8 is cheap to optimize.
+
+**Compute and spend**
+
+- Modal: 13 runs of one container with 48 cores and 24 GiB, about 185 container-minutes in total, **about
+  7.6 USD** at 0.047 USD per core-hour and 0.008 USD per GiB-hour (estimate from the apps' run times; the cap was
+  20 USD). About 5.4 USD of it went into the four rounds before the thread fix, which produced nothing usable.
+  All apps are stopped.
+- Local: 18 jobs, about 3.6 core-hours.
+
+### 3.5 Where the candidates stand
+
+Best candidate of each track, live #1 = 1.449109789331911 (re-read at 06:20 UTC on 2026-11-15, unchanged), MILO's
+claimed value = 1.4488860142647635:
+
+| Track | Provenance | File (`.json.gz`) | Values | Pinned verifier | Exact rational | Against the live #1 | Against MILO's claim |
+|---|---|---|---|---|---|---|---|
+| A | `milo_published_copy` | `trackA_r2_A045_longrepeat2` | 51,200 | 1.4488128798873552 | 1.448812879887355 | 29.69 δ below | 7.31 δ below |
+| B | `public_leaderboard_only` | `trackB_r4_B035_longrepeat2` | 51,200 | 1.4490529129656413 | 1.4490529129656424 | 5.69 δ below | 16.69 δ above |
+
+- `MANIFEST.json` lists every stored candidate with its track, provenance, sha256, both scores and their
+  difference (at most 2e-15). All stored files were decompressed and re-scored once more with the stage 2 copy of
+  the pinned verifier: same scores.
+- The coordinator reports that the WS1 arbiter, on the proposal branch `ws1/freeze-third-autocorrelation`, judged
+  the first seven track A candidates against the live #1. This scout did not run the arbiter; the later
+  candidates, track B included, were committed for it to judge.
+- Still candidates: nothing was submitted, and no record is claimed.
+
 ## 4. Other problems, briefly
 
 - **kakeya-needle-128** (backup): best sign of headroom among the problems we did not attack. The record fell five
@@ -154,32 +312,37 @@ What they are:
 
 ## 5. Recommendation
 
-1. **Switch the main effort to third-autocorrelation**, provided Arthur accepts a result built on MILO's published
-   copy with credit. If he does not, do not switch: from the live #1 alone this problem gave 0 δ, no better than the
-   current one, and kakeya-needle-128 becomes the alternative to study.
-2. **WS1 first** (about an hour):
+1. **Switch the main effort to third-autocorrelation.** The switch no longer hangs on the provenance question:
+   track B gives candidates below the live #1 with public data only. Arthur still has to choose what the team
+   stands on:
+   - track A, the stronger number (below the leaderboard *and* below MILO's claim), built on MILO's published copy
+     with credit;
+   - track B, clean but only a leaderboard lead, 17 δ short of MILO's claimed value. Under the WS1 rule "the record
+     to beat is the best known value", track B alone does not beat it if MILO's claim is counted.
+2. **WS1 first:**
    - Freeze the problem: pinned verifier (sha256 `b8288d59…`), certificate = live #1 (solution 2617), independent
-     verifier = `selection/scout_third_autocorr_exact.py` (3 s for 25,600 values, 11 s for 65,536).
-   - Fix the record to beat as the lower of the live #1 and MILO's claimed 1.4488860142647635, so the target is
-     ≤ 1.4488760142647635. Candidate C7 passes it by 5.1 δ.
+     verifier = `selection/scout_third_autocorr_exact.py` (3 s for 25,600 values, 11 s for 65,536), schema limit
+     of 100,000 values.
+   - Fix the record to beat. If it is the lower of the live #1 and MILO's claimed 1.4488860142647635, the target
+     is ≤ 1.4488760142647635: the best track A candidate passes it by 6.3 δ, no track B candidate does.
    - Arbitrate the candidates with `verify_claim.py`, re-reading the live #1 just before.
-3. **Attack, to widen the margin** (WS2 and WS3; all of it untested beyond section 3.2):
-   - Many cooling paths from the published copy: starting temperature between 1e-3 and 1e-1, several noise seeds.
-     One path is 5 to 7 minutes on one core, so 100 paths are about 10 core-hours.
-   - Chains of re-melt hops from the best candidates (C7 is one hop; the `chain` mode runs them in parallel).
-     The ×2 resolution step gained little, so it comes last.
-   - A sequential minimax LP polish at the end, as the erdos threads describe [t281] (untrusted data).
-   - Compute: a CPU fleet on Modal, a few euros. No GPU needed: one evaluation is an FFT of 51,200 to 262,144
-     points.
+3. **Attack** (WS2 and WS3):
+   - Track B first: only three jobs ran from a 1,600-value copy, and they gave the three best results. Run
+     hundreds of them (other coarse sizes, starting temperatures, seeds), then hops and one ×2 step from the best.
+     One job is 17 minutes of one Modal core, so 100 jobs cost about 1.5 USD.
+   - Track A: more first paths from the copy and one ×2 step each; hops bring little (section 3.4).
+   - Not tried: a sequential minimax LP polish at the end, as the erdos threads describe [t281] (untrusted data),
+     and the three strategies of the second model (section 3.4).
+   - Compute: CPU on Modal, with one thread per process forced (`OMP_NUM_THREADS=1`). No GPU needed.
 4. **Keep** the two running attacks on second-autocorrelation; add nothing to them.
 
 Odds before Sunday 14:00 PT, as estimates:
 
 | Outcome | Estimate | Why |
 |---|---|---|
-| A candidate at least δ below the live #1 passes WS1's arbitration | about 90 % | two verifiers already agree, margin 28 δ; the risks are a new #1 from another team and the freeze taking time |
-| It also stays at least δ below MILO's claimed value | about 80 % | margins of 1.3 to 6.1 δ on seven candidates; the risk is a better result, published or not, by MILO or others before Sunday |
-| The same from the live #1, without MILO's copy | under 10 % | 0 δ in our runs; MILO needed 11.8 days |
+| A track A candidate stays at least δ below the live #1 and below MILO's claimed value | about 85 % | margins of 29.7 δ and 7.3 δ under two verifiers; the risk is a better result, published or not, by MILO or others before Sunday |
+| A track B candidate stays at least δ below the live #1 | about 70 % | margin of 5.7 δ today, and more coarse copies should widen it; but this record moved by 1.2 δ and by 169 δ in October, and anyone can run the same pipeline |
+| Track B gets below MILO's claimed value | under 10 % | it is 17 δ short, and the best step we saw after a first path is about 1 δ |
 | A record on the current main problem | not estimated here | see `docs/knockout_v2_brief.md` |
 
 ## 6. What remains unverified
@@ -187,9 +350,17 @@ Odds before Sunday 14:00 PT, as estimates:
 - MILO's own value: their construction is not public. We reproduced the basin, not their number.
 - The server's score of the candidates: nothing was submitted, and the server's numpy version is not pinned. The
   margin is far above float rounding (1e-15).
-- WS1 arbitration: `verify_claim.py` has not seen these candidates.
-- Whether a MILO-derived result is acceptable for Track 1 and for EinsteinArena.
-- Rows marked *printed* in section 3.2 were not saved and not re-scored by the pinned verifier.
+- WS1 arbitration: this scout did not run `verify_claim.py`. The coordinator reports a verdict on the first seven
+  track A candidates only (section 3.5).
+- Whether a MILO-derived result (track A) is acceptable for Track 1 and for EinsteinArena.
+- The live schema limit: 100,000 values is read in the pinned commit; the live API does not expose it.
+- Rows marked *printed* in section 3.2 and rows marked "FFT scorer" in section 3.4 were not re-scored by the
+  pinned verifier. On the points we did re-score, the FFT score and the pinned score agree within 1e-14.
+- The Modal rounds r1, r1b, r1c and r1d ran with 48 threads per process and are not converged: they say nothing
+  for or against the pipelines they ran (hot re-melts at 65,536 values, pooling by 2, 4, 8, hop chains from the
+  #1 and the #2).
+- Track B was run from the #1 almost only; from the #2 only the pre-fix rounds and three r2 jobs (which failed).
+- Why a coarser copy works better, and how far the 1,600-value variant goes: three jobs only.
 - The literature search was short (three Exa queries for this problem, one for kakeya); kakeya's literature
   values were read in secondary sources.
 - We store the 3,200 published values in the repository for replay
@@ -212,8 +383,21 @@ C=selection/.cache/scout/third-autocorrelation-inequality
     --tag live1_hops_300s --budget 300 --workers 4 --seed 100 --alpha-lo 0.03 --t-warm 1e-6 --t-cold 1e-9 \
     --hop-stages 8 --hop-iters 4000 --warm-iters 1500 --fin-iters 5000 --fin-frac 0.2          # A3
 .venv/bin/python selection/scout_two_deletion.py --budget 60 --seed 1 --tag live1_local_60s
+
+# Follow-up (section 3.4). Track B, local: coarse copy of the live #1, then hops
+.venv/bin/python selection/scout_third_autocorr_local.py --round-name local1 --budget 840
+.venv/bin/python selection/scout_third_autocorr_modal.py harvest --round-name local1 --keep 2
+.venv/bin/python selection/scout_third_autocorr_local.py --round-name local3 --budget 700 --plan hopsB
+# Follow-up on Modal: one track per call; the plans of r1b to r4 were JSON files of the same step format
+.venv/bin/modal run --detach selection/scout_third_autocorr_modal.py::launch --round-name r1 --track B --budget 1200
+.venv/bin/modal volume get --force scout-third-autocorr /trackB/r1 $C/modal/trackB/
+.venv/bin/python selection/scout_third_autocorr_modal.py harvest --round-name r1 --keep 5
+.venv/bin/python selection/scout_pack_candidates.py --track B --round r2 B037_coarse1600x16
 .venv/bin/python selection/scout_decide.py                   # -> selection/problem_scout.jsonl
 ```
+
+The step lists of every Modal and local job are in the `config` field of the two track logs, so any job can be
+replayed with `run_steps`.
 
 Runs are time-budgeted, so a replay on another machine gives a nearby score, not the same one. The stored
 candidates are the evidence.

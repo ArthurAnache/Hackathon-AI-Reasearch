@@ -35,14 +35,18 @@ MILO = json.loads((ROOT / "scout_milo_replay.json").read_text())
 
 
 def third_candidates() -> list[dict]:
-    out = []
-    for tag, r in THIRD.items():
-        if tag.startswith("milo_replay") and r.get("valid"):
-            stored = ROOT / "scout_candidates" / "third-autocorrelation-inequality" / f"{tag}.json.gz"
-            out.append({"tag": tag, "n": r["n"], "score_pinned": r["score"],
-                        "stored_file": str(stored.relative_to(ROOT.parent)) if stored.exists() else None,
-                        "solution_sha256": r["solution_sha256"], "wall_s": r["wall_s"],
-                        "label": "verified (pinned verifier, clean process); candidate, not a record claim"})
+    """The stored candidates (selection/scout_candidates/.../MANIFEST.json), best first, with track and provenance."""
+    folder = ROOT / "scout_candidates" / "third-autocorrelation-inequality"
+    manifest = json.loads((folder / "MANIFEST.json").read_text())
+    out = [{"name": name, "track": c["track"], "provenance": c["provenance"], "n": c["n"],
+            "score_pinned": c["score_pinned_verifier"], "score_exact_rational": c["score_exact_rational"],
+            "pinned_minus_exact": c["pinned_minus_exact"],
+            "below_live_top1_over_delta": c["below_live_top1_by_over_delta"],
+            "below_milo_claim_over_delta": c["below_milo_claim_by_over_delta"],
+            "stored_file": str((folder / c["file"]).relative_to(ROOT.parent)), "solution_sha256": c["sha256_json"],
+            "label": "verified (pinned verifier in a clean process, and exact-rational scorer); candidate, not a "
+                     "record claim"}
+           for name, c in manifest["candidates"].items()]
     return sorted(out, key=lambda c: c["score_pinned"])
 
 
@@ -51,19 +55,20 @@ CURATED: dict[str, dict] = {
         "rank": 1, "decision": "switch_candidate",
         "rationale": (
             "Only problem with literature headroom of many delta under the same verifier AND a way to reach it "
-            "tonight. MILO (arXiv:2609.38349, App. E) claims 1.4488860143 on 25,600 grid points, scored with the "
-            "arena verifier, 22 delta below the live #1; its construction is not published and not on the "
-            "leaderboard. Its project page publishes a plot-resolution copy of the record (3,200 of the 25,600 "
-            "values, 6 decimals), which scores 1.6558 as given. Block-repeating that copy x8 and re-optimizing it "
-            "with one log-sum-exp cooling path (our re-implementation, 5 to 7 minutes on one core) gives candidates "
-            "that the pinned verifier scores 23.7 to 28.5 delta below the live #1 and 1.3 to 6.1 delta below MILO's "
-            "claimed value (seven candidates: five direct paths, one re-melt hop, one x2 cascade; all below both); "
-            "an independent exact-rational scorer agrees to 1.3e-15. "
-            "Without that starting point the same method gains nothing from the live #1 in 5 minutes (0 delta) and "
-            "0.4 delta from BasinHopper's solution in 40 s. The candidates derive from MILO's published data and "
-            "must be credited to it: whether "
-            "that counts as our record is Arthur's call. Evaluation is cheap (FFT of 51,200 to 262,144 points), so "
-            "CPU is enough."),
+            "tonight. Two kinds of candidates, kept apart (see best_candidate_by_track). "
+            "Track A, provenance milo_published_copy: MILO (arXiv:2609.38349, App. E) claims 1.4488860143 on "
+            "25,600 grid points with the arena verifier, 22 delta below the live #1; its construction is not "
+            "public, but its project page publishes 3,200 of the 25,600 values (6 decimals), which score 1.6558 as "
+            "given. Block-repeated x8 and re-optimized with log-sum-exp cooling paths and hops (our "
+            "re-implementation, minutes on one core), that copy gives candidates more than 28 delta below the live "
+            "#1 and more than 6 delta below MILO's claimed value. "
+            "Track B, provenance public_leaderboard_only: the live #1 itself (solution 2617), block-averaged to "
+            "3,200 values, repeated x8 and re-optimized with hops, gives candidates at least delta below the live "
+            "#1 with no MILO data; the margin is thin and track B stays about 21 delta above MILO's claim. "
+            "Every candidate is scored by the pinned verifier in a clean process and by an independent "
+            "exact-rational scorer (agreement within 1.3e-15). Polishing the live #1 directly gains 0 delta. "
+            "Whether a MILO-derived result is acceptable is Arthur's call; track B does not depend on it. The "
+            "schema allows at most 100,000 values, and CPU is enough."),
         "literature": [
             {"value": MILO["claimed_record"], "what": "MILO record, 25,600 grid points, 2026-09-15",
              "source": "https://jprithwish.github.io/MILO/ (demo data static/einstein-run.js) and "
@@ -90,10 +95,15 @@ CURATED: dict[str, dict] = {
         "unverified": [
             "MILO's own value (construction not public).",
             "Server-side score of our candidates (nothing was submitted; server numpy version is not pinned).",
-            "Whether a result derived from MILO's published replay is acceptable as the team's record.",
-            "The problem is not frozen in problems/: verify_claim.py has not arbitrated these candidates.",
+            "Whether a result derived from MILO's published replay is acceptable as the team's record (track A).",
+            "The live schema limit: 100,000 values is read in the pinned commit; the live API does not expose it.",
+            "Arbitration: the coordinator reports that the WS1 arbiter judged the first seven track A candidates "
+            "on branch ws1/freeze-third-autocorrelation; this scout did not run verify_claim.py, and the later "
+            "candidates (track B included) were not arbitrated when this file was written.",
+            "The Modal rounds r1, r1b, r1c and r1d ran with 48 threads per process and are not converged.",
         ],
         "to_freeze_if_switch": [
+            "schema: 1 to 100,000 values (pinned commit 5baf636)",
             "verifier_pinned.py: sha256 b8288d5943d72032... (live == pinned on 2026-11-15, see registry_stage2)",
             "certificate: live #1, solution 2617 (Atris), 65,536 values, score 1.449109789331911",
             "independent.py: selection/scout_third_autocorr_exact.py (exact rationals, Kronecker substitution)",
@@ -232,6 +242,28 @@ CURATED: dict[str, dict] = {
 }
 
 
+def followup_summary() -> dict:
+    """Per-track summary of the follow-up jobs (Modal and local), from the two track logs."""
+    out = {"modal_spend_usd_estimate": 7.6,
+           "modal_note": "13 runs of one 48-core container (estimate from run times); r1, r1b, r1c and r1d ran with "
+                         "48 threads per process (about 250 times too slow) and are not converged; r2 and r4 ran "
+                         "with the fix; r3 was stopped after 3 minutes",
+           "schema_max_values": 100_000}
+    for track in ("A", "B"):
+        path = ROOT / f"scout_third_autocorr_track{track}_runs.jsonl"
+        rows = [json.loads(l) for l in path.read_text().splitlines()] if path.exists() else []
+        scored = [r for r in rows if r.get("score") is not None]
+        best = min(scored, key=lambda r: r["score"]) if scored else None
+        out[f"track{track}"] = {
+            "provenance": rows[0]["provenance"] if rows else None, "jobs": len(rows),
+            "re_scored_by_pinned_verifier_and_exact_scorer": len(scored),
+            "re_scored_at_least_delta_below_live_top1": sum(1 for r in scored if r["below_live_top1_over_delta"] >= 1),
+            "best": ({k: best[k] for k in ("experiment_id", "n", "score", "score_exact_rational",
+                                           "below_live_top1_over_delta", "below_milo_claim_over_delta", "device")}
+                     if best else None)}
+    return out
+
+
 def complete_run_logs(live: dict) -> None:
     """Add the fields of the shared experiment-log format that the run scripts do not know (best_known_score,
     decision, rationale, evidence_urls) to both run logs. Idempotent."""
@@ -296,11 +328,15 @@ def main() -> None:
             out["live_top1"]["label"] = ("verified: pinned verifier reproduces 1.449109789331911 in a clean process; "
                                          "exact rational score 1.4491097893319105")
             cands = third_candidates()
+            out["followup"] = followup_summary()
             out["candidates"] = cands
-            if cands:
-                best = cands[0]["score_pinned"]
-                out["best_candidate_vs_live_top1_over_delta"] = (row["top1"]["score"] - best) / row["delta"]
-                out["best_candidate_vs_milo_claim_over_delta"] = (MILO["claimed_record"] - best) / row["delta"]
+            out["best_candidate_by_track"] = {}
+            for track in ("A", "B"):
+                mine = [c for c in cands if c["track"] == track]
+                out["best_candidate_by_track"][track] = (
+                    {k: mine[0][k] for k in ("name", "provenance", "n", "score_pinned", "score_exact_rational",
+                                             "below_live_top1_over_delta", "below_milo_claim_over_delta")}
+                    if mine else None)
             out["experiment"] = {
                 "from_live_top1_hops_300s_4_workers": {k: THIRD.get("live1_hops_300s", {}).get(k)
                                                        for k in ("score", "gain", "gain_over_delta", "wall_s")},

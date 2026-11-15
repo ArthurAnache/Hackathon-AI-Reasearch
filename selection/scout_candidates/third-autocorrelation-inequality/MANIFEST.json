@@ -899,6 +899,88 @@
     "wall_s": 826.7,
     "device": "Modal CPU, 1 of 48 cores"
    }
+  },
+  "trackB_r4_B035_longrepeat2": {
+   "file": "trackB_r4_B035_longrepeat2.json.gz",
+   "track": "B",
+   "provenance": "public_leaderboard_only",
+   "n": 51200,
+   "sha256_json": "f85ca9ca58d7670c89c8f8837551f93c19db38e5201cb62527aa039daa1028ed",
+   "score_pinned_verifier": 1.4490529129656413,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4490529129656424,
+   "pinned_minus_exact": -1.1102230246251565e-15,
+   "argmax_lag": 77699,
+   "below_live_top1_by": 5.6876366269609235e-05,
+   "below_live_top1_by_over_delta": 5.687636626960923,
+   "below_milo_claim_by": -0.00016689870087782666,
+   "below_milo_claim_by_over_delta": -16.689870087782666,
+   "run": {
+    "experiment_id": "scout-third-autocorr/trackB/r4/B035_longrepeat2",
+    "checked_on": "2026-11-15T06:35:35+00:00",
+    "start_key": "kept_r2_B037_coarse1600x16",
+    "start_sha256_float64": "7980fd1a5fa9ed3f4d22210be6872466958fc6adbc2b59c4cfbef066d9344489",
+    "config": {
+     "steps": [
+      {
+       "op": "repeat",
+       "k": 2
+      },
+      {
+       "op": "path",
+       "t_hot": 0.001,
+       "t_cold": 1e-08,
+       "stages": 14,
+       "seconds": 510.0,
+       "sigma": 0.0003,
+       "keep_start": true
+      }
+     ]
+    },
+    "seed": 82035,
+    "budget_s": 540.0,
+    "wall_s": 510.3,
+    "device": "Modal CPU, 1 of 48 cores"
+   }
+  },
+  "trackB_local4_B002_locallonghopB": {
+   "file": "trackB_local4_B002_locallonghopB.json.gz",
+   "track": "B",
+   "provenance": "public_leaderboard_only",
+   "n": 25600,
+   "sha256_json": "2542963b5d3097db06088cd6e11d4ed8902adb1ff47cf688809e697c0e4709d3",
+   "score_pinned_verifier": 1.4490894751686874,
+   "verifier_sha256": "b8288d5943d72032f1d2bcf5d8a3b3a00cfd428ae0347a26bfc53974ec7ebce9",
+   "score_exact_rational": 1.4490894751686876,
+   "pinned_minus_exact": -2.220446049250313e-16,
+   "argmax_lag": 39019,
+   "below_live_top1_by": 2.031416322356705e-05,
+   "below_live_top1_by_over_delta": 2.031416322356705,
+   "below_milo_claim_by": -0.00020346090392386884,
+   "below_milo_claim_by_over_delta": -20.346090392386884,
+   "run": {
+    "experiment_id": "scout-third-autocorr/trackB/local4/B002_locallonghopB",
+    "checked_on": "2026-11-15T06:28:06+00:00",
+    "start_key": "kept_local3_B002_locallonghopB",
+    "start_sha256_float64": "6dc57fb86597bf5748ef43abc9a4e78f091f43fa4c8f6e087b0ffd02be084963",
+    "config": {
+     "steps": [
+      {
+       "op": "path",
+       "t_hot": 0.002,
+       "t_cold": 1e-08,
+       "stages": 16,
+       "seconds": 582.0,
+       "sigma": 0.0005,
+       "keep_start": true
+      }
+     ]
+    },
+    "seed": 35002,
+    "budget_s": 600.0,
+    "wall_s": 582.0,
+    "device": "local CPU, 1 core"
+   }
   }
  },
  "slug": "third-autocorrelation-inequality",

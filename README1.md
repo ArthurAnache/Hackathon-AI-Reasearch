@@ -96,6 +96,8 @@ Pinned sources:
 | `selection/scout_milo_replay.py`, `selection/scout_milo_replay.json` | Extracts the copy of MILO's third-autocorrelation record published on its project page; claim and source hashes |
 | `selection/scout_third_autocorr.py`, `selection/scout_third_autocorr_runs.jsonl` | Experiment on third-autocorrelation (`scan`, `refine`, `chain`, `compare`) and its run log |
 | `selection/scout_third_autocorr_exact.py` | Independent exact-rational scorer for third-autocorrelation (standard library only) |
+| `selection/scout_third_autocorr_modal.py`, `selection/scout_third_autocorr_local.py` | Follow-up runs of step pipelines on Modal (one 48-core container per track and round) and on local cores; `harvest` re-scores the best points |
+| `selection/scout_third_autocorr_trackA_runs.jsonl`, `selection/scout_third_autocorr_trackB_runs.jsonl` | One line per follow-up job. Track A starts from MILO's published copy, track B from the live #1 and #2 only |
 | `selection/scout_two_deletion.py`, `selection/scout_two_deletion_runs.jsonl` | Local-search probe on two-deletion-code-16 and its run log |
 | `selection/scout_decide.py`, `selection/problem_scout.jsonl` | Scout decisions: one line per live problem, with evidence |
 | `selection/scout_pack_candidates.py`, `selection/scout_candidates/` | Third-autocorrelation candidates (gzip) with `MANIFEST.json`; candidates, not records |
@@ -576,10 +578,26 @@ Full report: `docs/problem_scout.md`. One line per live problem: `selection/prob
 - **Limitation:** the candidates derive from MILO's published data, were not submitted, and were not arbitrated by
   `verify_claim.py` because the problem is not frozen.
 
-**Proposal (Arthur decides):** switch the main effort to third-autocorrelation if a MILO-derived result is
-acceptable with credit; then freeze the problem (pinned verifier, live #1 as certificate, the exact scorer as
-independent verifier), with the record to beat set to the lower of the live #1 and MILO's claimed value.
-kakeya-needle-128 is the next problem to study otherwise.
+**Follow-up the same evening (Modal and local, two tracks kept apart; `docs/problem_scout.md` section 3.4):**
+- Track A, provenance `milo_published_copy`: more paths, hops and resolution steps from MILO's published copy.
+  Best 1.4488128798873552 on 51,200 values (**verified**, pinned verifier and exact scorer): 29.69 δ below the
+  live #1 and 7.31 δ below MILO's claimed value. The first path gives 28 δ; about 50 more jobs added 1.5 δ.
+- Track B, provenance `public_leaderboard_only`: the live #1 (solution 2617) block-averaged to 1,600 or 3,200
+  values, repeated back to 25,600 and re-optimized, with no MILO data. Best 1.4490529129656413 on 51,200 values
+  (**verified**, pinned verifier and exact scorer): 5.69 δ below the live #1, but 16.69 δ above MILO's claimed
+  value. 14 re-scored candidates are at least δ below the live #1. Polishing the live #1 on its own grid still
+  gains nothing.
+- **Limitation:** the schema allows at most 100,000 values (pinned commit; the live API does not expose it).
+- **Limitation:** four Modal rounds ran with 48 threads per process (Modal exports `OMP_NUM_THREADS=48` for a
+  48-core container) and are not converged; the runner now forces one thread. Modal spend: about 7.6 USD
+  (estimate), of which about 5.4 USD in those rounds.
+- Candidates of both tracks are stored with track, provenance, sha256 and both scores in
+  `selection/scout_candidates/third-autocorrelation-inequality/MANIFEST.json`. None was submitted.
+
+**Proposal (Arthur decides):** switch the main effort to third-autocorrelation. Freeze the problem (pinned
+verifier, live #1 as certificate, the exact scorer as independent verifier, 100,000-value limit) and fix the
+record to beat: against the lower of the live #1 and MILO's claimed value, only track A passes; against the live
+#1 alone, both tracks pass. kakeya-needle-128 is the next problem to study otherwise.
 
 ## 13. Next steps and limitations
 
