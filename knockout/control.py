@@ -66,6 +66,32 @@ class HillSamplingArm:
             self.ctx.ledger.event("warm_start_update", seed=None, refs=[exp_id], score_before=before,
                                   score_after=ev.score, solution_path=self.best_solution_path)
 
+    def _memory(self, children, improved: bool, best, ref) -> None:
+        """Shared memory: a `win` for the kept edit, one `failed_batch` fact for the edits that did not gain."""
+        mem = self.ctx.memory
+        if mem is None or not mem.enabled:
+            return
+        failed = []
+        for p, ev, exp_id, _ in children:
+            if p.operator == REPLAY:
+                continue
+            gain = self.ctx.problem.gain(ev.score, ref) if ev.valid and ref is not None else None
+            won = improved and exp_id == best[2]
+            mem.note_child("control", p.operator, won)
+            if won:
+                mem.write_fact("win", f"{p.operator}: {p.description[:300]}",
+                               f"Kept edit of control round {self.rounds}: beat the incumbent by {gain:+.3e}.",
+                               arm="control", operator=p.operator, experiment_ids=[exp_id], gain=gain, ref_score=ref,
+                               score=ev.score)
+            else:
+                failed.append((p, gain, exp_id))
+        if failed and mem.write_failed:
+            lines = [f"- {p.operator}: {p.description[:140]} (" + ("invalid" if g is None else f"gain {g:+.2e}") + ")"
+                     for p, g, _ in failed[:8]]
+            mem.write_fact("failed_batch", f"Control round {self.rounds}: {len(failed)} edits did not beat the "
+                           "incumbent", "\n".join(lines), arm="control", experiment_ids=[e for _, _, e in failed],
+                           gain=max((g for _, g, _ in failed if g is not None), default=None))
+
     def baseline(self) -> Evaluation:
         ctx, inc = self.ctx, self.incumbent
         ev = ctx.finish(ctx.submit(inc.source, self.budget_s, self.eval_seed).result(), self.category)
@@ -153,6 +179,7 @@ class HillSamplingArm:
                               "fidelity": "F0", "round": self.rounds, "ref_score": ref, "edit_meta": p.meta})
             if is_top:
                 self._set_best(ev, exp_id, rec)
+        self._memory(children, improved, best, ref)
         before = inc.score
         if improved:
             p, ev, exp_id, pid = best
