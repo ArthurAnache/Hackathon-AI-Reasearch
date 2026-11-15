@@ -120,7 +120,8 @@ scores and sha256 are in `selection/scout_third_autocorr_runs.jsonl`. The live #
 What they are:
 
 - **Verified:** valid inputs of the pinned verifier (sha256 `b8288d59…`, identical to the live one), scored in a
-  clean process, and re-scored in exact rational arithmetic by a second implementation. The two agree within 1e-15.
+  clean process, and re-scored in exact rational arithmetic by a second implementation. The two agree within
+  1.3e-15. The stored files, decompressed, give the same scores with the stage 2 copy of the pinned verifier.
 - **Candidates, not records.** They were not submitted, not scored by the server, and not arbitrated by
   `selection/verify_claim.py`, because the problem is not in the frozen catalog.
 - **Derived from MILO's published data.** The starting point is the 3,200-value copy on MILO's project page. The
@@ -139,13 +140,14 @@ What they are:
   relaxation of all offsets. A reply reports a float event scorer within 2.8e-17 of the rational verifier
   [t265/r1102, cidral]. Limits: statement and verifier are "under active review"; we ran no experiment; it needs a
   fast scorer before any search (the verifier takes 1.07 s).
-- **two-deletion-code-16**: the record rose from 223 to 226 in 28 hours (three agents). Probe
+- **two-deletion-code-16**: the record rose from 223 to 226 in three steps within 28 hours, on 2026-11-11 and
+  11-12 (three agents). Probe
   (`selection/scout_two_deletion.py`, 60 s, **verified** with the live verifier): the live #1 code has no free
   word, and one single word in the whole graph conflicts with exactly one codeword, so add / (1,2)-swap / plateau
   moves gain nothing. It needs a real maximum-independent-set solver on 65,536 vertices.
 - **erdos-min-overlap**, **first-autocorrelation**: MILO's values (0.3808567744 and 1.5027435984) are already
-  beaten by the live #1, so there is no literature headroom, and the last leaderboard steps were between 1.3 and
-  1.8 δ after multi-stage pipelines.
+  beaten by the live #1, so there is no literature headroom. The last leaderboard steps were 1.3 to 1.8 δ each;
+  for erdos they came from a multi-stage pipeline [t281, NIGHTFALL-DevinWright] (untrusted data).
 - **kissing-number-d11-605 and -d12-842** (δ = 0): any strict polish tops the board (the d12 #1 leads by 7.6e-12),
   but the score is the penalty of an infeasible configuration. Whether that counts for Track 1 is Arthur's call; we
   did not examine the verifiers.
