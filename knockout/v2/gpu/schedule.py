@@ -368,11 +368,13 @@ def plan_blockkick16(start: str, evals: int) -> list[ChainSpec]:
                                     f"keeps block masses), then one slow cooling from beta = {b0:.0e} to 1e9 "
                                     f"and a polish to 1e11")
 
-    for sigma in (0.3, 1.0, 2.0):
+    # Measured on solution 2783: a kick of width 0.3 moves 23.5 % of the mass (L1), the distance between 2782 and
+    # 2783 (22.5 %); widths 0.1 and 0.6 bracket it. Block means over 4 / 16 / 64 cells move 19 / 28 / 36 %.
+    for sigma in (0.1, 0.3, 0.6):
         chains += [kicked(sigma, 100, 1e4, 1), kicked(sigma, 1000, 1e4, 1)]
-    chains += [kicked(1.0, 100, 1e4, 2), kicked(1.0, 100, 1e4, 3)]
-    chains += [kicked(0.3, 100, 1e3, 1), kicked(1.0, 100, 1e3, 1)]
-    chains += [kicked(1.0, 20, 1e4, 1), kicked(2.0, 20, 1e4, 1)]
+    chains += [kicked(0.3, 100, 1e4, 2), kicked(0.3, 100, 1e4, 3)]
+    chains += [kicked(0.3, 100, 1e3, 1), kicked(0.6, 100, 1e3, 1)]
+    chains += [kicked(0.3, 20, 1e4, 1), kicked(0.6, 20, 1e4, 1)]
     chains += [means(4, 1e4), means(16, 1e4), means(64, 1e4)]
     return chains
 
