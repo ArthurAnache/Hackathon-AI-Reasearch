@@ -14,6 +14,9 @@ protected.
 Schedules:
 - `p0`: the standard polish, beta = 1e9 then 3e9 then 1e10 ("polish alone" in the episode value).
 - `a7`, `a6`, `a5`: anneals that start at beta = 1e7, 1e6, 1e5 and end at 3e9.
+- `h6`, `h7`, `h8`: holds. About half of the budget stays at one low beta (1e6, 1e7, 1e8), in six stages whose
+  smoothed values are logged, then the anneal goes up to 3e9. They measure how fast the smoothed objective still
+  improves at a low beta, where the problem is better conditioned.
 - `mm6`, `mm7`, `mm8`: exponential method of multipliers at a fixed beta (1e6, 1e7, 1e8), 8 multiplier updates,
   then the plain LogSumExp at 1e9 and 3e9.
 """
@@ -29,6 +32,10 @@ SCHEDULES: dict[str, list[tuple[float, bool]]] = {
     "a7": [(1e7, False), (3e7, False), (1e8, False), (3e8, False), (1e9, False), (3e9, False)],
     "a6": [(1e6, False), (1e7, False), (1e8, False), (1e9, False), (3e9, False)],
     "a5": [(1e5, False), (1e6, False), (1e7, False), (1e8, False), (1e9, False), (3e9, False)],
+    "h6": [(1e6, False)] * 6 + [(3e6, False), (1e7, False), (3e7, False), (1e8, False), (3e8, False), (1e9, False),
+                                (3e9, False)],
+    "h7": [(1e7, False)] * 6 + [(3e7, False), (1e8, False), (3e8, False), (1e9, False), (3e9, False)],
+    "h8": [(1e8, False)] * 6 + [(3e8, False), (1e9, False), (3e9, False)],
     "mm6": [(1e6, True)] * 8 + [(1e9, False), (3e9, False)],
     "mm7": [(1e7, True)] * 8 + [(1e9, False), (3e9, False)],
     "mm8": [(1e8, True)] * 8 + [(1e9, False), (3e9, False)],
@@ -39,14 +46,20 @@ class _Stop(Exception):
     pass
 
 
-def _lbfgs(oracle: Oracle, w: np.ndarray, beta: float, log_lambda, stage_end: float, maxcor: int) -> np.ndarray:
-    """L-BFGS from w until the oracle count reaches stage_end. Returns the last accepted iterate."""
+def _lbfgs(oracle: Oracle, w: np.ndarray, beta: float, log_lambda, stage_end: float, maxcor: int,
+           trace: dict | None = None) -> np.ndarray:
+    """L-BFGS from w until the oracle count reaches stage_end. Returns the last accepted iterate. `trace` receives
+    the first and the lowest value of the smoothed objective (-log C_beta) seen in the stage."""
     last = {"x": w}
 
     def fun(x):
         if oracle.calls + 1.0 > stage_end + 1e-9:
             raise _Stop
-        return oracle.value_and_grad(x, beta, log_lambda)
+        value, grad = oracle.value_and_grad(x, beta, log_lambda)
+        if trace is not None:
+            trace.setdefault("smooth_first", float(value))
+            trace["smooth_best"] = min(trace.get("smooth_best", np.inf), float(value))
+        return value, grad
 
     def callback(xk):
         last["x"] = xk.copy()
@@ -83,8 +96,9 @@ def polish(f0, schedule, budget: float, maxcor: int = 8):
             w = np.sqrt(oracle.normalize(w * w))
             if not use_multipliers:
                 log_lambda = None
-            w = _lbfgs(oracle, w, beta, log_lambda, stage_end, maxcor)
-            stage = {"beta": beta, "multipliers": use_multipliers, "calls": oracle.calls}
+            stage = {"beta": beta, "multipliers": use_multipliers}
+            w = _lbfgs(oracle, w, beta, log_lambda, stage_end, maxcor, stage)
+            stage["calls"] = oracle.calls
             info["stages"].append(stage)
             if use_multipliers:
                 log_lambda = oracle.update_multipliers(w * w, beta, log_lambda)

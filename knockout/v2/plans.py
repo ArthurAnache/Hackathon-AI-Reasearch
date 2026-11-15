@@ -80,4 +80,9 @@ def e2_reheat() -> list[dict]:
     return reheats("sol2783")
 
 
-PLANS = {"smoke": smoke, "e1": e1, "e2_reheat": e2_reheat}
+def holds() -> list[dict]:
+    """Long holds at a low beta from both starts: is the smoothed objective still improving there?"""
+    return [s for start in ("sol2782", "sol2783") for s in reheats(start, (6000, 12000), ("h6", "h7", "h8"))]
+
+
+PLANS = {"smoke": smoke, "e1": e1, "e2_reheat": e2_reheat, "holds": holds}
