@@ -142,6 +142,20 @@ def finalize_remote(run_ids: list[str]) -> list[dict]:
     return rows
 
 
+@app.function(cpu=0.25, memory=1024, timeout=600, max_containers=2, volumes={VOL: volume})
+def promote_remote(solution_path: str, name: str) -> str:
+    """Copy a stored solution to starts/<name>.npy, so that later episodes can start from it (chaining)."""
+    import shutil
+
+    volume.reload()
+    target = Path(VOL) / "starts" / f"{name}.npy"
+    if target.exists():
+        raise ValueError(f"starts/{name}.npy already exists; start solutions are never overwritten")
+    shutil.copyfile(Path(VOL) / solution_path, target)
+    volume.commit()
+    return f"starts/{name}.npy"
+
+
 def estimate_usd(specs: list[dict]) -> float:
     return sum(worker_usd(s["budget"] * SECONDS_PER_EVAL + 30.0) for s in specs)
 
@@ -183,3 +197,9 @@ def finalize(run_id: str, out_dir: str = "", name: str = ""):
     path = out / f"{name or run_ids[0]}.jsonl"
     path.write_text("".join(json.dumps(r) + "\n" for r in rows))
     print(f"{len(rows)} episodes -> {path}; estimated spend {sum(r['usd_estimate'] for r in rows):.2f} USD")
+
+
+@app.local_entrypoint()
+def promote(solution: str, name: str):
+    """`solution` is a path on the Volume, e.g. <run_id>/solutions/<episode_id>.npy."""
+    print("start solution:", promote_remote.remote(solution, name))

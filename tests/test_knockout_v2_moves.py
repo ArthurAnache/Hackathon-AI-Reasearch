@@ -10,7 +10,7 @@ from knockout.v2 import plans
 from knockout.v2.episode import EpisodeSpec, classify, rel_l1, run_episode
 from knockout.v2.moves import MOVES, apply_move, runs
 from knockout.v2.objective import BudgetSpent, Oracle
-from knockout.v2.polish import SCHEDULES, polish
+from knockout.v2.polish import SCHEDULES, parse_schedule, polish
 
 
 def comb(n=600, seed=0):
@@ -84,6 +84,13 @@ class PolishTest(unittest.TestCase):
         self.assertGreater(info1["best_score"], info1["input_score"] + 1e-3)
         np.testing.assert_array_equal(best1, best2)
         self.assertEqual(info1["calls"], info2["calls"])
+
+    def test_schedule_names(self):
+        self.assertEqual(parse_schedule("p0"), (False, SCHEDULES["p0"], 8))
+        self.assertEqual(parse_schedule("f:a7@24"), (True, SCHEDULES["a7"], 24))
+        self.assertEqual(parse_schedule([(10.0, False)]), (False, [(10.0, False)], 8))
+        with self.assertRaises(KeyError):
+            parse_schedule("nope")
 
     def test_keeps_the_support(self):
         f = comb()
@@ -184,7 +191,7 @@ class PlansTest(unittest.TestCase):
             for s in specs:
                 self.assertIn(EpisodeSpec(**s).baseline().episode_id, ids, name)
                 self.assertIn(s["family"], MOVES, name)
-                self.assertIn(s["schedule"].removeprefix("f:"), SCHEDULES, name)
+                parse_schedule(s["schedule"])          # raises KeyError on an unknown schedule
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ protected.
 Schedules:
 - `p0`: the standard polish, beta = 1e9 then 3e9 then 1e10 ("polish alone" in the episode value).
 - `a7`, `a6`, `a5`: anneals that start at beta = 1e7, 1e6, 1e5 and end at 3e9.
-- `h6`, `h7`, `h8`: holds. About half of the budget stays at one low beta (1e6, 1e7, 1e8), in six stages whose
+- `h5`, `h6`, `h7`, `h8`: holds. About half of the budget stays at one low beta (1e5 to 1e8), in six stages whose
   smoothed values are logged, then the anneal goes up to 3e9. They measure how fast the smoothed objective still
   improves at a low beta, where the problem is better conditioned.
 - `mm6`, `mm7`, `mm8`: exponential method of multipliers at a fixed beta (1e6, 1e7, 1e8), 8 multiplier updates,
@@ -34,6 +34,8 @@ SCHEDULES: dict[str, list[tuple[float, bool]]] = {
     "a7": [(1e7, False), (3e7, False), (1e8, False), (3e8, False), (1e9, False), (3e9, False)],
     "a6": [(1e6, False), (1e7, False), (1e8, False), (1e9, False), (3e9, False)],
     "a5": [(1e5, False), (1e6, False), (1e7, False), (1e8, False), (1e9, False), (3e9, False)],
+    "h5": [(1e5, False)] * 6 + [(3e5, False), (1e6, False), (3e6, False), (1e7, False), (3e7, False), (1e8, False),
+                                (3e8, False), (1e9, False), (3e9, False)],
     "h6": [(1e6, False)] * 6 + [(3e6, False), (1e7, False), (3e7, False), (1e8, False), (3e8, False), (1e9, False),
                                 (3e9, False)],
     "h7": [(1e7, False)] * 6 + [(3e7, False), (1e8, False), (3e8, False), (1e9, False), (3e9, False)],
@@ -83,12 +85,20 @@ def _lbfgs(oracle: Oracle, x: np.ndarray, beta: float, log_lambda, stage_end: fl
     return last["x"]
 
 
+def parse_schedule(schedule, maxcor: int = 8):
+    """(direct, stages, maxcor) of a schedule: a list of stages, or "[f:]<name>[@<L-BFGS memory>]"."""
+    if not isinstance(schedule, str):
+        return False, list(schedule), maxcor
+    name, _, memory = schedule.partition("@")
+    return name.startswith("f:"), SCHEDULES[name.removeprefix("f:")], int(memory) if memory else maxcor
+
+
 def polish(f0, schedule, budget: float, maxcor: int = 8):
     """Polish f0 with at most `budget` evaluations. Returns (best exact point seen, info). `schedule` is a name
     of SCHEDULES, the same name with the prefix "f:" (the polisher then works on f itself with the bound f >= 0,
-    so it can open zero cells and close cells exactly), or a list of stages."""
-    direct = isinstance(schedule, str) and schedule.startswith("f:")
-    stages = SCHEDULES[schedule.removeprefix("f:")] if isinstance(schedule, str) else list(schedule)
+    so it can open zero cells and close cells exactly) and/or the suffix "@<m>" (L-BFGS memory m instead of 8),
+    or a list of stages."""
+    direct, stages, maxcor = parse_schedule(schedule, maxcor)
     to_x = (lambda f: f) if direct else np.sqrt
     to_f = (lambda x: np.maximum(x, 0.0)) if direct else np.square
     f0 = np.maximum(np.asarray(f0, dtype=np.float64), 0.0)
