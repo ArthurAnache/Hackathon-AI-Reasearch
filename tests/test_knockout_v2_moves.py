@@ -90,6 +90,15 @@ class PolishTest(unittest.TestCase):
         best, _ = polish(f, [(30.0, False)], budget=60)
         self.assertTrue(np.all(best[f == 0] == 0))
 
+    def test_direct_parametrization_stays_feasible_and_can_open_cells(self):
+        f = comb()
+        start = Oracle(len(f)).exact(f)
+        best, info = polish(f, "f:a5", budget=120)
+        self.assertGreaterEqual(best.min(), 0.0)
+        self.assertGreaterEqual(Oracle(len(f)).exact(best), start - 1e-15)
+        self.assertLessEqual(info["calls"], 120)
+        self.assertGreater(np.count_nonzero(best[f == 0]), 0)
+
 
 class MovesTest(unittest.TestCase):
     def test_contract_and_determinism(self):
@@ -175,7 +184,7 @@ class PlansTest(unittest.TestCase):
             for s in specs:
                 self.assertIn(EpisodeSpec(**s).baseline().episode_id, ids, name)
                 self.assertIn(s["family"], MOVES, name)
-                self.assertIn(s["schedule"], SCHEDULES, name)
+                self.assertIn(s["schedule"].removeprefix("f:"), SCHEDULES, name)
 
 
 if __name__ == "__main__":

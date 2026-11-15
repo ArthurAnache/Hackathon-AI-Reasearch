@@ -104,4 +104,10 @@ def holds() -> list[dict]:
     return [s for start in ("sol2782", "sol2783") for s in reheats(start, (6000, 12000), ("h6", "h7", "h8"))]
 
 
-PLANS = {"smoke": smoke, "e1": e1, "e1_wide": e1_wide, "e2_reheat": e2_reheat, "holds": holds}
+def direct() -> list[dict]:
+    """The polisher on f itself (bound f >= 0) from both starts: it opens and closes cells by itself."""
+    return [s for start in ("sol2782", "sol2783")
+            for s in reheats(start, (1500, 6000), ("f:p0", "f:a7", "f:h7", "f:a5"))]
+
+
+PLANS = {"smoke": smoke, "e1": e1, "e1_wide": e1_wide, "e2_reheat": e2_reheat, "holds": holds, "direct": direct}

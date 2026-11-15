@@ -95,6 +95,12 @@ class Oracle:
         value, gf = self._value_grad_f(w * w, beta, log_lambda)
         return -value, -2.0 * w * gf
 
+    def value_and_grad_direct(self, f: np.ndarray, beta: float, log_lambda: np.ndarray | None = None):
+        """(-log C_beta, its gradient with respect to f), for the polisher that works on f >= 0 with bounds."""
+        self._charge(1.0)
+        value, gf = self._value_grad_f(f, beta, log_lambda)
+        return -value, -gf
+
     def _value_grad_f(self, f, beta, log_lambda):
         c, spec = self._conv(f)
         cmax = c.max()

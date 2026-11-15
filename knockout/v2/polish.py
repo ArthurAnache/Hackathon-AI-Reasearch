@@ -19,11 +19,13 @@ Schedules:
   improves at a low beta, where the problem is better conditioned.
 - `mm6`, `mm7`, `mm8`: exponential method of multipliers at a fixed beta (1e6, 1e7, 1e8), 8 multiplier updates,
   then the plain LogSumExp at 1e9 and 3e9.
+- `f:<name>`: the same stages, but L-BFGS-B works on f itself with the bound f >= 0 instead of f = w^2. A zero
+  cell whose gradient is positive is then opened by the optimizer, and a cell can reach zero exactly.
 """
 from __future__ import annotations
 
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import Bounds, minimize
 
 from knockout.v2.objective import BudgetSpent, Oracle
 
@@ -46,16 +48,18 @@ class _Stop(Exception):
     pass
 
 
-def _lbfgs(oracle: Oracle, w: np.ndarray, beta: float, log_lambda, stage_end: float, maxcor: int,
-           trace: dict | None = None) -> np.ndarray:
-    """L-BFGS from w until the oracle count reaches stage_end. Returns the last accepted iterate. `trace` receives
-    the first and the lowest value of the smoothed objective (-log C_beta) seen in the stage."""
-    last = {"x": w}
+def _lbfgs(oracle: Oracle, x: np.ndarray, beta: float, log_lambda, stage_end: float, maxcor: int,
+           trace: dict | None = None, direct: bool = False) -> np.ndarray:
+    """L-BFGS from x until the oracle count reaches stage_end. Returns the last accepted iterate. `trace` receives
+    the first and the lowest value of the smoothed objective (-log C_beta) seen in the stage. x is w (f = w^2), or
+    f itself with the bound f >= 0 when `direct`."""
+    last = {"x": x}
+    evaluate = oracle.value_and_grad_direct if direct else oracle.value_and_grad
 
     def fun(x):
         if oracle.calls + 1.0 > stage_end + 1e-9:
             raise _Stop
-        value, grad = oracle.value_and_grad(x, beta, log_lambda)
+        value, grad = evaluate(x, beta, log_lambda)
         if trace is not None:
             trace.setdefault("smooth_first", float(value))
             trace["smooth_best"] = min(trace.get("smooth_best", np.inf), float(value))
@@ -68,6 +72,7 @@ def _lbfgs(oracle: Oracle, w: np.ndarray, beta: float, log_lambda, stage_end: fl
         before = oracle.calls
         try:
             res = minimize(fun, last["x"], jac=True, method="L-BFGS-B", callback=callback,
+                           bounds=Bounds(0.0, np.inf) if direct else None,
                            options={"maxcor": maxcor, "maxiter": 1_000_000, "maxfun": 1_000_000,
                                     "ftol": 0.0, "gtol": 0.0})
             last["x"] = res.x
@@ -79,30 +84,35 @@ def _lbfgs(oracle: Oracle, w: np.ndarray, beta: float, log_lambda, stage_end: fl
 
 
 def polish(f0, schedule, budget: float, maxcor: int = 8):
-    """Polish f0 with at most `budget` evaluations. Returns (best exact point seen, info)."""
-    stages = SCHEDULES[schedule] if isinstance(schedule, str) else list(schedule)
+    """Polish f0 with at most `budget` evaluations. Returns (best exact point seen, info). `schedule` is a name
+    of SCHEDULES, the same name with the prefix "f:" (the polisher then works on f itself with the bound f >= 0,
+    so it can open zero cells and close cells exactly), or a list of stages."""
+    direct = isinstance(schedule, str) and schedule.startswith("f:")
+    stages = SCHEDULES[schedule.removeprefix("f:")] if isinstance(schedule, str) else list(schedule)
+    to_x = (lambda f: f) if direct else np.sqrt
+    to_f = (lambda x: np.maximum(x, 0.0)) if direct else np.square
     f0 = np.maximum(np.asarray(f0, dtype=np.float64), 0.0)
     oracle = Oracle(len(f0), budget)
     info = {"schedule": schedule if isinstance(schedule, str) else "custom", "budget": budget, "stages": []}
     try:
         info["input_score"] = oracle.exact(f0)
-        w = np.sqrt(f0)
+        x = to_x(f0)
         log_lambda = None
         for k, (beta, use_multipliers) in enumerate(stages):
             left = oracle.remaining()
             if left < 3.0:
                 break
             stage_end = oracle.calls + left / (len(stages) - k)
-            w = np.sqrt(oracle.normalize(w * w))
+            x = to_x(oracle.normalize(to_f(x)))
             if not use_multipliers:
                 log_lambda = None
             stage = {"beta": beta, "multipliers": use_multipliers}
-            w = _lbfgs(oracle, w, beta, log_lambda, stage_end, maxcor, stage)
+            x = _lbfgs(oracle, x, beta, log_lambda, stage_end, maxcor, stage, direct)
             stage["calls"] = oracle.calls
             info["stages"].append(stage)
             if use_multipliers:
-                log_lambda = oracle.update_multipliers(w * w, beta, log_lambda)
-            stage["exact_at_end"] = oracle.exact(w * w)
+                log_lambda = oracle.update_multipliers(to_f(x), beta, log_lambda)
+            stage["exact_at_end"] = oracle.exact(to_f(x))
     except BudgetSpent:
         pass
     info["calls"] = oracle.calls

@@ -4,7 +4,7 @@
     modal volume put knockout-v2 sol2783.npy starts/sol2783.npy
 
     modal run --detach -m knockout.v2.modal_fleet::launch --plan smoke      # prints run_id and a cost estimate
-    modal run -m knockout.v2.modal_fleet::finalize --run-id <run_id>        # values, outcome classes, local JSONL
+    modal run -m knockout.v2.modal_fleet::finalize --run-id <run_id>[,<run_id>...]   # values, classes, JSONL
     modal volume get knockout-v2 <run_id>/solutions/<episode_id>.npy .      # one solution, for the arbiter
 
 Rules followed (CLAUDE.md, "WS3 - Modal compute and GPUs"):
@@ -118,20 +118,26 @@ def drive(run_id: str, specs: list[dict], meta: dict) -> dict:
 
 
 @app.function(cpu=1.0, memory=4096, timeout=3600, max_containers=4, volumes={VOL: volume})
-def finalize_remote(run_id: str) -> list[dict]:
-    """Value and outcome class of every finished episode of a run (needs the baseline solutions, so it runs next
-    to the Volume). Also writes <run_id>/episodes_final.jsonl."""
+def finalize_remote(run_ids: list[str]) -> list[dict]:
+    """Value and outcome class of every finished episode of one or several runs (needs the baseline solutions, so
+    it runs next to the Volume). A baseline may come from another run of the list. Also writes
+    <first run_id>/episodes_final.jsonl."""
     import numpy as np
 
     from knockout.v2.episode import finalize as finalize_records
 
     volume.reload()
-    base = Path(VOL) / run_id
-    records = [json.loads(p.read_text()) for p in sorted((base / "records").glob("*.json"))]
+    records, seen = [], set()
+    for run_id in run_ids:
+        for path in sorted((Path(VOL) / run_id / "records").glob("*.json")):
+            record = json.loads(path.read_text())
+            if record["experiment_id"] not in seen:
+                seen.add(record["experiment_id"])
+                records.append(record)
     rows = finalize_records(records, lambda r: np.load(Path(VOL) / r["solution_path"]))
     for r in rows:
         r["usd_estimate"] = round(worker_usd(r["worker_wall_s"]), 5)
-    (base / "episodes_final.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    (Path(VOL) / run_ids[0] / "episodes_final.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
     volume.commit()
     return rows
 
@@ -142,15 +148,17 @@ def estimate_usd(specs: list[dict]) -> float:
 
 @app.local_entrypoint()
 def launch(plan: str = "smoke", plan_file: str = "", source_commit: str = "", best_known_score: float = 0.0,
-           max_usd: float = 5.0):
+           max_usd: float = 5.0, baselines: bool = True):
     """Start a run in the background. `plan` names a function of knockout/v2/plans.py; `plan_file` is a JSON list
-    of episode specs and wins over `plan`. The launch is refused when the cost estimate exceeds `max_usd`."""
+    of episode specs and wins over `plan`. The launch is refused when the cost estimate exceeds `max_usd`.
+    `--no-baselines` leaves the polish-alone episodes out, when another run already has them (finalize then takes
+    both run ids)."""
     from knockout.v2 import plans
 
     specs = json.loads(Path(plan_file).read_text()) if plan_file else plans.PLANS[plan]()
     # Episodes of 6,000 evaluations or more start first (they set the end of the run), then the shortest ones
     # (they tell early whether the plan makes sense).
-    specs = sorted(plans.with_baselines(specs),
+    specs = sorted(plans.with_baselines(specs) if baselines else specs,
                    key=lambda s: (0, -s["budget"]) if s["budget"] >= 6000 else (1, s["budget"]))
     name = Path(plan_file).stem if plan_file else plan
     usd = estimate_usd(specs)
@@ -166,10 +174,12 @@ def launch(plan: str = "smoke", plan_file: str = "", source_commit: str = "", be
 
 
 @app.local_entrypoint()
-def finalize(run_id: str, out_dir: str = ""):
-    rows = finalize_remote.remote(run_id)
+def finalize(run_id: str, out_dir: str = "", name: str = ""):
+    """`run_id` is one run id or several separated by commas; the table is written to <out_dir>/<name>.jsonl."""
+    run_ids = [r for r in run_id.split(",") if r]
+    rows = finalize_remote.remote(run_ids)
     out = Path(out_dir or REPO / "knockout" / "v2" / "results" / "moves_cpu")
     out.mkdir(parents=True, exist_ok=True)
-    path = out / f"{run_id}.jsonl"
+    path = out / f"{name or run_ids[0]}.jsonl"
     path.write_text("".join(json.dumps(r) + "\n" for r in rows))
     print(f"{len(rows)} episodes -> {path}; estimated spend {sum(r['usd_estimate'] for r in rows):.2f} USD")
