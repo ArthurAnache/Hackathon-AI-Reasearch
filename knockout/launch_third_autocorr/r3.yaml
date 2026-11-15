@@ -1,0 +1,24 @@
+# Launch file of one exploratory run on third-autocorrelation-inequality (see knockout/README.md,
+# "Third autocorrelation (exploratory)"). The problem is NOT frozen by WS1: a run measures the loop, never a record.
+#   KO_MODAL_APP=knockout-third-autocorr KO_MODAL_VOLUME=knockout-third-autocorr-runs \
+#   KO_MODAL_ORCHESTRATOR_TIMEOUT_S=3600 .venv/bin/modal run --detach -m knockout.modal_app::launch \
+#       --launch-file knockout/launch_third_autocorr/r3.yaml --source-commit $(git rev-parse --short HEAD)
+# Prices: USD per million tokens (input, output), https://developers.openai.com/api/docs/pricing, read 2026-11-15.
+# max_usd caps LLM + Modal worker estimates together; the caps of r1..r5 sum to 24.5 USD.
+#
+# R3: both arms (control + genes), provenance clean. The program writers of the main arm are picked by the loop's
+# model bandit among the two models. The control arm's editor, the gene reviewer, the brainstorm call and the
+# strategist use gpt-6.1-sol.
+
+problem: scout:third-autocorrelation-inequality
+profile: third-autocorr
+init: live                   # provenance `clean`: the live #1 of EinsteinArena problem 4, no MILO data
+editor: openai
+wall_clock_s: 1500
+max_usd: 7.0
+tag: r3
+set:
+  run.arms: both
+  llm.model: gpt-6.1-sol
+  llm.models: [gpt-6.1-sol, gpt-6-astra]
+  llm.prices: {gpt-6.1-sol: [2.0, 10.0], gpt-6-astra: [10.0, 50.0]}

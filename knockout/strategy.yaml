@@ -6,6 +6,9 @@ run:
   seed: 20261114
   wall_clock_s: 600          # total wall-clock budget of one run
   max_usd: 0.0               # hard USD cap, compute + LLM; must be > 0 to use the LLM editor
+  provenance: null           # origin of the warm start; required for an exploratory problem (scout:<slug>) that
+                             # does not start from the live #1 (`clean` is reserved for --init live)
+  seed_params: {}            # optional {name: default} overrides of the seed program's PARAMS for this run
 
 budget_shares:               # fixed shares of the budget (section 5.12)
   control: 0.20              # Hill Sampling arm: fixed, no bandit can reduce it

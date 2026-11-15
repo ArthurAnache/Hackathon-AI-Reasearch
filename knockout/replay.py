@@ -157,7 +157,7 @@ def replay(run_dir: str | Path) -> dict:
             if hashlib.sha256(source.encode()).hexdigest()[:12] != r["algorithm_version"]:
                 fail(r, "the evaluated program is not the program in the cached LLM answer")
             checked["program"] = checked.get("program", 0) + 1
-        claimed = r["decision"] in ("record_claim", "numerical_artifact")
+        claimed = r["decision"] in ("record_claim", "numerical_artifact", "exploratory_gate")
         if claimed != (r["experiment_id"] in promoted):
             fail(r, "record_claim / numerical_artifact decisions and promotion events do not match")
     return {"events": len(events), "experiments": len(experiments), "checked": checked}

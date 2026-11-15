@@ -21,7 +21,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict
 
 STATUS = Literal["keep", "discard", "invalid", "crash", "void"]
-DECISION = Literal["baseline", "keep", "discard", "invalid", "crash", "rejected", "record_claim", "numerical_artifact"]
+DECISION = Literal["baseline", "keep", "discard", "invalid", "crash", "rejected", "record_claim", "numerical_artifact",
+                   # the promotion gate fired on an exploratory problem (not frozen by WS1): never a record claim
+                   "exploratory_gate"]
 EVENT_TYPES = (
     # section 6
     "gene_born", "gate_pair", "gate_verdict", "genome_built", "operator_pick", "island_pick", "filter_reject",

@@ -46,11 +46,22 @@ def build(run_dir: str | Path) -> str:
     claims = [e for e in events if e["type"] == "promotion"]
     record_claims = [e for e in claims if e["payload"]["outputs"]["decision"] == "record_claim"]
     arms = summary.get("arms", {})
-    out += ["## Summary", "",
-            f"- Problem: `{summary.get('problem')}`; editor: `{summary.get('editor')}`; stop reason: "
+    exploratory = bool(summary.get("exploratory"))
+    out += ["## Summary", ""]
+    if exploratory:
+        ref = summary.get("reference") or {}
+        comp = ref.get("components") or {}
+        out += [f"- **Exploratory run** (provenance: `{summary.get('provenance')}`). The problem is not frozen by "
+                f"WS1 and `selection/verify_claim.py` does not know it. Every score below is a measurement of the "
+                f"loop under the pinned verifier, and nothing here is a record claim.",
+                f"- Reference of the exploratory gate: {_fmt(summary.get('best_known'))}, the best of the live #1 "
+                f"({_fmt(comp.get('live_top1'))}, {'read live' if ref.get('live') else 'snapshot: the read failed'}"
+                f"), the claimed literature value ({_fmt(comp.get('literature_claim'))}, not reproduced) and the "
+                f"run's warm start ({_fmt(comp.get('warm_start'))}); binding: `{ref.get('binding')}`."]
+    out += [f"- Problem: `{summary.get('problem')}`; editor: `{summary.get('editor')}`; stop reason: "
             f"{summary.get('stop_reason')}.",
-            f"- Record to beat (read at run time): {_fmt(summary.get('best_known'))}. Warm start: "
-            f"{_fmt(summary.get('init_score'))}.",
+            f"- {'Reference' if exploratory else 'Record to beat'} (read at run time): "
+            f"{_fmt(summary.get('best_known'))}. Warm start: {_fmt(summary.get('init_score'))}.",
             f"- Best verified score of the run: **{_fmt(summary.get('best'))}** (arm `{summary.get('best_arm')}`, "
             f"experiment `{summary.get('best_experiment')}`, solution `{summary.get('best_solution_path')}`)."]
     for name, a in arms.items():
@@ -58,7 +69,18 @@ def build(run_dir: str | Path) -> str:
     b = summary.get("budget", {})
     out.append(f"- Budget: {b.get('elapsed_s')} s of {b.get('wall_clock_s')} s; {b.get('total_usd')} USD of "
                f"{b.get('max_usd')} USD (estimates: Modal compute + LLM).")
-    if record_claims:
+    if exploratory:
+        if record_claims:
+            first = record_claims[0]
+            d = first["payload"].get("detail") or {}
+            out.append(f"- The exploratory gate fired {len(record_claims)} time(s), first on `{first['refs'][0]}`: "
+                       f"pinned verifier {_fmt(d.get('score'))}, independent scorer "
+                       f"{_fmt(d.get('independent_score'))}, reference {_fmt(d.get('best_known'))}. It means that a "
+                       f"candidate passed the run's reference by at least the margin under both scorers. It is not "
+                       f"a record claim, and nothing was submitted.")
+        else:
+            out.append("- The exploratory gate did not fire: no candidate passed the run's reference by the margin.")
+    elif record_claims:
         out.append(f"- **Promotion gate: {len(record_claims)} `record_claim`** ("
                    + ", ".join(e["refs"][0] for e in record_claims) + "). A claim is only a candidate until "
                    "`selection/verify_claim.py` confirms it against the live leaderboard. Nothing was submitted.")

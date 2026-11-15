@@ -1,0 +1,29 @@
+# Launch file of one exploratory run on third-autocorrelation-inequality (see knockout/README.md,
+# "Third autocorrelation (exploratory)"). The problem is NOT frozen by WS1: a run measures the loop, never a record.
+#   KO_MODAL_APP=knockout-third-autocorr KO_MODAL_VOLUME=knockout-third-autocorr-runs \
+#   KO_MODAL_ORCHESTRATOR_TIMEOUT_S=3600 .venv/bin/modal run --detach -m knockout.modal_app::launch \
+#       --launch-file knockout/launch_third_autocorr/r5.yaml --source-commit $(git rev-parse --short HEAD)
+# Prices: USD per million tokens (input, output), https://developers.openai.com/api/docs/pricing, read 2026-11-15.
+# max_usd caps LLM + Modal worker estimates together; the caps of r1..r5 sum to 24.5 USD.
+#
+# R5 (extra, not one of the four comparable runs): control arm only, gpt-6.1-sol, provenance milo_copy, LONG
+# evaluations (360 s instead of 120 s) and, as the seed's defaults, the hot hop of the scout's run C7 (noise 1e-3,
+# cooling 1e-3 -> 1e-8 in 14 stages, no polish first, 85 % of the budget used). It tests whether a method step is
+# worth a fraction of the margin when it gets about the time the scout gave it (420 s on a shared machine).
+
+problem: scout:third-autocorrelation-inequality
+profile: third-autocorr
+init: selection/scout_candidates/third-autocorrelation-inequality/milo_replay_25600_c_remelt.json.gz
+editor: openai
+wall_clock_s: 2700
+max_usd: 2.0
+tag: r5
+set:
+  run.arms: control
+  run.provenance: milo_copy  # the scout's candidate, re-optimized from MILO's published copy
+  llm.model: gpt-6.1-sol
+  llm.models: [gpt-6.1-sol]
+  llm.prices: {gpt-6.1-sol: [2.0, 10.0], gpt-6-astra: [10.0, 50.0]}
+  fidelity.f0_s: 360.0
+  run.seed_params: {noise: 1.0e-3, t_hot: 1.0e-3, t_cold: 1.0e-8, stages: 14, polish_fraction: 0.0,
+                    time_fraction: 0.85}

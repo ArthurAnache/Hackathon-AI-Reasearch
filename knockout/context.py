@@ -135,6 +135,9 @@ class RunContext:
                            "independent_beats": ind_beats}
         ev.claim = D.promotion(beats, verify_ok, ind_ok, ind_beats)
         ev.claim_inputs["detail"] = {"score": ev.score, "best_known": self.best_known(), **detail}
+        if self.problem.exploratory and self.problem.record_info is not None:
+            ev.claim_inputs["detail"]["reference"] = {k: v for k, v in self.problem.record_info().items()
+                                                      if k in ("value", "binding", "components", "live", "read_at")}
         if ev.claim == "numerical_artifact":
             ev.valid, ev.status = False, "void"
             ev.error = f"numerical artifact: float score {ev.score!r} is not confirmed by the independent verifier"
@@ -149,7 +152,15 @@ class RunContext:
         program_path = self.ledger.save_program(program_id, source)
         solution_path = None
         keep_all = self.strategy.get("ledger.save_solutions", "all") == "all"
-        if ev.claim:  # promotion gate: the claim replaces the arm's decision, and the candidate is always stored
+        exploratory = bool(self.problem.exploratory)
+        if ev.claim and exploratory and ev.claim == "record_claim":
+            # Exploratory problem (not frozen by WS1): the gate fired against the run's own reference. This is a
+            # measurement of the loop, logged under its own decision name, and never a record claim.
+            decision = "exploratory_gate"
+            rationale = (f"exploratory gate fired ({ev.claim_inputs.get('detail')}): the score passes the run's "
+                         f"reference by at least the margin under the pinned verifier and the independent scorer. "
+                         f"Not a record claim: the problem is not frozen and WS1 has not arbitrated. " + rationale)
+        elif ev.claim:  # promotion gate: the claim replaces the arm's decision, and the candidate is always stored
             decision = ev.claim
             rationale = (f"promotion gate: {ev.claim} ({ev.claim_inputs.get('detail')}); a record_claim is only "
                          f"a candidate until selection/verify_claim.py confirms it. " + rationale)
@@ -157,9 +168,11 @@ class RunContext:
             solution_path = self.ledger.save_solution(chain, experiment_id, ev.candidate)
         if ev.claim:
             inputs = {k: v for k, v in ev.claim_inputs.items() if k != "detail"}
+            # `outputs.decision` is the raw return value of decisions.promotion (replay re-derives it); on an
+            # exploratory problem `exploratory` and `logged_as` say how to read it.
             self.ledger.event("promotion", seed=None, refs=[experiment_id], inputs=inputs,
                               outputs={"decision": ev.claim}, detail=ev.claim_inputs.get("detail"),
-                              certificate=solution_path)
+                              certificate=solution_path, exploratory=exploratory, logged_as=decision)
         record = {
             "experiment_id": experiment_id, "hypothesis": hypothesis,
             "config": {"chain": chain, "program_id": program_id, "params": ev.params, "tuner": ev.tuner,
@@ -171,7 +184,9 @@ class RunContext:
             "evidence_urls": list(evidence_urls or []),
             "timestamp": now_iso(), "problem": self.problem.id, "agent": agent, "optimizer": program_path,
             "algorithm_version": source_hash(source), "git_commit": self.source_commit, "status": status,
-            "best_before": best_before, "beats_record": bool(ev.valid and self.problem.beats_record(ev.score)),
+            # Always false on an exploratory problem: such a run never asserts anything about a record.
+            "best_before": best_before,
+            "beats_record": bool(not exploratory and ev.valid and self.problem.beats_record(ev.score)),
             "duration_s": round(ev.elapsed_s, 3), "error": ev.error, "evidence": [],
             "solution_path": solution_path,
             "run_id": self.run_id, "source_commit": self.source_commit, "device": self.device, "gpu_type": None,

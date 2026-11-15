@@ -30,6 +30,12 @@ REPO = Path(__file__).resolve().parent.parent
 _CFG = yaml.safe_load((Path(__file__).with_name("strategy.yaml")).read_text())["modal"]
 _IGNORE = ["**/__pycache__", "**/*.pyc", "**/.DS_Store"]
 IMAGE_ROOT = "/root"
+# A campaign may run under its own app and Volume (and with a shorter orchestrator timeout) without editing
+# strategy.yaml: set these in the launcher's environment. The image carries the two names, so the containers
+# resolve the same app and Volume as the launcher.
+APP_NAME = os.environ.get("KO_MODAL_APP") or _CFG["app_name"]
+VOLUME_NAME = os.environ.get("KO_MODAL_VOLUME") or _CFG["volume"]
+ORCHESTRATOR_TIMEOUT_S = int(os.environ.get("KO_MODAL_ORCHESTRATOR_TIMEOUT_S") or _CFG["orchestrator_timeout_s"])
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -40,14 +46,22 @@ image = (
     # docs/ next to knockout/ (Path(__file__).parent.parent), in the orchestrator and in the sandboxed child alike.
     # (First Modal run, 2026-11-14: the data sat under /root/repo while Modal mounted the package at
     # /root/knockout, so problems/<slug>/meta.json was not found.)
-    .env({"PYTHONPATH": IMAGE_ROOT, "PYTHONDONTWRITEBYTECODE": "1"})
-    .add_local_dir(REPO / "knockout", f"{IMAGE_ROOT}/knockout", ignore=_IGNORE)
+    .env({"PYTHONPATH": IMAGE_ROOT, "PYTHONDONTWRITEBYTECODE": "1", "KO_MODAL_APP": APP_NAME,
+          "KO_MODAL_VOLUME": VOLUME_NAME})
+    .add_local_dir(REPO / "knockout", f"{IMAGE_ROOT}/knockout", ignore=_IGNORE + ["results/**"])
     .add_local_dir(REPO / "problems", f"{IMAGE_ROOT}/problems", ignore=_IGNORE)
     # integrations/ is needed only for the read-only EinsteinArena reads (live #1, leaderboard). No key is in the
     # image.
     .add_local_dir(REPO / "integrations", f"{IMAGE_ROOT}/integrations", ignore=_IGNORE)
     # Curated forum knowledge, quoted in the LLM prompts as data (knockout/llm_editor.py: problem_brief).
     .add_local_file(REPO / "docs" / "ws1_knowledge.jsonl", f"{IMAGE_ROOT}/docs/ws1_knowledge.jsonl")
+    # Exploratory problems (--problem scout:<slug>; not frozen, outside problems/): the sha256-checked verifier
+    # copies, their independent scorer, and the scout's stored candidates (warm starts given as repository paths).
+    .add_local_dir(REPO / "selection" / "scout_problems", f"{IMAGE_ROOT}/selection/scout_problems", ignore=_IGNORE)
+    .add_local_file(REPO / "selection" / "scout_third_autocorr_exact.py",
+                    f"{IMAGE_ROOT}/selection/scout_third_autocorr_exact.py")
+    .add_local_dir(REPO / "selection" / "scout_candidates", f"{IMAGE_ROOT}/selection/scout_candidates",
+                   ignore=_IGNORE)
 )
 
 
@@ -66,8 +80,8 @@ def _llm_key() -> str:
 llm_secret = modal.Secret.from_dict({"OPENAI_API_KEY": _llm_key()})
 
 # include_source=False: the image above already holds the whole package, at the same place Modal would mount it.
-app = modal.App(_CFG["app_name"], image=image, include_source=False)
-volume = modal.Volume.from_name(_CFG["volume"], create_if_missing=True)
+app = modal.App(APP_NAME, image=image, include_source=False)
+volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
 
 
 @app.function(cpu=float(_CFG["cpu"]), memory=int(_CFG["memory_mb"]), timeout=int(_CFG["worker_timeout_s"]),
@@ -84,7 +98,7 @@ def evaluate_job(job: dict, sandbox_cfg: dict):
     yield from pack_result(asdict(run_job(SandboxJob(**job), **sandbox_cfg)))
 
 
-@app.function(cpu=4.0, memory=int(_CFG["orchestrator_memory_mb"]), timeout=int(_CFG["orchestrator_timeout_s"]),
+@app.function(cpu=4.0, memory=int(_CFG["orchestrator_memory_mb"]), timeout=ORCHESTRATOR_TIMEOUT_S,
               volumes={"/runs": volume}, max_containers=4, secrets=[llm_secret])
 def orchestrate(problem: str, overrides: dict, run_id: str, source_commit: str | None,
                 init_spec: str | None = None) -> dict:
@@ -133,11 +147,13 @@ def launch(source_commit: str = "", launch_file: str = "", wait: bool = False):
     init_spec = spec.get("init")
     commit = (source_commit or "nogit")[:12]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    run_id = f"{stamp}-{spec['problem']}-{commit[:7]}"
+    # "scout:<slug>" (exploratory problem) gives the slug; an optional `tag` keeps apart runs launched in the
+    # same second from different launch files.
+    run_id = f"{stamp}-{spec['problem'].split(':')[-1]}-{commit[:7]}" + (f"-{spec['tag']}" if spec.get("tag") else "")
     print(f"run_id={run_id} problem={spec['problem']} wall_clock_s={spec['wall_clock_s']} max_usd={max_usd} "
-          f"editor={editor} profile={profile} init={init_spec}")
+          f"editor={editor} profile={profile} init={init_spec} app={APP_NAME} volume={VOLUME_NAME}")
     if wait:
         print(orchestrate.remote(spec["problem"], overrides, run_id, commit, init_spec))
     else:
         call = orchestrate.spawn(spec["problem"], overrides, run_id, commit, init_spec)
-        print(f"spawned orchestrator call {call.object_id}; results: modal volume get {_CFG['volume']} {run_id}")
+        print(f"spawned orchestrator call {call.object_id}; results: modal volume get {VOLUME_NAME} {run_id}")

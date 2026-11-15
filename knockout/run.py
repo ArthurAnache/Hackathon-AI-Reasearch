@@ -5,6 +5,8 @@ editor is used.
     .venv/bin/python -m knockout.run --problem toy --set control.edits_per_round=8 --set fidelity.f0_s=3
     .venv/bin/python -m knockout.run --problem second-autocorrelation-inequality --profile large-warm-start \
         --init live --editor openai --wall-clock 3600 --max-usd 10
+    .venv/bin/python -m knockout.run --problem scout:third-autocorrelation-inequality --profile third-autocorr \
+        --init live --editor offline --wall-clock 600          # exploratory problem: a measurement, never a claim
 
 On Modal the same `run()` is called by the orchestrator function in knockout/modal_app.py.
 """
@@ -34,7 +36,9 @@ from knockout.problems_api import TOY, load_problem
 
 ROOT = Path(__file__).resolve().parent
 SEEDS = {TOY: ROOT / "seeds" / "toy_circles.py",
-         "second-autocorrelation-inequality": ROOT / "seeds" / "second_autocorrelation.py"}
+         "second-autocorrelation-inequality": ROOT / "seeds" / "second_autocorrelation.py",
+         # exploratory problem (--problem scout:third-autocorrelation-inequality), not frozen by WS1
+         "third-autocorrelation-inequality": ROOT / "seeds" / "third_autocorrelation.py"}
 
 # Named sets of strategy overrides. Explicit --set values win over a profile.
 PROFILES = {
@@ -47,6 +51,15 @@ PROFILES = {
                          # does anyway), 6 children per batch of which up to 2 gate pairs
                          "main.batch_size": 6, "gate.pairs_per_batch": 2, "fidelity.levels": 1,
                          "strategist.min_progress": 1.0e-7},
+    # third-autocorrelation-inequality (exploratory): 25,600 to 65,536 values, so a candidate is small and every
+    # one is stored. One evaluation is one `construct` call of 120 s from the warm start: hops need tens of
+    # seconds to cool down again (see knockout/seeds/third_autocorrelation.py), and gains accumulate through
+    # the ratchet. eps_rel = 1e-9 is 1.4e-4 of the record margin: smaller differences are ties.
+    "third-autocorr": {"fidelity.f0_s": 120.0, "tuner.calls": 1, "tuner.top_k": 1, "control.ratchet": True,
+                       "control.edits_per_round": 4, "executor.workers": 6, "selection.eps_rel": 1.0e-9,
+                       "sandbox.timeout_slack_s": 20, "ledger.save_solutions": "all",
+                       "main.batch_size": 8, "gate.pairs_per_batch": 2, "fidelity.levels": 1,
+                       "strategist.min_progress": 1.0e-7, "llm.max_output_tokens": 12000},
 }
 
 
@@ -59,9 +72,8 @@ def load_init(problem, spec: str | None) -> tuple[object, dict]:
         return problem.initial_candidate(), {"source": "frozen certificate"}
     if spec == "live":
         from integrations import einstein_arena as ea
-        from problems.catalog import load
 
-        sol = ea.get_best_solutions(load(problem.id).PROBLEM_ID, limit=1)[0]
+        sol = ea.get_best_solutions(problem.problem_id, limit=1)[0]
         cand = sol["data"]
         raw = json.dumps(cand, separators=(",", ":")).encode()
         path = ROOT.parent / "selection" / ".cache" / "live" / problem.id / f"solution_{sol['id']}.json.gz"
@@ -72,8 +84,26 @@ def load_init(problem, spec: str | None) -> tuple[object, dict]:
                       "displayed_score": sol.get("score"), "sha256": hashlib.sha256(raw).hexdigest(),
                       "path": str(path.relative_to(ROOT.parent))}
     path = Path(spec)
+    if not path.exists() and not path.is_absolute():    # a path relative to the repository (Modal: /root)
+        path = ROOT.parent / spec
     raw = gzip.decompress(path.read_bytes()) if path.suffix == ".gz" else path.read_bytes()
-    return json.loads(raw), {"source": "file", "path": str(path), "sha256": hashlib.sha256(raw).hexdigest()}
+    return json.loads(raw), {"source": "file", "path": str(spec), "sha256": hashlib.sha256(raw).hexdigest()}
+
+
+def provenance_of(problem, strategy, init_info: dict) -> str | None:
+    """Where the warm start of a run comes from (`run.provenance`). Exploratory runs must say it, so that results
+    of different origins are never mixed: `clean` is reserved for runs that start from the live #1."""
+    declared = strategy.get("run.provenance")
+    if not problem.exploratory:
+        return declared
+    if init_info.get("source") == "live #1":
+        if declared not in (None, "clean"):
+            raise SystemExit(f"run.provenance={declared!r}, but the warm start is the live #1: that is `clean`")
+        return "clean"
+    if not declared or declared == "clean":
+        raise SystemExit("an exploratory run that does not start from the live #1 must name its provenance: "
+                         "--set run.provenance=<label> (`clean` is reserved for --init live)")
+    return str(declared)
 
 
 def make_editor(ctx: RunContext) -> Editor:
@@ -123,11 +153,33 @@ def run(problem_id: str, *, runs_root: str | Path = "runs", run_id: str | None =
     init, init_info = load_init(problem, init_spec)
     # The warm start is scored here, in the trusted process, by the frozen verifier (an invalid one stops the run).
     init_score = float(problem.score(init)) if init is not None else None
+    provenance = provenance_of(problem, strategy, init_info)
+    if problem.exploratory:
+        if init_score is None:
+            raise SystemExit("an exploratory problem needs a warm start: --init live or --init <candidate file>")
+        # The run's own warm start joins the reference of the exploratory gate, before anything reads it.
+        problem.note_warm_start(init_score)
+        on_round(f"EXPLORATORY run ({problem.id} is not frozen by WS1; provenance: {provenance}). Its scores are "
+                 f"measurements of the loop, never a record claim.")
     ctx = RunContext(run_id, problem, strategy, ledger, governor, executor, source_commit,
                      device="cpu", init=init, init_score=init_score)
     rng = np.random.default_rng(int(strategy["run.seed"]))
     editor = editor or make_editor(ctx)
     seed_source = seed_path.read_text()
+    seed_params = strategy.get("run.seed_params") or {}
+    if seed_params:
+        # Other PARAMS defaults for the seed program of this run (e.g. a hotter hop for long evaluations). The
+        # rewritten program is the one stored in the ledger, so the run stays traceable.
+        from knockout.editor import read_params, write_params
+
+        params = read_params(seed_source)
+        unknown = sorted(set(seed_params) - set(params))
+        if unknown:
+            raise SystemExit(f"run.seed_params: not in the seed program's PARAMS: {unknown}")
+        for key, value in seed_params.items():      # the range is widened when the new default is outside it
+            old = params[key]
+            params[key] = (value, min(old[1], value), max(old[2], value), *old[3:])
+        seed_source = write_params(seed_source, params)
     control = HillSamplingArm(ctx, editor, seed_source, rng)
     # The main arm (genes, gate, islands) needs the LLM. It has its own RNG stream and its own warm start, so
     # the control arm stays isolated from it (section 5.10).
@@ -146,7 +198,8 @@ def run(problem_id: str, *, runs_root: str | Path = "runs", run_id: str | None =
     ledger.event("run_start", seed=int(strategy["run.seed"]), problem=problem.id, executor=executor.name,
                  source_commit=source_commit, host=host_info(), arms=["control"] + (["main"] if main else []),
                  editor=editor.name, best_known=ctx.best_known(), best_known_source=problem.best_known_source,
-                 record=record, init={**init_info, "score": init_score})
+                 record=record, init={**init_info, "score": init_score}, exploratory=bool(problem.exploratory),
+                 provenance=provenance)
     t0 = time.monotonic()
     stop_reason = "error"
     steps = {"control": 0, "main": 0}
@@ -220,6 +273,12 @@ def run(problem_id: str, *, runs_root: str | Path = "runs", run_id: str | None =
                    # True only when the promotion gate logged a record_claim (section 5.11); still to be
                    # confirmed by selection/verify_claim.py.
                    "record_claims": [e["refs"][0] for e in claims], "beats_record": bool(claims)}
+        if problem.exploratory:
+            # Not frozen by WS1: the gate compares with the run's own reference, and a gate that fired is a
+            # measurement, not a claim. `beats_record` stays false whatever the scores are.
+            summary.update({"exploratory": True, "provenance": provenance, "reference": record,
+                            "exploratory_gate_fired": summary["record_claims"], "record_claims": [],
+                            "beats_record": False})
         ledger.event("run_end", seed=None, refs=[top["best_experiment"]] if top["best_experiment"] else [],
                      **{k: v for k, v in summary.items() if k not in ("control_curve", "main_curve")})
         (run_dir / "summary.json").write_text(json.dumps(summary, indent=2))

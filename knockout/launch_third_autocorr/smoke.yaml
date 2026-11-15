@@ -1,0 +1,12 @@
+# Smoke run of the Modal path on the exploratory problem: offline editor (no LLM call, no OpenAI key needed),
+# 3 minutes, short evaluations. Launch it before any run that spends LLM money (same command as r1.yaml).
+
+problem: scout:third-autocorrelation-inequality
+profile: third-autocorr
+init: live                   # provenance `clean`
+editor: offline
+wall_clock_s: 180
+max_usd: 0.3                 # Modal worker estimates only
+tag: smoke
+set:
+  fidelity.f0_s: 30.0

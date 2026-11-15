@@ -89,6 +89,8 @@ def problem_brief(problem: ProblemHandle) -> str:
     if problem.id == TOY:
         return ("Toy fixture: place 26 circles inside the unit square without overlap and maximize the sum of the "
                 'radii. Candidate format: {"circles": [[x, y, r] * 26]}. The check is exact (rational arithmetic).')
+    if problem.brief is not None:      # exploratory problem: its own folder, outside problems/
+        return problem.brief()
     d = REPO_ROOT / "problems" / problem.id
     meta = json.loads((d / "meta.json").read_text())
     parts = [f"{meta['title']} ({problem.direction}; a record needs a gain of at least {problem.min_margin:g}).",
@@ -141,8 +143,20 @@ def strip_fence(source: str) -> str:
 def state_block(ctx, init_score, ratchet: bool, gains: list[float], unit: str) -> str:
     """Record, warm start, budget, and the measured distance to the record threshold (facts from the ledger)."""
     best_known = ctx.best_known()
-    state = [f"Record to beat (live #1): {best_known!r}. A record needs a score of at least "
-             f"{best_known!r} + {ctx.problem.min_margin:g}." if best_known is not None else "Record: unknown.",
+    if best_known is None:
+        record = "Record: unknown."
+    elif ctx.problem.exploratory:
+        # Exploratory problem: the reference is the best of the live #1, the claimed literature value and the
+        # warm start this run began with (problems_api.ScoutProblem.reference).
+        low = ctx.problem.direction == "minimize"
+        record = (f"Reference score of this run: {best_known!r} (the best of the live #1, the best claimed "
+                  f"literature value and the warm start the run began with; {'lower' if low else 'higher'} is "
+                  f"better). The threshold is a score of at {'most' if low else 'least'} {best_known!r} "
+                  f"{'-' if low else '+'} {ctx.problem.min_margin:g}.")
+    else:
+        record = (f"Record to beat (live #1): {best_known!r}. A record needs a score of at least "
+                  f"{best_known!r} + {ctx.problem.min_margin:g}.")
+    state = [record,
              f"Score of the current warm start (`init`): {init_score!r}." if init_score is not None
              else "There is no warm start for this problem (`init` is None).",
              f"Each program gets budget_s = {float(ctx.strategy['fidelity.f0_s']):g} seconds on one CPU core."]
@@ -152,7 +166,9 @@ def state_block(ctx, init_score, ratchet: bool, gains: list[float], unit: str) -
                      "`init`, so write a good incremental improver.")
     if best_known is not None and init_score is not None:
         gap = ctx.problem.gain(best_known, init_score) + ctx.problem.min_margin
-        state.append(f"`init` is {gap:.3e} away from the record threshold.")
+        name = "that threshold" if ctx.problem.exploratory else "the record threshold"
+        state.append(f"`init` is {gap:.3e} away from {name}." if gap > 0 else
+                     f"`init` already passes {name} by {-gap:.3e}; every further gain still counts.")
         if gains:
             recent = gains[-3:]
             rate = sum(recent) / len(recent)
