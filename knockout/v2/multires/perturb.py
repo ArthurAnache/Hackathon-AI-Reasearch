@@ -18,6 +18,9 @@ row is the same on any device. A perturbation is a dict {"kind": ..., parameters
                                                          the largest value within d cells; no random draw
     {"kind": "roll", "by": s}                            cyclic shift by s cells: changes the pooling phase, and is
                                                          score-neutral when the s cells that wrap are zero
+    {"kind": "mix", "other": name, "t": t}               the point at t on the line from f (t = 0) to the reference
+                                                         solution `name` (t = 1), masses normalized, clipped at 0;
+                                                         t < 0 extrapolates away from the reference
     {"kind": "grow", "radius": d, "t": t, "top": p}      like "dilate", but only the zero cells whose gain
                                                          d log C_beta / d f_i is positive open (the driver passes
                                                          the gain, computed on the device at the row's last beta)
@@ -31,8 +34,8 @@ import numpy as np
 
 from knockout.v2.multires.resample import pad_to_multiple, smooth_blocks
 
-KINDS = ("lognormal", "sqrt_gauss", "uniform", "blend", "dilate", "grow", "roll", "shuffle", "shift", "resample",
-         "redraw")
+KINDS = ("lognormal", "sqrt_gauss", "uniform", "blend", "dilate", "grow", "mix", "roll", "shuffle", "shift",
+         "resample", "redraw")
 
 
 def local_max(f: np.ndarray, radius: int) -> np.ndarray:
@@ -78,12 +81,20 @@ def grow_candidates(f: np.ndarray, gain: np.ndarray, radius: int, top: float = 1
     return cand
 
 
-def apply(f: np.ndarray, spec: dict, seed: int, gain: np.ndarray | None = None) -> np.ndarray:
+def apply(f: np.ndarray, spec: dict, seed: int, gain: np.ndarray | None = None,
+          refs: dict | None = None) -> np.ndarray:
     """One perturbation of the 1-D vector f; returns a new non-negative vector of the same length. `gain` is
-    needed by "grow" only."""
+    needed by "grow" only, `refs` (name -> reference solution) by "mix" only."""
     kind = spec["kind"]
     rng = np.random.default_rng(seed)
     f = np.asarray(f, dtype=np.float64)
+    if kind == "mix":
+        if not refs or spec["other"] not in refs:
+            raise ValueError(f"mix needs the reference solution {spec.get('other')!r}")
+        other = np.asarray(refs[spec["other"]], dtype=np.float64)
+        other = np.concatenate([other, np.zeros(f.size - other.size)])
+        t = float(spec["t"])
+        return np.maximum(0.0, (1.0 - t) * f / f.sum() + t * other / other.sum())
     if kind == "grow":
         if gain is None:
             raise ValueError("grow needs the gain of every cell")
@@ -136,11 +147,12 @@ def apply(f: np.ndarray, spec: dict, seed: int, gain: np.ndarray | None = None) 
     return x.reshape(-1)[:n]
 
 
-def apply_all(f: np.ndarray, specs, seed: int, gain: np.ndarray | None = None) -> np.ndarray:
+def apply_all(f: np.ndarray, specs, seed: int, gain: np.ndarray | None = None,
+              refs: dict | None = None) -> np.ndarray:
     """The perturbations of `specs` in order; perturbation j is drawn from seed + j."""
     out = np.asarray(f, dtype=np.float64)
     for j, spec in enumerate(specs):
-        out = apply(out, spec, seed + j, gain)
+        out = apply(out, spec, seed + j, gain, refs)
     return out
 
 

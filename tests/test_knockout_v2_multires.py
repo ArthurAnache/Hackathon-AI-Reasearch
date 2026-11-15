@@ -124,6 +124,18 @@ def test_shift_rolls_blocks_and_other_kinds():
     sg = perturb.apply(f, {"kind": "sqrt_gauss", "sigma": 0.05}, seed=1)
     assert np.array_equal(sg == 0, f == 0) and not np.allclose(sg, f)          # zero cells stay zero
     assert np.abs(np.sqrt(sg) - np.sqrt(f)).max() < 0.05 * 6 * np.sqrt(f[f > 0].mean())
+    other = {"ref": np.array([0.0, 4.0, 0.0])}
+    base = np.array([1.0, 1.0, 0.0, 0.0])                                      # the reference is zero-padded
+    assert np.allclose(perturb.apply(base, {"kind": "mix", "other": "ref", "t": 0.5}, 0, refs=other),
+                       [0.25, 0.75, 0.0, 0.0])
+    assert np.allclose(perturb.apply(base, {"kind": "mix", "other": "ref", "t": -0.5}, 0, refs=other),
+                       [0.75, 0.25, 0.0, 0.0])
+    assert np.allclose(perturb.apply(base, {"kind": "mix", "other": "ref", "t": -2.0}, 0, refs=other),
+                       [1.5, 0.0, 0.0, 0.0])                                   # clipped at zero
+    with pytest.raises(ValueError):
+        perturb.apply(base, {"kind": "mix", "other": "ref", "t": 0.5}, 0)
+    relink = pl.build("relink", "live", 2000)[0]
+    assert len(relink.rows) == 16 and relink.rows[1].pre == ({"kind": "mix", "other": "frozen", "t": 0.5},)
     g = np.array([0.0, 0.0, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.0, 1.0])
     assert np.allclose(perturb.apply(g, {"kind": "dilate", "radius": 1, "t": 0.5}, 0),
                        [0.0, 0.0, 1.0, 2.0, 4.0, 2.0, 0.0, 0.0, 0.5, 1.0])

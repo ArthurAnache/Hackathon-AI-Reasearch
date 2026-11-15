@@ -22,13 +22,13 @@ from knockout.v2.multires.resample import repeat_upsample
 REPEAT_TOL = 1e-11        # |score(repeat(f, k)) - score(f)| allowed on the device (float64 FFT rounding)
 
 
-def level_start(batch: pl.BatchSpec, start: np.ndarray) -> np.ndarray:
+def level_start(batch: pl.BatchSpec, start: np.ndarray, refs: dict | None = None) -> np.ndarray:
     """Rows of level 0 (B, pad_to / pool): the start zero-padded, perturbed per row (`pre`), sum-pooled, then
-    perturbed on the coarse grid (`coarse`)."""
+    perturbed on the coarse grid (`coarse`). `refs` holds the reference solutions a "mix" perturbation names."""
     from knockout.v2.multires.resample import pad_right, sum_pool
 
     base = pad_right(np.maximum(np.asarray(start, dtype=np.float64), 0.0), batch.pad_to)
-    rows = [sum_pool(perturb.apply_all(base, r.pre, r.seed), batch.pool) for r in batch.rows]
+    rows = [sum_pool(perturb.apply_all(base, r.pre, r.seed, None, refs), batch.pool) for r in batch.rows]
     return np.stack([perturb.apply_all(row, r.coarse, r.seed + 500) for row, r in zip(rows, batch.rows)])
 
 

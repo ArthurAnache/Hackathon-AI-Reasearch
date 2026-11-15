@@ -110,7 +110,7 @@ def run_job(vol: Path, spec: dict, commit=lambda: None, xp=None, to_xp=None, to_
                 raise RuntimeError(f"start {batch.start!r} is rejected by the frozen verifier: {res['error']}")
             start_scores[batch.start] = res["score"]
         start_score = start_scores[batch.start]
-        f0 = driver.level_start(batch, np.load(start_file))
+        f0 = driver.level_start(batch, np.load(start_file), refs)
         chains = [_Chain(batch, r) for r in batch.rows]
         n_levels = len(batch.level_evals)
         pending, batch_records = [], []

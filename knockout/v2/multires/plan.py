@@ -367,26 +367,45 @@ def plan_grow(start: str, evals: int, pools=(1, 2, 4)) -> list[BatchSpec]:
     return [BatchSpec(f"e3c-grow-{tag}", "E3c", start, 1, (1, 1, 1), (evals,) * 4, tuple(rows[:16]))]
 
 
+def plan_relink(start: str, evals: int, pools=()) -> list[BatchSpec]:
+    """E5, path relinking between the two public solutions. The public velocity cycles restart from
+    f_best + 0.3 (f_best - f_prev) (momentum along the last improvement); here the last improvement is the step
+    from solution 2782 to the live #1. Rows start from points on the line through both: inside the segment
+    (t > 0, towards 2782) and beyond the live #1 (t < 0), then cool and polish. Measured on CPU: the exact score
+    has a kink at each end, it loses 1.1e-4 at 1 % inside the segment and 4.3e-4 at 0.5 % beyond the live #1.
+    The start must be "live"; the other end is the frozen certificate."""
+    rows = [_row("control", beta0=1e9, beta1=1e9, hypothesis="control: the live #1, polish only")]
+    plan = ((0.5, 1e3), (0.5, 1e4), (0.25, 1e3), (0.25, 1e4), (0.1, 1e4), (0.1, 1e5), (0.03, 1e4), (0.03, 1e5),
+            (0.01, 1e5), (0.01, 1e6), (0.005, 1e6), (-0.002, 1e5), (-0.005, 1e4), (-0.005, 1e5), (-0.01, 1e4))
+    for t, b0 in plan:
+        where = f"{t:.1%} of the way to solution 2782" if t > 0 else f"{-t:.1%} beyond the live #1"
+        rows.append(_row(f"mix{t:g}-b{int(round(math.log10(b0)))}", pre=({"kind": "mix", "other": "frozen", "t": t},),
+                         beta0=b0, hypothesis=f"path relinking: start {where} on the line through both public "
+                                              f"solutions, cooling from beta = {b0:.0e}, then polish"))
+    return [BatchSpec("e5-relink", "E5", start, 1, (), (evals,), tuple(rows))]
+
+
 PLANS = {"smoke": plan_smoke, "e1": plan_e1, "e2": plan_e2, "e2-blend": plan_e2_blend, "e3": plan_e3,
-         "edge": plan_edge, "vdeep": plan_vdeep, "grow": plan_grow}
+         "edge": plan_edge, "vdeep": plan_vdeep, "grow": plan_grow, "relink": plan_relink}
 
 
 def build(names, start: str, evals: int, pools=None) -> list[BatchSpec]:
     """The batches of the plans `names` (comma-separated string or list), checked. A plan may carry its own
     factors after colons, e.g. "e1,e2:64:4" (E1 with its default factors, then V-cycles of depth 64 and 4);
-    `pools` applies to the plans that carry none. A plan may also carry its own start after "@", e.g.
-    "edge@frozen,edge@live"."""
+    `pools` applies to the plans that carry none. A plan may also carry its own start after "@" and its own
+    evaluations per level after "=", e.g. "relink@live=12000,grow@frozen=4000"."""
     if isinstance(names, str):
         names = [x for x in names.split(",") if x]
     out = []
     for token in names:
+        token, _, own_evals = token.partition("=")
         token, _, own_start = token.partition("@")
         name, *own = token.split(":")
         if name not in PLANS:
             raise ValueError(f"unknown plan {name!r} (known: {sorted(PLANS)})")
         factors = tuple(int(x) for x in own) or pools
-        begin = own_start or start
-        out += PLANS[name](begin, evals, factors) if factors else PLANS[name](begin, evals)
+        begin, budget = own_start or start, int(own_evals) if own_evals else evals
+        out += PLANS[name](begin, budget, factors) if factors else PLANS[name](begin, budget)
     seen = [b.name for b in out]
     if len(set(seen)) != len(seen):
         raise ValueError("batch names must be distinct")
