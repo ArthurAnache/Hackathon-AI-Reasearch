@@ -87,9 +87,10 @@ def _start_path(vol: Path, start: str) -> Path:
 def _env(torch) -> dict:
     import scipy
 
-    return {"device": "cuda", "gpu_type": torch.cuda.get_device_name(0), "dtype": "float64",
-            "torch_version": torch.__version__, "cuda_version": torch.version.cuda,
-            "numpy_version": np.__version__, "scipy_version": scipy.__version__}
+    # plain str: torch.__version__ is a TorchVersion object, which the local client (no torch) cannot unpickle
+    return {"device": "cuda", "gpu_type": str(torch.cuda.get_device_name(0)), "dtype": "float64",
+            "torch_version": str(torch.__version__), "cuda_version": str(torch.version.cuda),
+            "numpy_version": str(np.__version__), "scipy_version": str(scipy.__version__)}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -247,7 +248,6 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
     pending, records = [], []
     chains_file = run_dir / "chains.jsonl"
     progress_file = run_dir / "progress.jsonl"
-    last_commit = [time.monotonic()]
 
     def store(i, step, w_row, info, evals_done, extra=None):
         exp_id = sch.experiment_id(run_id, chains[i].name, step)
@@ -281,9 +281,8 @@ def anneal(vol: Path, spec: dict, commit=lambda: None) -> dict:
             with chains_file.open("a") as fh:
                 fh.write(json.dumps(rec) + "\n")
         pending[:] = keep
-        if wait or time.monotonic() - last_commit[0] > 90:
+        if wait:
             commit()
-            last_commit[0] = time.monotonic()
 
     def on_stage_end(i, stage, evals_done, w_row, info):
         last = stage == len(chains[i].stages) - 1

@@ -80,16 +80,31 @@ def prepare() -> dict:
 def gpu_job(kind: str, spec: dict) -> dict:
     """The only GPU function, so the container cap covers every GPU job: "bench" (E0) or "anneal" (a batch of
     chains). It returns small metadata; solutions stay on the Volume."""
+    import threading
+
     from knockout.v2.gpu import worker
 
     volume.reload()
-    if kind == "bench":
-        out = worker.bench(Path(VOL_PATH), spec)
-    elif kind == "anneal":
-        out = worker.anneal(Path(VOL_PATH), spec, commit=volume.commit)
-    else:
-        raise ValueError(f"unknown job {kind!r}")
-    volume.commit()
+    stop = threading.Event()
+
+    def committer():  # partial results become visible with `modal volume get` while the chains run
+        while not stop.wait(120):
+            try:
+                volume.commit()
+            except Exception:  # noqa: BLE001
+                pass
+
+    threading.Thread(target=committer, daemon=True).start()
+    try:
+        if kind == "bench":
+            out = worker.bench(Path(VOL_PATH), spec)
+        elif kind == "anneal":
+            out = worker.anneal(Path(VOL_PATH), spec)
+        else:
+            raise ValueError(f"unknown job {kind!r}")
+    finally:
+        stop.set()
+        volume.commit()
     return out
 
 

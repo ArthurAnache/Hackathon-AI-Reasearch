@@ -1,0 +1,208 @@
+{
+ "measured_at": "2026-11-15T04:50:18+00:00",
+ "env": {
+  "device": "cuda",
+  "gpu_type": "NVIDIA H100 80GB HBM3",
+  "dtype": "float64",
+  "torch_version": "2.14.1+cu130",
+  "cuda_version": "13.0",
+  "numpy_version": "2.5.4",
+  "scipy_version": "1.18.1"
+ },
+ "n": 1999999,
+ "start": {
+  "path": "starts/live.npy",
+  "n": 1999999,
+  "nonzero": 482716,
+  "score": 0.963661562062085,
+  "source": "EinsteinArena live #1 (GET best solutions)",
+  "solution_id": 2783,
+  "agent": "MLAI_YONSEI",
+  "displayed_score": 0.9636615620620852,
+  "sha256": "9fbbe3924fb2ee08be8ff4eb572fc7e28edfb6fa6b3103e93352b5272154d2fa"
+ },
+ "agreement": [
+  {
+   "beta": 100000.0,
+   "phi_numpy": 0.03714539415251754,
+   "phi_torch": 0.037145394152518114,
+   "phi_abs_diff": 5.759281940243e-16,
+   "grad_max_abs_diff_over_max_abs": 1.3067899623577703e-11,
+   "exact_numpy": 0.9636615620620855,
+   "exact_torch": 0.9636615620620848,
+   "exact_torch_minus_verifier": -2.220446049250313e-16,
+   "exact_numpy_minus_verifier": 5.551115123125783e-16
+  },
+  {
+   "beta": 10000000.0,
+   "phi_numpy": 0.03701633667635035,
+   "phi_torch": 0.037016336676350466,
+   "phi_abs_diff": 1.1796119636642288e-16,
+   "grad_max_abs_diff_over_max_abs": 1.1489962041593039e-09,
+   "exact_numpy": 0.9636615620620855,
+   "exact_torch": 0.9636615620620848,
+   "exact_torch_minus_verifier": -2.220446049250313e-16,
+   "exact_numpy_minus_verifier": 5.551115123125783e-16
+  },
+  {
+   "beta": 1000000000.0,
+   "phi_numpy": 0.03701512324855327,
+   "phi_torch": 0.03701512324855408,
+   "phi_abs_diff": 8.049116928532385e-16,
+   "grad_max_abs_diff_over_max_abs": 6.159221563493141e-08,
+   "exact_numpy": 0.9636615620620855,
+   "exact_torch": 0.9636615620620848,
+   "exact_torch_minus_verifier": -2.220446049250313e-16,
+   "exact_numpy_minus_verifier": 5.551115123125783e-16
+  },
+  {
+   "beta": 100000000000.0,
+   "phi_numpy": 0.037015122712524925,
+   "phi_torch": 0.03701512271252573,
+   "phi_abs_diff": 8.049116928532385e-16,
+   "grad_max_abs_diff_over_max_abs": 4.620037880310632e-15,
+   "exact_numpy": 0.9636615620620855,
+   "exact_torch": 0.9636615620620848,
+   "exact_torch_minus_verifier": -2.220446049250313e-16,
+   "exact_numpy_minus_verifier": 5.551115123125783e-16
+  }
+ ],
+ "gpu_timing": [
+  {
+   "fft": "smooth",
+   "m": 4000000,
+   "batch": 1,
+   "s_per_batched_eval": 0.0011430313333333035,
+   "chain_evals_per_s": 874.866655740577,
+   "peak_mem_gib": 0.31510496139526367
+  },
+  {
+   "fft": "smooth",
+   "m": 4000000,
+   "batch": 2,
+   "s_per_batched_eval": 0.0023147042499999473,
+   "chain_evals_per_s": 864.0412700672432,
+   "peak_mem_gib": 0.6043152809143066
+  },
+  {
+   "fft": "smooth",
+   "m": 4000000,
+   "batch": 4,
+   "s_per_batched_eval": 0.004365150000000077,
+   "chain_evals_per_s": 916.3488081738152,
+   "peak_mem_gib": 1.1658501625061035
+  },
+  {
+   "fft": "smooth",
+   "m": 4000000,
+   "batch": 8,
+   "s_per_batched_eval": 0.008419807166666645,
+   "chain_evals_per_s": 950.1405247938897,
+   "peak_mem_gib": 2.2955117225646973
+  },
+  {
+   "fft": "smooth",
+   "m": 4000000,
+   "batch": 16,
+   "s_per_batched_eval": 0.01657793975000003,
+   "chain_evals_per_s": 965.1380232576831,
+   "peak_mem_gib": 4.560488224029541
+  },
+  {
+   "fft": "pow2",
+   "m": 4194304,
+   "batch": 1,
+   "s_per_batched_eval": 0.001128810333333341,
+   "chain_evals_per_s": 885.8884176290553,
+   "peak_mem_gib": 0.3237910270690918
+  },
+  {
+   "fft": "pow2",
+   "m": 4194304,
+   "batch": 2,
+   "s_per_batched_eval": 0.002265592666666668,
+   "chain_evals_per_s": 882.7712189510967,
+   "peak_mem_gib": 0.6150937080383301
+  },
+  {
+   "fft": "pow2",
+   "m": 4194304,
+   "batch": 4,
+   "s_per_batched_eval": 0.004200564583333251,
+   "chain_evals_per_s": 952.2529461565621,
+   "peak_mem_gib": 1.200594425201416
+  },
+  {
+   "fft": "pow2",
+   "m": 4194304,
+   "batch": 8,
+   "s_per_batched_eval": 0.008011184500000082,
+   "chain_evals_per_s": 998.6038893499355,
+   "peak_mem_gib": 2.3650002479553223
+  },
+  {
+   "fft": "pow2",
+   "m": 4194304,
+   "batch": 16,
+   "s_per_batched_eval": 0.015599314750000056,
+   "chain_evals_per_s": 1025.6860802170777,
+   "peak_mem_gib": 4.699465274810791
+  }
+ ],
+ "cpu": {
+  "seed_s_per_eval": 0.2953545755000002,
+  "numpy_backend_s_per_eval": 0.3398852684999998
+ },
+ "verifier_score": 0.963661562062085,
+ "gpu_loop": [
+  {
+   "batch": 1,
+   "s_per_step": 0.004064299133333312,
+   "chain_evals_per_s": 246.0448818342403,
+   "peak_mem_gib": 0.6153044700622559,
+   "accepted": [
+    33
+   ]
+  },
+  {
+   "batch": 8,
+   "s_per_step": 0.017848962400000033,
+   "chain_evals_per_s": 448.20532536950077,
+   "peak_mem_gib": 4.679702281951904,
+   "accepted": [
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33
+   ]
+  },
+  {
+   "batch": 16,
+   "s_per_step": 0.031459924400000006,
+   "chain_evals_per_s": 508.5835489166019,
+   "peak_mem_gib": 9.328865051269531,
+   "accepted": [
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33,
+    33
+   ]
+  }
+ ]
+}

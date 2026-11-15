@@ -224,7 +224,45 @@ def plan_deep(start: str, evals: int) -> list[ChainSpec]:
     return chains
 
 
-PLANS = {"smoke": plan_smoke, "deep": plan_deep}
+def _cycles(beta_start: float, per_decade: float, evals: int, count: int) -> tuple:
+    """`count` reheat-cool cycles in a row, sharing `evals` evaluations."""
+    out = ()
+    for part in split_evals(evals, count):
+        out += _with_polish(beta_start, 1e9, per_decade, part, 0.25)
+    return out
+
+
+def plan_deep16(start: str, evals: int) -> list[ChainSpec]:
+    """E1 / E2 on one H100 (E0: one chain already saturates the GPU, so 16 chains cost about the same per chain
+    as 1). One polish-only control, five reheat depths with the support fixed, the same depths with zero cells
+    opened at three floor levels, and two chains made of four fast cycles."""
+    slow = "one slow cooling to 1e9 (3 stages per decade, 75 % of the budget), then polish to 1e11"
+    chains = [ChainSpec("control", start, anneal(1e9, 1e11, 2, evals),
+                        hypothesis="control: no reheat, polish from beta = 1e9 to 1e11 with the same budget")]
+    depths = (("b7", 1e7), ("b6", 1e6), ("b5", 1e5), ("b4", 1e4), ("b3", 1e3))
+    for tag, b0 in depths:
+        chains.append(ChainSpec(f"{tag}-fixed", start, _with_polish(b0, 1e9, 3, evals, 0.25),
+                                hypothesis=f"reheat at beta = {b0:.0e}, {slow}; support fixed (f = w^2 keeps "
+                                           f"zero cells at zero)"))
+    for tag, b0 in depths[1:]:
+        chains.append(ChainSpec(f"{tag}-open3", start, _with_polish(b0, 1e9, 3, evals, 0.25), floor=1e-3,
+                                hypothesis=f"reheat at beta = {b0:.0e} with zero cells opened (floor 1e-3 of the "
+                                           f"mean non-zero value), {slow}"))
+    for tag, b0 in depths[1:4]:
+        chains.append(ChainSpec(f"{tag}-open6", start, _with_polish(b0, 1e9, 3, evals, 0.25), floor=1e-6,
+                                hypothesis=f"reheat at beta = {b0:.0e} with zero cells opened (floor 1e-6 of the "
+                                           f"mean non-zero value), {slow}"))
+    chains.append(ChainSpec("b5-open2", start, _with_polish(1e5, 1e9, 3, evals, 0.25), floor=1e-2,
+                            hypothesis=f"reheat at beta = 1e5 with zero cells opened wide (floor 1e-2 of the mean "
+                                       f"non-zero value), {slow}"))
+    for tag, b0 in depths[2:4]:
+        chains.append(ChainSpec(f"{tag}-open3-4cycles", start, _cycles(b0, 2, evals, 4), floor=1e-3,
+                                hypothesis=f"four fast reheat-cool cycles from beta = {b0:.0e} (2 stages per "
+                                           f"decade), zero cells opened (floor 1e-3) before the first cycle"))
+    return chains
+
+
+PLANS = {"smoke": plan_smoke, "deep": plan_deep, "deep16": plan_deep16}
 
 
 def build_plan(name: str, start: str, evals: int) -> list[ChainSpec]:
