@@ -92,11 +92,16 @@ def run_batch(jobs: list[dict]) -> dict:
     threading.Thread(target=committer, daemon=True).start()
     try:
         with mp.get_context("fork").Pool(len(jobs)) as pool:
-            results = pool.map(core.run_job_to_dir, jobs, chunksize=1)
+            results = pool.map(core.run_job_safe, jobs, chunksize=1)
     finally:
         stop.set()
         volume.commit()
-    return {"done": len(results), "best": min(r["score_fft"] for r in results)}
+    ok = [r for r in results if "error" not in r]
+    errors = [r for r in results if "error" in r]
+    if errors:
+        (marker / "_errors.json").write_text(json.dumps(errors))
+        volume.commit()
+    return {"done": len(ok), "errors": len(errors), "best": min((r["score_fft"] for r in ok), default=None)}
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -166,6 +171,67 @@ def plan_r1(track: str, budget: float) -> list[dict]:
     return jobs
 
 
+COARSE_TEMPS = (5e-3, 1e-2, 2e-2)
+
+
+def plan_coarse(budget: float, m: int, start_key: str, per_temp: int, seed0: int = 0, target: int = 25_600,
+                label: str = "") -> list[dict]:
+    """Track B: block-average the start to m values, block-repeat back to about `target` values, one long cooling
+    path. Three starting temperatures; per temperature one job without noise and per_temp - 1 with noise 3e-3
+    (different seeds), so the outcomes of one coarse size form a sample, not a single draw."""
+    k = max(1, round(target / m))
+    jobs = []
+    for i, t in enumerate(COARSE_TEMPS):
+        for j in range(per_temp):
+            jobs.append({"track": "B", "label": label or f"coarse{m}x{k}", "start_key": start_key,
+                         "seed": seed0 + 100 * i + j,
+                         "steps": [{"op": "resample", "n": m}, {"op": "repeat", "k": k},
+                                   _path(t, budget - 30, sigma=0.0 if j == 0 else 3e-3, keep_start=False, stages=16)]})
+    return jobs
+
+
+def plan_vcycle(budget: float, start_key: str, seed0: int = 0) -> list[dict]:
+    """Track B, second cycle: coarsen a track B output again (800, 1,600 and 3,200 values) and re-derive."""
+    jobs = []
+    for m in (800, 1600, 3200):
+        jobs += plan_coarse(budget, m, start_key, 5, seed0 + 1000 * m, label=f"cycle2_coarse{m}")
+    return jobs
+
+
+def plan_refine(budget: float, start_keys: list[str], seed0: int = 0) -> list[dict]:
+    """Track B: from each start, x2 steps (and x3 while the result stays within MAX_VALUES) and long hops."""
+    jobs = []
+    per = max(1, BATCH_CPU // max(1, len(start_keys)))
+    variants = [("repeat2", 2, 1e-4, 1e-4), ("repeat2", 2, 3e-4, 1e-4), ("repeat2", 2, 3e-4, 3e-4),
+                ("repeat2", 2, 1e-3, 3e-4), ("repeat3", 3, 1e-4, 1e-4), ("repeat3", 3, 3e-4, 3e-4),
+                ("hop", 1, 6e-4, 6e-4), ("hop", 1, 1e-3, 3e-4)]
+    for s, key in enumerate(start_keys):
+        for v in range(per):
+            name, rep, t, sigma = variants[v % len(variants)]
+            steps = ([{"op": "repeat", "k": rep}] if rep > 1 else []) + [
+                _path(t, budget - 30, sigma=sigma, keep_start=True, stages=14)]
+            jobs.append({"track": "B", "label": name, "start_key": key, "seed": seed0 + 100 * s + v, "steps": steps})
+    return jobs[:BATCH_CPU]
+
+
+def named_plan(plan: str, track: str, budget: float) -> list[dict]:
+    """`r1`, `coarse:<m>:<start_key>:<per_temp>:<seed0>`, `vcycle:<start_key>:<seed0>`,
+    `refine:<seed0>:<start_key>,<start_key>,...`, or the path of a JSON file of jobs."""
+    if plan == "r1":
+        return plan_r1(track, budget)
+    kind, _, rest = plan.partition(":")
+    if kind == "coarse":
+        m, key, per_temp, seed0 = rest.split(":")
+        return plan_coarse(budget, int(m), key, int(per_temp), int(seed0))
+    if kind == "vcycle":
+        key, seed0 = rest.split(":")
+        return plan_vcycle(budget, key, int(seed0))
+    if kind == "refine":
+        seed0, keys = rest.split(":")
+        return plan_refine(budget, keys.split(","), int(seed0))
+    return json.loads(Path(plan).read_text())
+
+
 def starts_for(track: str) -> dict[str, Path]:
     """Start vectors of one track, as local solution files. Track B lists leaderboard solutions only."""
     runs = CACHE / "runs"
@@ -187,7 +253,7 @@ def launch(round_name: str, track: str, budget: float = 1200.0, plan: str = "r1"
 
     import numpy as np
 
-    jobs = plan_r1(track, budget) if plan == "r1" else json.loads(Path(plan).read_text())
+    jobs = named_plan(plan, track, budget)
     if any(j["track"] != track for j in jobs) or len(jobs) > BATCH_CPU:
         raise SystemExit(f"the plan must hold at most {BATCH_CPU} jobs, all of track {track}")
     starts = starts_for(track)

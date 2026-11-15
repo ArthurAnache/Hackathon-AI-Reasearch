@@ -320,6 +320,14 @@ def run_job_to_dir(job: dict) -> dict:
     return {"id": job["id"], "score_fft": float(score), "n": int(len(best))}
 
 
+def run_job_safe(job: dict) -> dict:
+    """run_job_to_dir, but one failing job (for instance a grid above MAX_VALUES) does not take the batch down."""
+    try:
+        return run_job_to_dir(job)
+    except Exception as exc:  # noqa: BLE001
+        return {"id": job.get("id"), "error": f"{type(exc).__name__}: {exc}"[:300]}
+
+
 # ----------------------------------------------------------------------------------------------------------------
 # Hop chain (one worker)
 
