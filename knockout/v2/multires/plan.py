@@ -40,6 +40,7 @@ class RowSpec:
     up_floor: float = 0.0             # same, at the levels that follow an upsampling
     beta0: float = 1e6                # every level cools from beta0 ...
     beta1: float = 1e9                # ... to beta1; the last level then polishes up to 1e11
+    beta0_up: float = 0.0             # first beta of the levels that follow an upsampling (0 = beta0)
     per_decade: float = 3.0
     polish_share: float = 0.25
     hypothesis: str = ""
@@ -104,7 +105,8 @@ def check_batch(batch: BatchSpec) -> None:
     if not names or len(set(names)) != len(names):
         raise ValueError(f"{batch.name}: rows need distinct names")
     for r in batch.rows:
-        if r.floor < 0 or r.up_floor < 0 or not 0 <= r.polish_share < 1 or r.beta0 > r.beta1:
+        if (r.floor < 0 or r.up_floor < 0 or not 0 <= r.polish_share < 1 or r.beta0 > r.beta1
+                or r.beta0_up > r.beta1 or r.beta0_up < 0):
             raise ValueError(f"{batch.name}/{r.name}: bad floors, polish share or betas")
         for level in range(len(batch.level_evals)):
             stages(batch, r, level)       # raises if a level has fewer evaluations than stages
@@ -116,13 +118,14 @@ def stages(batch: BatchSpec, row: RowSpec, level: int) -> tuple:
     the polish-only control."""
     evals = batch.level_evals[level]
     last = level == len(batch.level_evals) - 1
+    beta0 = row.beta0_up if level > 0 and row.beta0_up else row.beta0
     if not last:
-        return sch.anneal(row.beta0, row.beta1, row.per_decade, evals)
-    if row.beta0 >= 1e9:
-        return sch.anneal(row.beta0, max(row.beta1, 1e11), 2, evals)
+        return sch.anneal(beta0, row.beta1, row.per_decade, evals)
+    if beta0 >= 1e9:
+        return sch.anneal(beta0, max(row.beta1, 1e11), 2, evals)
     tail = tuple(b for b in POLISH if b > row.beta1)
     polish_evals = max(len(tail), int(evals * row.polish_share)) if tail else 0
-    return sch.anneal(row.beta0, row.beta1, row.per_decade, evals - polish_evals, tail, polish_evals)
+    return sch.anneal(beta0, row.beta1, row.per_decade, evals - polish_evals, tail, polish_evals)
 
 
 def estimate(batches, overhead_s: float = 150.0, score_s_per_batch: float = 45.0) -> dict:
@@ -244,7 +247,75 @@ def plan_e3(start: str, evals: int, pools=(32, 128, 512)) -> list[BatchSpec]:
     return [BatchSpec("e3-redraw", "E3", start, 1, (), (evals,), tuple(rows[:16]))]
 
 
-PLANS = {"smoke": plan_smoke, "e1": plan_e1, "e2": plan_e2, "e2-blend": plan_e2_blend, "e3": plan_e3}
+def plan_edge(start: str, evals: int, pools=(1, 2, 4, 8)) -> list[BatchSpec]:
+    """E3b, support-edge opening. Between solutions 2782 and 2783 about 23,000 cells were born and 25,000 died,
+    and 75 % of the born cells sit within 2 cells of the old support: the comb teeth moved their edges. A chain
+    with f = w^2 can close a cell but never open one. So: open the zero cells within `radius` cells of the
+    support at a small share t of the neighbouring value, then polish, with or without a mild reheat.
+    Measured on CPU before the run: opening costs about t x 1.3 (radius 1) to t x 8 (radius 8) at once, because
+    any added mass raises some lag of the flat maximum; the larger t, the lower the first beta of the row."""
+    rows = [_row("control", beta0=1e9, beta1=1e9, hypothesis="control: no opening, polish only")]
+
+    def add(radius, t, b0):
+        tag = f"edge{radius}-t{t:g}-b{int(round(math.log10(b0)))}"
+        how = "polish only" if b0 >= 1e9 else f"cooling from beta = {b0:.0e}, then polish"
+        rows.append(_row(tag, pre=({"kind": "dilate", "radius": radius, "t": t},), beta0=b0,
+                         hypothesis=f"support-edge opening: zero cells within {radius} cells of the support "
+                                    f"open at {t:g} of the neighbouring value; {how}"))
+
+    for radius in pools:
+        add(radius, 1e-6, 1e7)
+        add(radius, 1e-5, 1e6)
+        add(radius, 1e-4, 1e5)
+    mid = pools[min(1, len(pools) - 1)]
+    add(mid, 1e-7, 1e9)
+    add(mid, 1e-6, 1e6)
+    add(mid, 1e-5, 1e5)
+    tag = start.replace("vol:", "").replace("/", "_").replace(".npy", "")[-24:]
+    return [BatchSpec(f"e3b-edge-{tag}", "E3b", start, 1, (), (evals,), tuple(rows[:16]))]
+
+
+def plan_vdeep(start: str, evals: int, pools=(2,)) -> list[BatchSpec]:
+    """E2b, thorough V-cycles, set after E1: at a coarse level a cooling from beta = 1e3 ends far above one from
+    1e5 (pool 2: 0.96354 against 0.96239), and at 2,000,000 cells a cooling from 1e4 or higher loses little
+    (knockout/v2/gpu: -1.3e-6 from 1e4, -7e-8 from 1e5 on the incumbent). So each row cools from a low beta at the
+    coarse level and from a higher one after every upsampling; the finest level gets twice the evaluations.
+    Rows also vary the pooling phase (the start rolled by one cell, which is score-neutral: the padded last cell
+    is zero), the cooling speed, and a log-normal noise after the upsampling."""
+    out = []
+    for pool in pools:
+        ups = _doublings(pool)
+        what = f"thorough V-cycle of depth {pool}"
+        rows = []
+
+        def add(tag, c0, f0, seed=0, pre=(), post=(), per_decade=3.0, note=""):
+            rows.append(_row(f"{tag}-c{int(round(math.log10(c0)))}-f{int(round(math.log10(f0)))}", seed, pre=pre,
+                             post=post, beta0=c0, beta0_up=f0, per_decade=per_decade,
+                             hypothesis=f"{what}: cooling from beta = {c0:.0e} at the coarsest level and from "
+                                        f"{f0:.0e} after every upsampling{note}"))
+
+        for c0 in (1e2, 1e3):
+            for f0 in (1e4, 1e5, 1e6):
+                add("plain", c0, f0)
+        add("plain", 1e1, 1e4)
+        add("plain", 1e1, 1e5)
+        roll = ({"kind": "roll", "by": pool // 2},)
+        for c0 in (1e2, 1e3):
+            for f0 in (1e4, 1e5):
+                add("phase", c0, f0, pre=roll, note=f"; pooling phase shifted by {pool // 2} cell(s)")
+        for seed in (1, 2):
+            add(f"ln0.1-s{seed}", 1e3, 1e4, seed=seed, post=({"kind": "lognormal", "sigma": 0.1},),
+                note=f"; log-normal noise of width 0.1 after every upsampling (seed {seed})")
+        add("slow", 1e3, 1e4, per_decade=6.0, note="; 6 stages per decade")
+        add("slow", 1e3, 1e5, per_decade=6.0, note="; 6 stages per decade")
+        tag = start.replace("vol:", "").replace("/", "_").replace(".npy", "")[-24:]
+        out.append(BatchSpec(f"e2b-v{pool}-{tag}", "E2b", start, pool, ups,
+                             (evals,) * len(ups) + (2 * evals,), tuple(rows)))
+    return out
+
+
+PLANS = {"smoke": plan_smoke, "e1": plan_e1, "e2": plan_e2, "e2-blend": plan_e2_blend, "e3": plan_e3,
+         "edge": plan_edge, "vdeep": plan_vdeep}
 
 
 def build(names, start: str, evals: int, pools=None) -> list[BatchSpec]:

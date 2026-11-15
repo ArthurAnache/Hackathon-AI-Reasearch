@@ -111,7 +111,12 @@ def test_shift_rolls_blocks_and_other_kinds():
     uni = perturb.apply(f, {"kind": "uniform", "scale": 1e-8}, seed=1)
     assert np.all(uni > 0) and np.abs(uni - f).max() <= 1e-8 * f.max()
     assert np.array_equal(perturb.apply_all(f, (), 3), f)
-    two = perturb.apply_all(f, ({"kind": "lognormal", "sigma": 0.1}, {"kind": "blend", "block": 4, "t": 1.0}), 3)
+    g = np.array([0.0, 0.0, 0.0, 2.0, 4.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+    assert np.allclose(perturb.apply(g, {"kind": "dilate", "radius": 1, "t": 0.5}, 0),
+                       [0.0, 0.0, 1.0, 2.0, 4.0, 2.0, 0.0, 0.0, 0.5, 1.0])
+    assert np.allclose(perturb.apply(g, {"kind": "dilate", "radius": 2, "t": 0.1}, 0),
+                       [0.0, 0.2, 0.4, 2.0, 4.0, 0.4, 0.4, 0.1, 0.1, 1.0])
+    two =perturb.apply_all(f, ({"kind": "lognormal", "sigma": 0.1}, {"kind": "blend", "block": 4, "t": 1.0}), 3)
     assert np.allclose(two, rs.smooth_blocks(perturb.apply(f, {"kind": "lognormal", "sigma": 0.1}, 3), 4))
     assert perturb.describe(({"kind": "blend", "block": 4, "t": 0.5},)) == "blend(block=4, t=0.5)"
     with pytest.raises(ValueError):
@@ -155,6 +160,15 @@ def test_plans_build_and_estimate():
     mixed = pl.build("e1:2:4,e2:64:4", "frozen", 2000)
     assert [b.name for b in mixed] == ["e1-p2", "e1-p4", "e2-v64", "e2-v4"] and len(mixed[2].level_evals) == 7
     assert len(pl.build("e3", "frozen", 2000)[0].rows) == 16
+    deep = pl.build("vdeep", "live", 3000)[0]
+    assert deep.name == "e2b-v2-live" and deep.level_evals == (3000, 6000) and len(deep.rows) == 16
+    row = next(r for r in deep.rows if r.name == "phase-c3-f5")
+    assert row.pre == ({"kind": "roll", "by": 1},)
+    assert pl.stages(deep, row, 0)[0].beta == 1e3 and pl.stages(deep, row, 1)[0].beta == 1e5
+    assert pl.stages(deep, row, 1)[-1].beta == 1e11 and sch.total_evals(pl.stages(deep, row, 1)) == 6000
+    padded = rs.pad_right(_comb(95), 96)
+    assert rs.closed_form_score(perturb.apply(padded, {"kind": "roll", "by": 1}, 0)) == pytest.approx(
+        rs.closed_form_score(padded), abs=1e-13)
     # 16 rows of 2,000,000 cells for 10,000 evaluations: the E0 rate of knockout/v2/gpu (0.0334 s per evaluation)
     one = pl.build("e2-blend", "frozen", 10_000)
     assert pl.estimate(one, overhead_s=0, score_s_per_batch=0)["loop_s"] == pytest.approx(336, rel=0.02)

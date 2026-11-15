@@ -11,6 +11,10 @@ row is the same on any device. A perturbation is a dict {"kind": ..., parameters
                                                          old mass (support kept, envelope kept exactly)
     {"kind": "redraw", "block": k, "frac": p}            cells of a block redrawn with replacement from the
                                                          block's own values, then rescaled to the old mass
+    {"kind": "dilate", "radius": d, "t": t}              zero cells within d cells of the support open at t times
+                                                         the largest value within d cells; no random draw
+    {"kind": "roll", "by": s}                            cyclic shift by s cells: changes the pooling phase, and is
+                                                         score-neutral when the s cells that wrap are zero
 
 "shuffle", "shift", "resample" and "redraw" keep the mass of every block of k cells: they redraw the
 micro-structure at a fixed envelope. `frac` < 1 touches a random share of the blocks that hold mass.
@@ -21,7 +25,16 @@ import numpy as np
 
 from knockout.v2.multires.resample import pad_to_multiple, smooth_blocks
 
-KINDS = ("lognormal", "uniform", "blend", "shuffle", "shift", "resample", "redraw")
+KINDS = ("lognormal", "uniform", "blend", "dilate", "roll", "shuffle", "shift", "resample", "redraw")
+
+
+def local_max(f: np.ndarray, radius: int) -> np.ndarray:
+    """The largest value within `radius` cells of each cell (the ends see zeros)."""
+    out = f.copy()
+    for s in range(1, radius + 1):
+        np.maximum(out[s:], f[:-s], out=out[s:])
+        np.maximum(out[:-s], f[s:], out=out[:-s])
+    return out
 
 
 def _blocks(f: np.ndarray, block: int):
@@ -63,6 +76,13 @@ def apply(f: np.ndarray, spec: dict, seed: int) -> np.ndarray:
         if not 0.0 <= t <= 1.0:
             raise ValueError("blend needs 0 <= t <= 1")
         return (1.0 - t) * f + t * smooth_blocks(f, int(spec["block"]))
+    if kind == "roll":
+        return np.roll(f, int(spec["by"]))
+    if kind == "dilate":
+        radius, t = int(spec["radius"]), float(spec["t"])
+        if radius < 1 or t < 0.0:
+            raise ValueError("dilate needs radius >= 1 and t >= 0")
+        return np.where(f > 0.0, f, t * local_max(f, radius))
     if kind not in KINDS:
         raise ValueError(f"unknown perturbation {kind!r} (known: {KINDS})")
     block = int(spec["block"])
