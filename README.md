@@ -64,7 +64,7 @@ We screened 34 EinsteinArena problems in four pre-registered stages (`README1.md
 4. **Weighted scoring** → main problem `second-autocorrelation-inequality`, backup `circles-rectangle`, record bet
    `ring-loading-15`.
 
-Later, a problem scout (`docs/problem_scout.md`, branch `ws1/freeze-third-autocorrelation`) re-ranked the live
+Later, a problem scout ([`docs/problem_scout.md`](https://github.com/ArthurAnache/Hackathon-AI-Reasearch/blob/ws1/freeze-third-autocorrelation/docs/problem_scout.md), branch `ws1/freeze-third-autocorrelation`) re-ranked the live
 problems and proposed `third-autocorrelation-inequality`; it is frozen as a proposal. Another teammate worked on
 Tao's constants 1d and 1a (branch `ws4-research-map`).
 
@@ -192,7 +192,9 @@ solutions are ours.
 
 ## Detailed results
 
-### Tao constant 1d (branch `ws4-research-map`, `records/1d/README.md`)
+### Tao constant 1d (branch `ws4-research-map`)
+
+Full log and certificates: [`records/1d/README.md`](https://github.com/ArthurAnache/Hackathon-AI-Reasearch/blob/ws4-research-map/records/1d/README.md), [`autoloop/RESULTS.md`](https://github.com/ArthurAnache/Hackathon-AI-Reasearch/blob/ws4-research-map/autoloop/RESULTS.md).
 
 | Run | Score (lower is better) | Status |
 |---|---|---|
@@ -208,7 +210,9 @@ solutions are ours.
 Method evidence (paired runs on 1d, same starts, same time): the research-map loop wins **85 of 100** pairs
 against the earlier loop and **86 of 100** against one long run of the tuned optimizer.
 
-### Third-autocorrelation (branch `ws1/freeze-third-autocorrelation`, `docs/problem_scout.md`)
+### Third-autocorrelation (branch `ws1/freeze-third-autocorrelation`)
+
+Full report: [`docs/problem_scout.md`](https://github.com/ArthurAnache/Hackathon-AI-Reasearch/blob/ws1/freeze-third-autocorrelation/docs/problem_scout.md); arbitration in `README1.md` section 14 on that branch.
 
 | Candidate | Score | Below the live #1 | Provenance |
 |---|---|---|---|
@@ -244,7 +248,7 @@ A record needs +1e-5. Every method stops between +5.2e-8 and +5.9e-8: the level 
 | Third-autocorrelation, v2 basin screen | +0.0003 δ | +0.0002 δ (no significant difference, p = 0.82) |
 | Circles-rectangle, start portfolio (gpt-6.1-sol, 55 min) | 2.3658323759108315 | 2.3658323759108297 (difference 2e-15, float noise) |
 
-### Circles in a rectangle (start portfolio, this branch)
+### Circles in a rectangle (start portfolio)
 
 - From the record, 0 of 92 children beat their parent; from neighbour and cold starts, 34–57 % do. The regime
   bandit learned to prefer cold starts.
@@ -304,12 +308,12 @@ run at equal time (85–86 of 100 pairs).
 | `genetic-method` | Knockout v1 handover and the figures |
 | `ws1-selection`, `ws1/freeze-third-autocorrelation`, `docs/ws1-problem-scout` | problem selection, frozen problems, arbiter, scout and third-autocorrelation candidates |
 | `feature/ws2-v2-moves-cpu`, `feature/ws2-v2-anneal-gpu`, `feature/ws2-v2-multires`, `feature/ws2-v2-basin-screen` | Knockout v2 experiments and their results READMEs |
-| `ws4-research-map` | `autoloop`, Tao 1d and 1a results (`records/1d/`, `autoloop/RESULTS.md`) |
+| `ws4-research-map` | `autoloop`, Tao 1d and 1a results ([`records/1d/`](https://github.com/ArthurAnache/Hackathon-AI-Reasearch/tree/ws4-research-map/records/1d), [`autoloop/RESULTS.md`](https://github.com/ArthurAnache/Hackathon-AI-Reasearch/blob/ws4-research-map/autoloop/RESULTS.md)) |
 | `experiment/savant`, `feature/savant-v3-structural` | SAVANT council |
 | `feature/ws2-lab-agents` | the lab |
 | `results/modal-benchmarks` | first Modal pilot |
 
-Key files on this branch:
+Key files on `main`:
 
 - `problems/` (frozen catalog), `selection/` (selection stages, arbiter, claims, literature and forum tools)
 - `knockout/` (the loop), `knockout/results/` (ledgers of every committed run; replay with
